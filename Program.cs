@@ -9,3 +9,24 @@ for (int i = 0 ; i < deck.DeckCards.Count; i++)
     
     Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
 }
+System.Console.WriteLine("");
+deck.ShuffleDeck();
+for (int i = 0 ; i < deck.DeckCards.Count; i++)
+{   
+    
+    Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
+}
+System.Console.WriteLine("");
+deck.ShuffleDeck();
+for (int i = 0 ; i < deck.DeckCards.Count; i++)
+{   
+    
+    Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
+}
+System.Console.WriteLine("");
+deck.ShuffleDeck();
+for (int i = 0 ; i < deck.DeckCards.Count; i++)
+{   
+    
+    Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
+}
