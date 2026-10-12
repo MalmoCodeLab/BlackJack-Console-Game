@@ -1,1 +1,5 @@
-﻿Console.WriteLine("Hello, Earth!");
+﻿
+ConsoleUi ui = new ConsoleUi();
+
+ui.ShowMenu();
+
