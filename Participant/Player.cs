@@ -1,7 +1,7 @@
 public class Player : Participant
 {
 
-    // Statisik som alla kan läsa men bara Player kan ändra.
+    // Stats everybody can read but only Player can edit
     public int Wins { get; private set; }
     public int Losses { get; private set; }
     public int Pushes { get; private set; }

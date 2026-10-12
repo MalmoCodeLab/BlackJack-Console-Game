@@ -4,3 +4,8 @@ Player anna = new Player("Anna", 2, 8, 9);          // ny spelare, börjar på 0
 Console.WriteLine("W = Wins, L = Losses, P = Pushes");
 Console.WriteLine($"{niclas.Name}: W: {niclas.Wins}, L: {niclas.Losses}, P: {niclas.Pushes}");
 Console.WriteLine($"{anna.Name}: W: {anna.Wins}, L: {anna.Losses}, P: {anna.Pushes}");
+
+Dealer dealer = new Dealer();
+Console.WriteLine($"{dealer.Name}: hålkort synligt? {dealer.HoleCardVisible}");
+dealer.ShowHoleCard();
+Console.WriteLine($"{dealer.Name}: hålkort synligt? {dealer.HoleCardVisible}");
