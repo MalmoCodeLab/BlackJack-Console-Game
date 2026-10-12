@@ -4,7 +4,13 @@ public abstract class Participant
 
     protected Participant (string name)
     {
-        Name = name;
+
+        Name = name.Trim();
+    }
+
+        public override string ToString()
+    {
+        return Name;
     }
 
     public virtual void NewRound()
