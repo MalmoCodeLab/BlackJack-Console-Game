@@ -6,4 +6,9 @@ public abstract class Participant
     {
         Name = name;
     }
+
+    public virtual void NewRound()
+    {
+    }
+
 }
