@@ -10,4 +10,11 @@ public class Dealer : Participant
     {
         HoleCardVisible = true;
     }
+
+    public override void NewRound()
+    {
+        base.NewRound();
+        HoleCardVisible = false;
+    }
+
 }

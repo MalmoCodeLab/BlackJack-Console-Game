@@ -6,6 +6,7 @@ Console.WriteLine($"{niclas.Name}: W: {niclas.Wins}, L: {niclas.Losses}, P: {nic
 Console.WriteLine($"{anna.Name}: W: {anna.Wins}, L: {anna.Losses}, P: {anna.Pushes}");
 
 Dealer dealer = new Dealer();
-Console.WriteLine($"{dealer.Name}: hålkort synligt? {dealer.HoleCardVisible}");
 dealer.ShowHoleCard();
-Console.WriteLine($"{dealer.Name}: hålkort synligt? {dealer.HoleCardVisible}");
+Console.WriteLine($"Visar hålkort: {dealer.HoleCardVisible}");      // True
+dealer.NewRound();
+Console.WriteLine($"Ny runda: {dealer.HoleCardVisible}");  // False       
