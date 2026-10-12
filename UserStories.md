@@ -2,9 +2,9 @@ Shared part (whole group)
 
 Players and startup
 
-As a player, I want to add 1–5 players by name at startup, so that several of us can play at the same table.
-As a returning player, I want my previous results loaded when the program starts, so that my stats carry over.
-As a player, I want to see my wins, losses and pushes, so that I know how I’m doing.
+1. As a player, I want to add 1–5 players by name at startup, so that several of us can play at the same table.
+2. As a returning player, I want my previous results loaded when the program starts, so that my stats carry over.
+3. As a player, I want to see my wins, losses and pushes, so that I know how I’m doing.
 
 The deal
 4. As a player, I want to receive two face-up cards at the start of the round, so that I can make my decision.
