@@ -1,6 +1,7 @@
 class Deck
 {
     public List<Card> DeckCards { get; } = [];
+    public List<Card> DiscardedCards { get; } = [];
 
     public void CreateDeck()
     {
@@ -24,6 +25,20 @@ class Deck
         }
 
     }
+    public void CheckIfNewShuffleIsNeeded()
+    {
+        if (DeckCards.Count < 15)
+        {
+            ShuffleDeck();
+        }
+    }
+    public Card DealCard()
+    {
+        Card dealCard = DeckCards[0];
+        DeckCards.RemoveAt(0);
+        return dealCard;
+    }
+
 
 }
 
