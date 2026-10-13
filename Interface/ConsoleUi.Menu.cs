@@ -19,20 +19,12 @@ public partial class ConsoleUi
         int selectedOption = 0;
 
         AnsiConsole.Clear();
+        ShowHeader();
 
-        var header = new Panel(
-            new Markup(
-                "[bold gold1]♠ BLACKJACK 21 ♠[/]\n" +
-                "[italic green3]Tur kan inte kompileras.[/]"
-            )
-        )
-        .Border(BoxBorder.Rounded)
-        .BorderColor(Color.Gold1);
+        AnsiConsole.MarkupLine(
+            "[bold gold1]♠ HUVUDMENY ♠[/]"
+        );
 
-        AnsiConsole.Write(header);
-        AnsiConsole.WriteLine();
-
-        AnsiConsole.MarkupLine("[bold gold1]♠ HUVUDMENY ♠[/]");
         AnsiConsole.WriteLine();
 
         int menuStartRow = Console.CursorTop;
@@ -45,8 +37,9 @@ public partial class ConsoleUi
 
         AnsiConsole.WriteLine();
 
+        // Displays navigation instructions below the menu.
         AnsiConsole.MarkupLine(
-            "[grey]↑ ↓ Navigera med piltangenterna • Enter för att välja[/]"
+            "[grey]↑ ↓ Navigera med piltangenterna - Enter för att välja[/]"
         );
 
         try
@@ -55,7 +48,7 @@ public partial class ConsoleUi
 
             while (true)
             {
-                // Updates the menu without clearing the screen.
+                // Moves the cursor back to the menu.
                 Console.SetCursorPosition(0, menuStartRow);
 
                 for (int i = 0; i < menuOptions.Length; i++)
@@ -65,7 +58,7 @@ public partial class ConsoleUi
                     if (i == selectedOption)
                     {
                         AnsiConsole.MarkupLine(
-                            $"[bold gold1 on darkgreen]❯ {option}[/]"
+                            $"[bold white on darkgreen]❯ {option}[/]"
                         );
                     }
                     else
