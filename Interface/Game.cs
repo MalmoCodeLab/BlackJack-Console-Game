@@ -47,27 +47,48 @@ public class Game
         int playerCount = ui.AskPlayerCount();
 
         Console.Clear();
-        ui.ShowHeader();
 
-        ui.ShowMessage($"Du har valt {playerCount} spelare.");
+        // Creates temporary dealer cards for testing.
+        Hand dealerHand = new Hand();
+
+        dealerHand.CardsOnHand.Add(
+            new Card(Suit.Clubs, Rank.Queen)
+        );
+
+        dealerHand.CardsOnHand.Add(
+            new Card(Suit.Diamonds, Rank.Seven)
+        );
+
+        // Creates temporary player cards for testing.
+        Hand playerHand = new Hand();
+
+        playerHand.CardsOnHand.Add(
+            new Card(Suit.Hearts, Rank.Ace)
+        );
+
+        playerHand.CardsOnHand.Add(
+            new Card(Suit.Spades, Rank.King)
+        );
+
+        // Displays both hands on the green Blackjack table.
+        ui.ShowTable(playerHand, dealerHand);
 
         Console.WriteLine();
-        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
 
+        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
         Console.ReadKey(true);
     }
 
-    // Displays a temporary message.
+    // Displays a temporary message before returning to the menu.
     private void ShowTemporaryMessage(string message)
     {
         Console.Clear();
         ui.ShowHeader();
-
         ui.ShowMessage(message);
 
         Console.WriteLine();
-        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
 
+        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
         Console.ReadKey(true);
     }
 }
