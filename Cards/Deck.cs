@@ -1,6 +1,7 @@
 class Deck
 {
     public List<Card> DeckCards { get; } = [];
+    public List<Card> DiscardedCards { get; } = [];
 
     public void CreateDeck()
     {

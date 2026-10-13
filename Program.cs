@@ -1,15 +1,15 @@
-﻿Deck deck = new ();
+﻿Deck deck = new();
 deck.CreateDeck();
 Hand hand1 = new();
 deck.ShuffleDeck();
-for (int i = 0 ; i < deck.DeckCards.Count; i++)
+for (int i = 0; i < deck.DeckCards.Count; i++)
 {
     Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
 }
 hand1.CardsOnHand.Add(deck.DeckCards[0]);
 deck.DeckCards.RemoveAt(0);
 // Check all cards
-for (int i = 0 ; i < deck.DeckCards.Count; i++)
+for (int i = 0; i < deck.DeckCards.Count; i++)
 {
 
     Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
@@ -22,5 +22,20 @@ System.Console.WriteLine(hand1.CardsOnHand);
 System.Console.WriteLine(hand1.CardsOnHand[0].Rank + " " + hand1.CardsOnHand[0].Suit);*/
 System.Console.WriteLine("");
 System.Console.WriteLine(hand1.CardsOnHand[0].Rank + " " + hand1.CardsOnHand[0].Suit);
+hand1.CardsOnHand.Add(deck.DeckCards[0]);
+deck.DeckCards.RemoveAt(0);
+hand1.DiscardCards();
+System.Console.WriteLine("Discard");
+if (hand1.CardsOnHand.Count > 0)
+{
+    for (int i = 0; i < hand1.CardsOnHand.Count; i++)
+    {
+        System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
+    }
+
+}
+
+
+
 
 
