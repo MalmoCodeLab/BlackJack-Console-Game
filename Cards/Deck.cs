@@ -16,9 +16,18 @@ class Deck
     }
     public void ShuffleDeck()
     {
-        for (int i = 51; i >= 0; i--)
+        if (DiscardedCards.Count > 0)
         {
-            int number = Random.Shared.Next(0, i+1);
+            int nrOfCardsToTransfer = DiscardedCards.Count;
+            for (int i = 0; i < nrOfCardsToTransfer; i++)
+            {
+                DeckCards.Add(DiscardedCards[0]);
+                DiscardedCards.RemoveAt(0);
+            }
+        }
+        for (int i = DeckCards.Count; i >= 0; i--)
+        {
+            int number = Random.Shared.Next(0, i + 1);
             Card TempCard = DeckCards[number];
             DeckCards[number] = DeckCards[i];
             DeckCards[i] = TempCard;

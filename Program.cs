@@ -60,7 +60,24 @@ for (int i = 0; i < hand1.CardsOnHand.Count; i++)
 {
     System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
 }
+deck.ShuffleDeck();
+System.Console.WriteLine("Shuffle deck \n");
 
+System.Console.WriteLine("Discarded cards in deck");
+if (deck.DiscardedCards.Count > 0)
+{
+    for (int i = 0; i < deck.DiscardedCards.Count; i++)
+    {
+        System.Console.WriteLine(deck.DiscardedCards[i].Rank + " " + deck.DiscardedCards[i].Suit);
+    }
+
+}
+
+for (int i = 0; i < deck.DeckCards.Count; i++)
+{
+
+    Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
+}
 
 
 
