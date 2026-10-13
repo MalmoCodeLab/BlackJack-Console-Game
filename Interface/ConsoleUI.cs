@@ -2,8 +2,57 @@
 using System;
 using Spectre.Console;
 
-public partial class ConsoleUi
+public partial class ConsoleUi : IGameUI
 {
+    // Clears the console before drawing a new screen.
+    public void Clear()
+    {
+        AnsiConsole.Clear();
+    }
+
+    // Displays a notice and waits for the player to return.
+    public void ShowNotice(string message)
+    {
+        Clear();
+        ShowHeader();
+        ShowMessage(message);
+
+        AnsiConsole.WriteLine();
+        ShowMessage("Tryck på valfri tangent för att återgå.");
+        Console.ReadKey(true);
+    }
+
+    // Displays saved player statistics.
+    public void ShowStatistics(
+        System.Collections.Generic.IReadOnlyDictionary<string, PlayerStatistics> statistics)
+    {
+        Clear();
+        ShowHeader();
+
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .BorderColor(Color.Gold1);
+
+        table.AddColumn("[gold1]Spelare[/]");
+        table.AddColumn("[green]Vinster[/]");
+        table.AddColumn("[red]Förluster[/]");
+        table.AddColumn("[yellow]Oavgjorda[/]");
+
+        foreach (var result in statistics)
+        {
+            table.AddRow(
+                Markup.Escape(result.Key),
+                result.Value.Wins.ToString(),
+                result.Value.Losses.ToString(),
+                result.Value.Pushes.ToString());
+        }
+
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
+        ShowMessage("Tryck på valfri tangent för att återgå.");
+        Console.ReadKey(true);
+    }
+
     // Displays the Blackjack header.
     public void ShowHeader()
     {

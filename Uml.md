@@ -10,21 +10,34 @@ classDiagram
     class Program {
         +Main()
     }
-    class ConsoleUI {
-        +CreatePlayers(savedResults) List~Player~
-        +ReadMove(player) Move
-        +AskToPlayAgain() bool
-        +ShowHand(participant, hideSecondCard)
-        +ShowOutcome(player, outcome)
+    class IGameUI {
+        <<interface>>
+        +ShowMenu() MainMenuChoice
+        +AskPlayerCount() int
+        +ShowGameMenu() GameMenuChoice
+        +ShowTable(players, dealer)
+        +ShowStatistics(statistics)
+        +ShowNotice(message)
+        +Clear()
+    }
+    class ConsoleUi {
+        +ShowMenu() MainMenuChoice
+        +AskPlayerCount() int
+        +ShowGameMenu() GameMenuChoice
+        +ShowRules()
+        +ShowCredits()
+        +ShowTable(players, dealer)
+        +ShowStatistics(statistics)
+        +ShowNotice(message)
     }
     class Game {
-        -List~Player~ players
-        -ConsoleUI ui
-        -Dealer dealer
-        -Deck deck
+        -IGameUI ui
+        -GameStorage gameStorage
         +Run()
-        -PlayRound()
-        -DetermineOutcome(player) Outcome
+        -StartNewGame()
+        -ShowGame(players, dealer)
+        -SaveGame(players) bool
+        -LoadGame()
     }
     class GameStorage {
         -string filePath
@@ -113,18 +126,29 @@ classDiagram
         Loss
         Push
     }
+    class MainMenuChoice {
+        <<enumeration>>
+        NewGame
+        LoadGame
+        Rules
+        Credits
+        Exit
+    }
+    class GameMenuChoice {
+        <<enumeration>>
+        SaveAndExit
+        ReturnToMainMenu
+    }
 
-    Program ..> ConsoleUI : creates
+    Program ..> ConsoleUi : creates
     Program ..> Game : creates and runs
-    Program ..> GameStorage : loads and saves
-    Program ..> PlayerStatistics : maps player totals
-    ConsoleUI ..> PlayerStatistics : reads saved totals
-    ConsoleUI ..> Move : returns player choice
-    ConsoleUI ..> Outcome : displays result
-    Game --> ConsoleUI : requests input and display
-    Game o-- "1..5" Player : plays
-    Game *-- Dealer : owns
-    Game *-- Deck : owns
+    Program ..> GameStorage : creates
+    ConsoleUi ..|> IGameUI : implements
+    Game --> IGameUI : requests input and display
+    IGameUI ..> MainMenuChoice : returns
+    IGameUI ..> GameMenuChoice : returns
+    IGameUI ..> PlayerStatistics : displays
+    Game ..> GameStorage : loads and saves
     Player --|> Participant
     Dealer --|> Participant
     Participant *-- Hand : owns
@@ -141,10 +165,11 @@ classDiagram
 
 | Class | Responsibility | Should not own |
 |---|---|---|
-| `Program` | Composition root: load saved totals, create the UI and game, start play, and save totals on exit. | Round rules or card scoring. |
-| `ConsoleUI` | Read and validate console input; display players, hands, prompts, and outcomes. | Game flow, scoring, or file access. |
-| `Game` | Coordinate rounds, player turns, dealer turn, result calculation, and statistics updates. | JSON serialization or low-level console input parsing. |
-| `GameStorage` | Load and save player statistics to the JSON file. | Running a round or interacting with the console. |
+| `Program` | Composition root: create the console UI and storage, inject them into the game, and start the application. | Menu flow, card rendering, or JSON serialization. |
+| `IGameUI` | Define the UI operations that game flow can request without depending on a console implementation. | Rendering or game rules. |
+| `ConsoleUi` | Implement `IGameUI` with Spectre.Console menus, tables, prompts, and messages. | Game flow, statistics persistence, or outcome rules. |
+| `Game` | Coordinate application/game flow and request input or display through `IGameUI`. | Depending on `ConsoleUi` or rendering console output directly. |
+| `GameStorage` | Load and save player statistics to the JSON file. | Menu flow or console interaction. |
 | `PlayerStatistics` | Represent the persisted wins, losses, and pushes for one player. | Game behavior or persistence operations. |
 | `Participant` | Share a name, hand, card receiving, score calculation, bust/blackjack checks, and round reset. | Player-specific statistics or dealer policy. |
 | `Player` | Track one player's wins, losses, and pushes. | Console interaction or saved-file management. |
@@ -157,15 +182,11 @@ classDiagram
 
 ## Runtime flow
 
-1. `Program` loads the saved statistics with `GameStorage`.
-2. `ConsoleUI` asks for one to five player names and creates each `Player`, initialized with any
-   saved totals.
-3. `Program` creates `Game` and starts its `Run` method.
-4. `Game` deals and coordinates player turns, reveals the dealer's hole card, plays the dealer's
-   turn, and settles each player's result.
-5. `ConsoleUI` handles the prompts and output requested by `Game`.
-6. When the players quit, `Program` merges the current players' totals into the loaded statistics
-   and saves them with `GameStorage`.
+1. `Program` creates `ConsoleUi`, `GameStorage`, and `Game`, passing the UI and storage into the
+   game.
+2. `Game` requests menu input and display operations through `IGameUI`.
+3. `ConsoleUi` implements those requests with the console and Spectre.Console.
+4. `Game` uses `GameStorage` to load and save player statistics.
 
 ## Notes
 

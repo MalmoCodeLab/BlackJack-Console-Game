@@ -3,12 +3,17 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using Spectre.Console;
 
 public class Game
 {
-    private readonly ConsoleUi ui = new ConsoleUi();
-    private readonly GameStorage gameStorage = new GameStorage();
+    private readonly IGameUI ui;
+    private readonly GameStorage gameStorage;
+
+    internal Game(IGameUI ui, GameStorage gameStorage)
+    {
+        this.ui = ui ?? throw new ArgumentNullException(nameof(ui));
+        this.gameStorage = gameStorage ?? throw new ArgumentNullException(nameof(gameStorage));
+    }
 
     // Starts the game and displays the main menu.
     public void Run()
@@ -17,33 +22,33 @@ public class Game
 
         while (running)
         {
-            string choice = ui.ShowMenu();
+            MainMenuChoice choice = ui.ShowMenu();
 
             switch (choice)
             {
-                case "♠ Nytt spel":
+                case MainMenuChoice.NewGame:
                     StartNewGame();
                     break;
 
-                case "♦ Ladda spel":
+                case MainMenuChoice.LoadGame:
                     LoadGame();
                     break;
 
-                case "♥ Spelregler":
+                case MainMenuChoice.Rules:
                     ui.ShowRules();
                     break;
 
-                case "♣ Medverkande":
+                case MainMenuChoice.Credits:
                     ui.ShowCredits();
                     break;
 
-                case "♠ Avsluta":
+                case MainMenuChoice.Exit:
                     running = false;
                     break;
             }
         }
 
-        Console.Clear();
+        ui.Clear();
     }
 
     // Starts a new Blackjack game.
@@ -114,38 +119,22 @@ public class Game
 
         while (playing)
         {
-            Console.Clear();
+            ui.Clear();
 
             ui.ShowTable(players, dealer);
 
-            AnsiConsole.WriteLine();
-
-            string choice = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("[bold gold1]♠ Spelmeny ♠[/]")
-                    .PageSize(3)
-                    .HighlightStyle(
-                        new Style(
-                            foreground: Color.White,
-                            background: new Color(150, 25, 35)
-                        )
-                    )
-                    .AddChoices(
-                        "♦ Spara och avsluta",
-                        "♣ Till huvudmenyn"
-                    )
-            );
+            GameMenuChoice choice = ui.ShowGameMenu();
 
             switch (choice)
             {
-                case "♦ Spara och avsluta":
+                case GameMenuChoice.SaveAndExit:
                     if (SaveGame(players))
                     {
                         playing = false;
                     }
                     break;
 
-                case "♣ Till huvudmenyn":
+                case GameMenuChoice.ReturnToMainMenu:
                     playing = false;
                     break;
             }
@@ -188,7 +177,7 @@ public class Game
     // Loads and displays saved player statistics.
     private void LoadGame()
     {
-        Console.Clear();
+        ui.Clear();
 
         try
         {
@@ -201,33 +190,7 @@ public class Game
                 return;
             }
 
-            ui.ShowHeader();
-
-            var table = new Table()
-                .Border(TableBorder.Rounded)
-                .BorderColor(Color.Gold1);
-
-            table.AddColumn("[gold1]Spelare[/]");
-            table.AddColumn("[green]Vinster[/]");
-            table.AddColumn("[red]Förluster[/]");
-            table.AddColumn("[yellow]Oavgjorda[/]");
-
-            foreach (var result in results)
-            {
-                table.AddRow(
-                    Markup.Escape(result.Key),
-                    result.Value.Wins.ToString(),
-                    result.Value.Losses.ToString(),
-                    result.Value.Pushes.ToString()
-                );
-            }
-
-            AnsiConsole.Write(table);
-
-            Console.WriteLine();
-
-            ui.ShowMessage("Tryck på valfri tangent för att återgå.");
-            Console.ReadKey(true);
+            ui.ShowStatistics(results);
         }
         catch (Exception ex) when (
             ex is IOException ||
@@ -241,14 +204,6 @@ public class Game
     // Displays a message before returning to the menu.
     private void ShowMessage(string message)
     {
-        Console.Clear();
-
-        ui.ShowHeader();
-        ui.ShowMessage(message);
-
-        Console.WriteLine();
-
-        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
-        Console.ReadKey(true);
+        ui.ShowNotice(message);
     }
 }

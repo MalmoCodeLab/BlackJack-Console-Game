@@ -15,7 +15,7 @@ public partial class ConsoleUi
     private const string Gold = "gold1";
 
     // Displays the Blackjack table for all players.
-    internal void ShowTable(List<Player> players, Dealer dealer)
+    void IGameUI.ShowTable(IReadOnlyList<Player> players, Dealer dealer)
     {
         AnsiConsole.MarkupLine(
             $"[{Gold}]╭{new string('─', TableWidth)}╮[/]"

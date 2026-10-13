@@ -6,20 +6,20 @@ using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
-    private readonly string[] menuOptions =
+    private readonly (MainMenuChoice Choice, string Label)[] menuOptions =
     {
-        "♠ Nytt spel",
-        "♦ Ladda spel",
-        "♥ Spelregler",
-        "♣ Medverkande",
-        "♠ Avsluta"
+        (MainMenuChoice.NewGame, "♠ Nytt spel"),
+        (MainMenuChoice.LoadGame, "♦ Ladda spel"),
+        (MainMenuChoice.Rules, "♥ Spelregler"),
+        (MainMenuChoice.Credits, "♣ Medverkande"),
+        (MainMenuChoice.Exit, "♠ Avsluta")
     };
 
     // Displays the main menu with arrow-key navigation.
-    public string ShowMenu()
+    public MainMenuChoice ShowMenu()
     {
         int selectedOption = 0;
-        string choice = "";
+        MainMenuChoice choice = MainMenuChoice.Exit;
 
         AnsiConsole.Clear();
         ShowHeader();
@@ -61,7 +61,7 @@ public partial class ConsoleUi
                     }
                     else if (key == ConsoleKey.Enter)
                     {
-                        choice = menuOptions[selectedOption];
+                        choice = menuOptions[selectedOption].Choice;
                         break;
                     }
                     else
@@ -77,6 +77,30 @@ public partial class ConsoleUi
         return choice;
     }
 
+    // Displays the menu available while a game is in progress.
+    public GameMenuChoice ShowGameMenu()
+    {
+        string choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("[bold gold1]♠ Spelmeny ♠[/]")
+                .PageSize(3)
+                .HighlightStyle(
+                    new Style(
+                        foreground: Color.White,
+                        background: new Color(150, 25, 35)
+                    )
+                )
+                .AddChoices(
+                    "♦ Spara och avsluta",
+                    "♣ Till huvudmenyn"
+                )
+        );
+
+        return choice == "♦ Spara och avsluta"
+            ? GameMenuChoice.SaveAndExit
+            : GameMenuChoice.ReturnToMainMenu;
+    }
+
     // Creates the menu with navigation instructions at the bottom.
     private IRenderable CreateMenu(int selectedOption)
     {
@@ -84,7 +108,7 @@ public partial class ConsoleUi
 
         for (int i = 0; i < menuOptions.Length; i++)
         {
-            string option = Markup.Escape(menuOptions[i]);
+            string option = Markup.Escape(menuOptions[i].Label);
 
             if (i == selectedOption)
             {
@@ -115,6 +139,5 @@ public partial class ConsoleUi
         return new Rows(menuRows);
     }
 }
-
 
 

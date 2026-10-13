@@ -17,7 +17,7 @@ This is the basic game: it does not use bets, chips, insurance, doubling down, o
 ## Project responsibilities
 
 - `Program.cs` starts the application and connects the user interface, game, and storage.
-- `ConsoleUI` handles console input and output.
+- `ConsoleUi` implements `IGameUI` to handle console input and output.
 - `Game` coordinates rounds, turns, and outcomes.
 - `Player` and `Dealer` represent the people playing; `Participant` contains behavior shared by both.
 - `Deck`, `Hand`, and `Card` handle cards, dealing, and hand contents.
