@@ -10,7 +10,8 @@ statistics between program runs.
 - Load each returning player's wins, losses, and pushes.
 - Deal from a 52-card deck and reshuffle the discard pile when fewer than 15 cards remain.
 - Apply the dealer's fixed rule: hit on 16 or less and stand on 17 or more.
-- Save player statistics as JSON when the game exits.
+- Save cumulative player statistics as JSON for the game and as a readable `player-results.txt`
+  report for players.
 
 This is the basic game: it does not use bets, chips, insurance, doubling down, or splitting pairs.
 
@@ -34,7 +35,9 @@ From the project directory, run:
 dotnet run
 ```
 
-Player statistics are stored in `player-results.json` in the current working directory.
+Player statistics are saved in `player-results.json` and summarized in the human-readable
+`player-results.txt`, both in the current working directory. The text report contains cumulative
+totals from previous sessions as well as the latest saved results.
 
 ## Language
 

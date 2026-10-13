@@ -172,7 +172,9 @@ public class Game
 
             gameStorage.SaveResults(results);
 
-            ShowMessage("Spelarstatistiken har sparats!");
+            Dictionary<string, PlayerStatistics> savedResults =
+                gameStorage.LoadResults();
+            ui.ShowStatistics(savedResults);
             return true;
         }
         catch (Exception ex) when (
@@ -201,33 +203,7 @@ public class Game
                 return;
             }
 
-            ui.ShowHeader();
-
-            var table = new Table()
-                .Border(TableBorder.Rounded)
-                .BorderColor(Color.Gold1);
-
-            table.AddColumn("[gold1]Spelare[/]");
-            table.AddColumn("[green]Vinster[/]");
-            table.AddColumn("[red]Förluster[/]");
-            table.AddColumn("[yellow]Oavgjorda[/]");
-
-            foreach (var result in results)
-            {
-                table.AddRow(
-                    Markup.Escape(result.Key),
-                    result.Value.Wins.ToString(),
-                    result.Value.Losses.ToString(),
-                    result.Value.Pushes.ToString()
-                );
-            }
-
-            AnsiConsole.Write(table);
-
-            Console.WriteLine();
-
-            ui.ShowMessage("Tryck på valfri tangent för att återgå.");
-            Console.ReadKey(true);
+            ui.ShowStatistics(results);
         }
         catch (Exception ex) when (
             ex is IOException ||

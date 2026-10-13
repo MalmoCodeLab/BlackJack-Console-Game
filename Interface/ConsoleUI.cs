@@ -1,5 +1,6 @@
 
 using System;
+using System.Collections.Generic;
 using Spectre.Console;
 
 public partial class ConsoleUi
@@ -59,6 +60,47 @@ public partial class ConsoleUi
         .BorderColor(Color.Gold1);
 
         AnsiConsole.Write(panel);
+    }
+
+    // Displays cumulative player statistics loaded from the results file.
+    public void ShowStatistics(IReadOnlyDictionary<string, PlayerStatistics> results)
+    {
+        AnsiConsole.Clear();
+        ShowHeader();
+
+        if (results.Count == 0)
+        {
+            ShowMessage("Det finns inga sparade resultat.");
+        }
+        else
+        {
+            var table = new Table()
+                .Border(TableBorder.Rounded)
+                .BorderColor(Color.Gold1);
+
+            table.AddColumn("[gold1]Spelare[/]");
+            table.AddColumn("[green]Vinster[/]");
+            table.AddColumn("[red]Förluster[/]");
+            table.AddColumn("[yellow]Oavgjorda[/]");
+            table.AddColumn("[blue]Rundor[/]");
+
+            foreach (var (name, statistics) in results)
+            {
+                int roundsPlayed = statistics.Wins + statistics.Losses + statistics.Pushes;
+                table.AddRow(
+                    Markup.Escape(name),
+                    statistics.Wins.ToString(),
+                    statistics.Losses.ToString(),
+                    statistics.Pushes.ToString(),
+                    roundsPlayed.ToString());
+            }
+
+            AnsiConsole.Write(table);
+        }
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[grey]Tryck på valfri tangent för att återgå.[/]");
+        Console.ReadKey(true);
     }
 
     // Displays the Blackjack rules.
