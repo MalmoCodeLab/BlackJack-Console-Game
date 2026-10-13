@@ -1,5 +1,6 @@
 
 using System;
+using System.Collections.Generic;
 using Spectre.Console;
 
 public partial class ConsoleUi
@@ -28,12 +29,13 @@ public partial class ConsoleUi
         );
     }
 
-    // Asks the player to buy a card or stand.
+    // Displays the game actions.
     public string AskMove()
     {
         return AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("[bold gold1]Vad vill du göra?[/]")
+                .PageSize(3)
                 .HighlightStyle(
                     new Style(
                         foreground: Color.White,
@@ -42,9 +44,32 @@ public partial class ConsoleUi
                 )
                 .AddChoices(
                     "♠ Köpa",
-                    "♥ Stanna"
+                    "♥ Stanna",
+                    "♦ Satsa"
                 )
         );
+    }
+
+    // Opens betting mode when the player selects Bet.
+    // Internal matches the accessibility of Player and Dealer.
+    internal string AskMove(List<Player> players, Dealer dealer)
+    {
+        while (true)
+        {
+            string choice = AskMove();
+
+            if (choice == "♦ Satsa")
+            {
+                // Opens selectable casino chips.
+                ShowBettingMode(players, dealer);
+
+                // Returns to the action menu.
+                continue;
+            }
+
+            // Returns Hit or Stand to the game.
+            return choice;
+        }
     }
 
     // Displays the round result.
@@ -88,6 +113,7 @@ public partial class ConsoleUi
                 "[bold gold1]DIN TUR[/]\n" +
                 "[white]♠ Köpa – Ta ett nytt kort.[/]\n" +
                 "[white]♥ Stanna – Avsluta din tur.[/]\n" +
+                "[white]♦ Satsa – Välj och placera marker.[/]\n" +
                 "[white]Över 21 innebär att du spräcker och förlorar.[/]\n\n" +
 
                 "[bold gold1]GIVARENS TUR[/]\n" +
@@ -151,16 +177,26 @@ public partial class ConsoleUi
         AnsiConsole.Clear();
         ShowHeader();
 
-        return AnsiConsole.Prompt(
-            new SelectionPrompt<int>()
+        string choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
                 .Title("[bold gold1]♠ Hur många spelare? ♠[/]")
+                .PageSize(5)
                 .HighlightStyle(
                     new Style(
                         foreground: Color.White,
                         background: new Color(0, 100, 50)
                     )
                 )
-                .AddChoices(1, 2, 3, 4, 5)
+                .AddChoices(
+                    "1 spelare",
+                    "2 spelare",
+                    "3 spelare",
+                    "4 spelare",
+                    "5 spelare"
+                )
         );
+
+        // Converts the selected option to a number.
+        return int.Parse(choice.Split(' ')[0]);
     }
 }
