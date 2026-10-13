@@ -7,4 +7,6 @@ class Hand
         Card recievedCard = deck.DealCard();
         CardsOnHand.Add(recievedCard);
     }
+
+    
 }
