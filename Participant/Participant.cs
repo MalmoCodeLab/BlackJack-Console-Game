@@ -5,6 +5,11 @@ abstract class Participant
 
     protected Participant(string name)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Namnet får inte vara tomt.");
+        }
+
         Name = name.Trim();
     }
 
