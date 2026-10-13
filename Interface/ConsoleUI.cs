@@ -126,7 +126,10 @@ public partial class ConsoleUi
         var credits = new Panel(
             new Markup(
                 "[bold gold1]♣ MEDVERKANDE ♣[/]\n\n" +
-                "[white]Alice - ConsoleUi.cs, Game.cs[/]"
+                "[white]Alice       - Interface[/]\n" +
+                "[white]Sofia       - GameStorage[/]\n" +
+                "[white]Christoffer - Cards[/]\n" +
+                "[white]Niclas      - Participant[/]"
             )
         )
         .Border(BoxBorder.Rounded)
