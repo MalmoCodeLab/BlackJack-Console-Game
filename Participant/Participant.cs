@@ -14,8 +14,6 @@ abstract class Participant
         Hand.ReceiveCard(deck);
     }
 
-    // Handens värde. Ess räknas som 11, men blir 1 om summan går över 21.
-    // (Kan flyttas in i Hand om gruppen vill.)
     public int Score
     {
         get
@@ -50,7 +48,6 @@ abstract class Participant
         return Name;
     }
 
-    // Ny runda: släng korten på handen
     public virtual void NewRound()
     {
         Hand.DiscardCards();
