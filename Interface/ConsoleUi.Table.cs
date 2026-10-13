@@ -26,18 +26,18 @@ public partial class ConsoleUi
         WriteTableLine("DEALER");
         WriteTableLine("");
 
+        // Displays the dealer's cards.
         WriteCards(dealerHand, true);
 
         WriteTableLine("");
         WriteTableLine("────────────────────────────");
         WriteTableLine("");
-        WriteTableLine("SPELARE 1");
+        WriteTableLine("PLAYER 1");
         WriteTableLine("");
 
+        // Displays the player's cards.
         WriteCards(playerHand, false);
 
-        WriteTableLine("");
-        WriteTableLine("Tur kan inte kompileras.");
         WriteTableLine("");
 
         AnsiConsole.MarkupLine(
@@ -86,7 +86,7 @@ public partial class ConsoleUi
 
         if (cards.Count == 0)
         {
-            WriteTableLine("Inga kort ännu.");
+            WriteTableLine("No cards yet.");
             return;
         }
 
