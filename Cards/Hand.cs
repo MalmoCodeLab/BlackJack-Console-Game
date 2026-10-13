@@ -18,8 +18,5 @@ class Hand
             CardsOnHand.RemoveAt(0);
         }
         return CardsToDiscard;
-
     }
-
-
 }

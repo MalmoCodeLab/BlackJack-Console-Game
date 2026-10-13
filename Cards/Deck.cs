@@ -38,6 +38,16 @@ class Deck
         DeckCards.RemoveAt(0);
         return dealCard;
     }
+    public void ReciveDiscardedCard(Hand hand)
+    {
+        List<Card> recievedDiscardedCard = hand.DiscardCards();
+        int numberOfCards = recievedDiscardedCard.Count();
+        for (int i = 0; i < numberOfCards; i++)
+        {
+            DiscardedCards.Add(recievedDiscardedCard[0]);
+            recievedDiscardedCard.RemoveAt(0);
+        }
+    }
 
 
 }
