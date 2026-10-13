@@ -14,8 +14,8 @@ public partial class ConsoleUi
     private const string Felt = "#004B28";
     private const string Gold = "gold1";
 
-    // Displays the Blackjack table.
-    internal void ShowTable(Hand playerHand, Hand dealerHand)
+    // Displays the Blackjack table for all players.
+    internal void ShowTable(List<Player> players, Dealer dealer)
     {
         AnsiConsole.MarkupLine(
             $"[{Gold}]╭{new string('─', TableWidth)}╮[/]"
@@ -23,26 +23,91 @@ public partial class ConsoleUi
 
         WriteTableLine("♠ BLACKJACK 21 ♠");
         WriteTableLine("");
+
+        // Displays Player 2-5 with small colored cards.
+        if (players.Count > 1)
+        {
+            for (int i = 1; i < players.Count; i++)
+            {
+                WritePlayerSummary(players[i]);
+            }
+
+            WriteTableLine("");
+            WriteTableLine("────────────────────────────");
+            WriteTableLine("");
+        }
+
         WriteTableLine("DEALER");
         WriteTableLine("");
 
         // Displays the dealer's cards.
-        WriteCards(dealerHand, true);
+        WriteCards(dealer.Hand, !dealer.HoleCardVisible);
 
         WriteTableLine("");
         WriteTableLine("────────────────────────────");
         WriteTableLine("");
-        WriteTableLine("PLAYER 1");
+
+        WriteTableLine(players[0].Name.ToUpper());
         WriteTableLine("");
 
-        // Displays the player's cards.
-        WriteCards(playerHand, false);
+        // Displays Player 1 with large playing cards.
+        WriteCards(players[0].Hand, false);
 
         WriteTableLine("");
 
         AnsiConsole.MarkupLine(
             $"[{Gold}]╰{new string('─', TableWidth)}╯[/]"
         );
+    }
+
+    // Displays a player's cards with colored suits.
+    private void WritePlayerSummary(Player player)
+    {
+        string cards = "";
+
+        foreach (Card card in player.Hand.CardsOnHand)
+        {
+            string cardText = GetCardText(card);
+
+            if (card.Suit == Suit.Hearts ||
+                card.Suit == Suit.Diamonds)
+            {
+                cards += $"[red on white]{cardText}[/] ";
+            }
+            else
+            {
+                cards += $"[black on white]{cardText}[/] ";
+            }
+        }
+
+        WriteColoredTableLine(
+            $"{Markup.Escape(player.Name)}: {cards.TrimEnd()}"
+        );
+    }
+
+    // Converts a card into a short text representation.
+    private string GetCardText(Card card)
+    {
+        string rank = card.Rank switch
+        {
+            Rank.Ace => "A",
+            Rank.King => "K",
+            Rank.Queen => "Q",
+            Rank.Jack => "J",
+            Rank.Ten => "10",
+            _ => ((int)card.Rank + 2).ToString()
+        };
+
+        string suit = card.Suit switch
+        {
+            Suit.Hearts => "♥",
+            Suit.Diamonds => "♦",
+            Suit.Clubs => "♣",
+            Suit.Spades => "♠",
+            _ => ""
+        };
+
+        return rank + suit;
     }
 
     // Writes a centered line on the table.
@@ -68,6 +133,30 @@ public partial class ConsoleUi
         );
     }
 
+    // Writes a colored line on the Blackjack table.
+    private void WriteColoredTableLine(string text)
+    {
+        string plainText = Markup.Remove(text);
+
+        if (plainText.Length > TableWidth)
+        {
+            throw new ArgumentException(
+                "Player summary is wider than the table."
+            );
+        }
+
+        int left = (TableWidth - plainText.Length) / 2;
+        int right = TableWidth - plainText.Length - left;
+
+        AnsiConsole.MarkupLine(
+            $"[{Gold}]│[/]" +
+            $"[on {Felt}]{new string(' ', left)}[/]" +
+            $"[white on {Felt}]{text}[/]" +
+            $"[on {Felt}]{new string(' ', right)}[/]" +
+            $"[{Gold}]│[/]"
+        );
+    }
+
     // Places the playing cards on the table.
     private void WriteCards(Hand hand, bool hideSecondCard)
     {
@@ -77,11 +166,9 @@ public partial class ConsoleUi
         {
             bool hidden = hideSecondCard && i == 1;
 
-            cards.Add(
-                hidden
-                    ? cardRenderer.RenderHiddenCard()
-                    : cardRenderer.RenderCard(hand.CardsOnHand[i])
-            );
+            cards.Add(hidden
+                ? cardRenderer.RenderHiddenCard()
+                : cardRenderer.RenderCard(hand.CardsOnHand[i]));
         }
 
         if (cards.Count == 0)
@@ -140,9 +227,6 @@ public partial class ConsoleUi
     // Displays the dealer's cards.
     internal void ShowDealerCards(Dealer dealer)
     {
-        WriteCards(
-            dealer.Hand,
-            !dealer.HoleCardVisible
-        );
+        WriteCards(dealer.Hand, !dealer.HoleCardVisible);
     }
 }
