@@ -53,8 +53,9 @@ abstract class Participant
         return Name;
     }
 
-    public virtual void NewRound()
-    {
-        Hand.DiscardCards();
-    }
+public virtual void NewRound(Deck deck)
+{
+    List<Card> discarded = Hand.DiscardCards();
+    deck.DiscardedCards.AddRange(discarded);
+}
 }
