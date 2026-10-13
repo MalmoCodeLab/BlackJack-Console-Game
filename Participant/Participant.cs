@@ -8,7 +8,7 @@ abstract class Participant
         Name = name.Trim();
     }
 
-    // Hand drar själv kortet från leken
+  
     public void ReceiveCard(Deck deck)
     {
         Hand.ReceiveCard(deck);
