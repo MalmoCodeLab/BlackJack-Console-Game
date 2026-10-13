@@ -10,7 +10,7 @@ public class Game
     private readonly ConsoleUi ui = new ConsoleUi();
     private readonly GameStorage gameStorage = new GameStorage();
 
-    // Starts the game and displays the main menu.
+    // Runs the main menu.
     public void Run()
     {
         bool running = true;
@@ -46,7 +46,7 @@ public class Game
         Console.Clear();
     }
 
-    // Starts a new Blackjack game.
+    // Creates a new Blackjack game.
     private void StartNewGame()
     {
         int playerCount = ui.AskPlayerCount();
@@ -66,22 +66,25 @@ public class Game
             return;
         }
 
-        Dealer dealer = new Dealer();
-        List<Player> players = new List<Player>();
+        List<Player> players = new();
 
-        // Creates players with their saved statistics.
+        // Creates the selected number of players.
         for (int i = 1; i <= playerCount; i++)
         {
             string name = $"Spelare {i}";
 
-            if (results.TryGetValue(name, out PlayerStatistics? stats))
+            if (results.TryGetValue(
+                name,
+                out PlayerStatistics? stats))
             {
-                players.Add(new Player(
-                    name,
-                    stats.Wins,
-                    stats.Losses,
-                    stats.Pushes
-                ));
+                players.Add(
+                    new Player(
+                        name,
+                        stats.Wins,
+                        stats.Losses,
+                        stats.Pushes
+                    )
+                );
             }
             else
             {
@@ -89,11 +92,14 @@ public class Game
             }
         }
 
+        Dealer dealer = new Dealer();
         Deck deck = new Deck();
+
+        // Creates and shuffles the deck.
         deck.CreateDeck();
         deck.ShuffleDeck();
 
-        // Deals two cards to every player and the dealer.
+        // Deals two cards to each player and the dealer.
         for (int round = 0; round < 2; round++)
         {
             foreach (Player player in players)
@@ -104,52 +110,165 @@ public class Game
             dealer.ReceiveCard(deck);
         }
 
+        // Opens the Blackjack table.
         ShowGame(players, dealer);
     }
 
-    // Displays the Blackjack table and game menu.
-    private void ShowGame(List<Player> players, Dealer dealer)
+    // Displays the Blackjack table and the side menu.
+    private void ShowGame(
+        List<Player> players,
+        Dealer dealer)
     {
+        string[] menuOptions =
+        {
+            "♦ Spara och avsluta",
+            "♣ Till huvudmenyn"
+        };
+
+        int selectedOption = 0;
         bool playing = true;
 
         while (playing)
         {
             Console.Clear();
 
-            ui.ShowTable(players, dealer);
+            // Gives the table more space than the side menu.
+            var layout = new Layout("Root")
+                .SplitColumns(
+                    new Layout("Table").Ratio(5),
+                    new Layout("Menu").Ratio(1)
+                );
 
-            AnsiConsole.WriteLine();
-
-            string choice = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("[bold gold1]♠ Spelmeny ♠[/]")
-                    .PageSize(3)
-                    .HighlightStyle(
-                        new Style(
-                            foreground: Color.White,
-                            background: new Color(150, 25, 35)
-                        )
-                    )
-                    .AddChoices(
-                        "♦ Spara och avsluta",
-                        "♣ Till huvudmenyn"
-                    )
+            // Displays the green Blackjack table on the left.
+            layout["Table"].Update(
+                ui.BuildBlackjackTable(players, dealer)
             );
 
-            switch (choice)
+            // Displays the game menu and scores on the right.
+            layout["Menu"].Update(
+                BuildGameMenu(
+                    menuOptions,
+                    selectedOption,
+                    players
+                )
+            );
+
+            AnsiConsole.Write(layout);
+
+            // Reads the player's keyboard input.
+            ConsoleKey key = Console.ReadKey(true).Key;
+
+            switch (key)
             {
-                case "♦ Spara och avsluta":
-                    if (SaveGame(players))
+                case ConsoleKey.UpArrow:
+                    selectedOption--;
+
+                    if (selectedOption < 0)
                     {
-                        playing = false;
+                        selectedOption = menuOptions.Length - 1;
                     }
+
                     break;
 
-                case "♣ Till huvudmenyn":
-                    playing = false;
+                case ConsoleKey.DownArrow:
+                    selectedOption++;
+
+                    if (selectedOption >= menuOptions.Length)
+                    {
+                        selectedOption = 0;
+                    }
+
+                    break;
+
+                case ConsoleKey.Enter:
+                    switch (selectedOption)
+                    {
+                        case 0:
+                            // Saves the statistics and exits.
+                            if (SaveGame(players))
+                            {
+                                playing = false;
+                            }
+
+                            break;
+
+                        case 1:
+                            // Returns to the main menu.
+                            playing = false;
+                            break;
+                    }
+
                     break;
             }
         }
+    }
+
+    // Builds the menu displayed next to the table.
+    private Panel BuildGameMenu(
+        string[] menuOptions,
+        int selectedOption,
+        List<Player> players)
+    {
+        List<Spectre.Console.Rendering.IRenderable> content = new();
+
+        // Displays the side menu title.
+        content.Add(new Align(
+            new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
+            HorizontalAlignment.Center
+        ));
+
+        content.Add(new Text(""));
+
+        // Displays the menu options.
+        for (int i = 0; i < menuOptions.Length; i++)
+        {
+            string option = Markup.Escape(menuOptions[i]);
+
+            if (i == selectedOption)
+            {
+                // Highlights the selected option in red.
+                content.Add(new Markup(
+                    $"[bold white on #961923] ❯ {option} [/]"
+                ));
+            }
+            else
+            {
+                content.Add(new Markup(
+                    $"[white]   {option}[/]"
+                ));
+            }
+
+            content.Add(new Text(""));
+        }
+
+        // Adds space above the player scores.
+        for (int i = 0; i < 8; i++)
+        {
+            content.Add(new Text(""));
+        }
+
+        // Displays the score heading.
+        content.Add(
+            new Rule("[gold1]POÄNG[/]")
+                .RuleStyle(Color.Gold1)
+        );
+
+        content.Add(new Text(""));
+
+        // Displays each player's current score.
+        foreach (Player player in players)
+        {
+            content.Add(new Markup(
+                $"[white]{Markup.Escape(player.Name)}: " +
+                $"[bold gold1]{player.Score}[/][/]"
+            ));
+        }
+
+        // Keeps the side menu on a dark background.
+        return new Panel(new Rows(content))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Expand();
     }
 
     // Saves player statistics.
@@ -173,6 +292,7 @@ public class Game
             gameStorage.SaveResults(results);
 
             ShowMessage("Spelarstatistiken har sparats!");
+
             return true;
         }
         catch (Exception ex) when (
@@ -185,7 +305,7 @@ public class Game
         }
     }
 
-    // Loads and displays saved player statistics.
+    // Loads previously saved player statistics.
     private void LoadGame()
     {
         Console.Clear();
@@ -226,7 +346,10 @@ public class Game
 
             Console.WriteLine();
 
-            ui.ShowMessage("Tryck på valfri tangent för att återgå.");
+            ui.ShowMessage(
+                "Tryck på valfri tangent för att återgå."
+            );
+
             Console.ReadKey(true);
         }
         catch (Exception ex) when (
@@ -238,7 +361,7 @@ public class Game
         }
     }
 
-    // Displays a message before returning to the menu.
+    // Displays a message and waits for keyboard input.
     private void ShowMessage(string message)
     {
         Console.Clear();
@@ -248,7 +371,10 @@ public class Game
 
         Console.WriteLine();
 
-        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
+        ui.ShowMessage(
+            "Tryck på valfri tangent för att återgå."
+        );
+
         Console.ReadKey(true);
     }
 }
