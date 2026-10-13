@@ -10,6 +10,7 @@ class Card
         Rank = rank;
     }
 
+
     public int IndividualCardValue ()
     {
         int cardValue;
