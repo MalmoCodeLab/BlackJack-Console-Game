@@ -1,7 +1,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using Spectre.Console;
 
 public partial class ConsoleUi
@@ -12,222 +11,136 @@ public partial class ConsoleUi
     private const int CardWidth = 11;
     private const int CardSpacing = 2;
 
-    private const string FeltColor = "#004B28";
-    private const string GoldColor = "gold1";
-    private const string CardBackColor = "#172A60";
+    private const string Felt = "#004B28";
+    private const string Gold = "gold1";
 
     // Displays the Blackjack table.
     internal void ShowTable(Hand playerHand, Hand dealerHand)
     {
         AnsiConsole.MarkupLine(
-            $"[{GoldColor}]╭{new string('─', TableWidth)}╮[/]"
+            $"[{Gold}]╭{new string('─', TableWidth)}╮[/]"
         );
 
-        WriteGreenLine("♠ BLACKJACK 21 ♠", true);
-        WriteGreenLine("");
-        WriteGreenLine("DEALER", true);
-        WriteGreenLine("");
+        WriteTableLine("♠ BLACKJACK 21 ♠");
+        WriteTableLine("");
+        WriteTableLine("DEALER");
+        WriteTableLine("");
 
-        // Displays the dealer's cards.
-        WriteCardsOnTable(dealerHand, true);
+        WriteCards(dealerHand, true);
 
-        WriteGreenLine("");
-        WriteGreenLine("────────────────────────────", true);
-        WriteGreenLine("");
-        WriteGreenLine("SPELARE 1", true);
-        WriteGreenLine("");
+        WriteTableLine("");
+        WriteTableLine("────────────────────────────");
+        WriteTableLine("");
+        WriteTableLine("SPELARE 1");
+        WriteTableLine("");
 
-        // Displays the player's cards.
-        WriteCardsOnTable(playerHand, false);
+        WriteCards(playerHand, false);
 
-        WriteGreenLine("");
-        WriteGreenLine("Tur kan inte kompileras.", true);
-        WriteGreenLine("");
+        WriteTableLine("");
+        WriteTableLine("Tur kan inte kompileras.");
+        WriteTableLine("");
 
         AnsiConsole.MarkupLine(
-            $"[{GoldColor}]╰{new string('─', TableWidth)}╯[/]"
+            $"[{Gold}]╰{new string('─', TableWidth)}╯[/]"
         );
     }
 
-    // Writes a green row with gold borders.
-    private void WriteGreenLine(
-        string text,
-        bool centered = false)
+    // Writes a centered line on the table.
+    private void WriteTableLine(string text)
     {
         if (text.Length > TableWidth)
         {
             text = text.Substring(0, TableWidth);
         }
 
-        int leftPadding = centered
-            ? (TableWidth - text.Length) / 2
-            : 2;
-
-        int rightPadding =
-            TableWidth - leftPadding - text.Length;
+        int left = (TableWidth - text.Length) / 2;
 
         string content =
-            new string(' ', leftPadding) +
-            text +
-            new string(' ', rightPadding);
+            new string(' ', left) +
+            text.PadRight(TableWidth - left);
 
         AnsiConsole.MarkupLine(
-            $"[{GoldColor}]│[/]" +
-            $"[white on {FeltColor}]" +
+            $"[{Gold}]│[/]" +
+            $"[white on {Felt}]" +
             Markup.Escape(content) +
             "[/]" +
-            $"[{GoldColor}]│[/]"
+            $"[{Gold}]│[/]"
         );
     }
 
-    // Draws the cards centered on the table.
-    private void WriteCardsOnTable(
-        Hand hand,
-        bool hideSecondCard)
+    // Places the playing cards on the table.
+    private void WriteCards(Hand hand, bool hideSecondCard)
     {
-        List<string[]> renderedCards = new();
+        List<string[]> cards = new();
 
         for (int i = 0; i < hand.CardsOnHand.Count; i++)
         {
             bool hidden = hideSecondCard && i == 1;
 
-            string[] cardRows = hidden
-                ? cardRenderer.RenderHiddenCard()
-                : cardRenderer.RenderCard(hand.CardsOnHand[i]);
-
-            renderedCards.Add(cardRows);
+            cards.Add(
+                hidden
+                    ? cardRenderer.RenderHiddenCard()
+                    : cardRenderer.RenderCard(hand.CardsOnHand[i])
+            );
         }
 
-        if (renderedCards.Count == 0)
+        if (cards.Count == 0)
         {
-            WriteGreenLine("Inga kort ännu.", true);
+            WriteTableLine("Inga kort ännu.");
             return;
         }
 
         int totalWidth =
-            renderedCards.Count * CardWidth +
-            (renderedCards.Count - 1) * CardSpacing;
+            cards.Count * CardWidth +
+            (cards.Count - 1) * CardSpacing;
 
-        int leftPadding = Math.Max(
+        int left = Math.Max(
             0,
             (TableWidth - totalWidth) / 2
         );
 
-        int rightPadding = Math.Max(
+        int right = Math.Max(
             0,
-            TableWidth - totalWidth - leftPadding
+            TableWidth - totalWidth - left
         );
 
-        int cardHeight = renderedCards[0].Length;
-
-        for (int row = 0; row < cardHeight; row++)
+        for (int row = 0; row < cards[0].Length; row++)
         {
-            StringBuilder cardLine = new();
+            string line = "";
 
-            for (int i = 0; i < renderedCards.Count; i++)
+            for (int i = 0; i < cards.Count; i++)
             {
-                bool hidden = hideSecondCard && i == 1;
+                line += cards[i][row];
 
-                Card card = hand.CardsOnHand[i];
-                string rowText = renderedCards[i][row];
-
-                string symbolColor =
-                    card.Suit == Suit.Hearts ||
-                    card.Suit == Suit.Diamonds
-                        ? "red"
-                        : "black";
-
-                string cardBackground = hidden
-                    ? CardBackColor
-                    : "white";
-
-                string foreground = hidden
-                    ? GoldColor
-                    : symbolColor;
-
-                // Colors each part of the card separately.
-                for (int j = 0; j < rowText.Length; j++)
+                if (i < cards.Count - 1)
                 {
-                    char character = rowText[j];
-
-                    bool isTopOrBottom =
-                        row == 0 || row == cardHeight - 1;
-
-                    bool isCorner =
-                        isTopOrBottom &&
-                        (j == 0 || j == CardWidth - 1);
-
-                    bool isHorizontalBorder =
-                        isTopOrBottom && !isCorner;
-
-                    bool isVerticalBorder =
-                        !isTopOrBottom &&
-                        (j == 0 || j == CardWidth - 1);
-
-                    if (isCorner)
-                    {
-                        // Draws rounded corners on the green felt.
-                        cardLine.Append(
-                            $"[{cardBackground} on {FeltColor}]" +
-                            Markup.Escape(character.ToString()) +
-                            "[/]"
-                        );
-                    }
-                    else if (isHorizontalBorder || isVerticalBorder)
-                    {
-                        // Fills the borders with the card's color.
-                        cardLine.Append(
-                            $"[{cardBackground} on {cardBackground}]" +
-                            Markup.Escape(character.ToString()) +
-                            "[/]"
-                        );
-                    }
-                    else
-                    {
-                        // Displays colored symbols on the card surface.
-                        cardLine.Append(
-                            $"[{foreground} on {cardBackground}]" +
-                            Markup.Escape(character.ToString()) +
-                            "[/]"
-                        );
-                    }
-                }
-
-                // Adds green space between cards.
-                if (i < renderedCards.Count - 1)
-                {
-                    cardLine.Append(
-                        $"[on {FeltColor}]" +
+                    line +=
+                        $"[on {Felt}]" +
                         new string(' ', CardSpacing) +
-                        "[/]"
-                    );
+                        "[/]";
                 }
             }
 
             AnsiConsole.MarkupLine(
-                $"[{GoldColor}]│[/]" +
-                $"[on {FeltColor}]" +
-                new string(' ', leftPadding) +
-                "[/]" +
-                cardLine +
-                $"[on {FeltColor}]" +
-                new string(' ', rightPadding) +
-                "[/]" +
-                $"[{GoldColor}]│[/]"
+                $"[{Gold}]│[/]" +
+                $"[on {Felt}]{new string(' ', left)}[/]" +
+                line +
+                $"[on {Felt}]{new string(' ', right)}[/]" +
+                $"[{Gold}]│[/]"
             );
         }
     }
 
-    // Displays a player's hand separately.
+    // Displays a player's cards.
     internal void ShowHand(Hand hand)
     {
-        WriteCardsOnTable(hand, false);
+        WriteCards(hand, false);
     }
 
-    // Displays the dealer's cards separately.
+    // Displays the dealer's cards.
     internal void ShowDealerCards(Dealer dealer)
     {
-        WriteCardsOnTable(
+        WriteCards(
             dealer.Hand,
             !dealer.HoleCardVisible
         );

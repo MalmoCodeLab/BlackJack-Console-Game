@@ -1,4 +1,6 @@
 
+using Spectre.Console;
+
 class CardRenderer
 {
     // Converts the rank to a short text.
@@ -28,11 +30,17 @@ class CardRenderer
         };
     }
 
-    // Creates a playing card with rounded borders.
+    // Creates a standard playing card.
     public string[] RenderCard(Card card)
     {
         string rank = GetRank(card.Rank);
         string suit = GetSuit(card.Suit);
+
+        string color =
+            card.Suit == Suit.Hearts ||
+            card.Suit == Suit.Diamonds
+                ? "red"
+                : "black";
 
         string center = card.Rank switch
         {
@@ -44,13 +52,13 @@ class CardRenderer
 
         return new string[]
         {
-            "╭─────────╮",
-            $"│{rank.PadRight(9)}│",
-            $"│{suit.PadRight(9)}│",
-            $"│    {center}    │",
-            $"│{suit.PadLeft(9)}│",
-            $"│{rank.PadLeft(9)}│",
-            "╰─────────╯"
+            "[white on white]╭─────────╮[/]",
+            $"[white on white]│[/][{color} on white]{rank.PadRight(9)}[/][white on white]│[/]",
+            $"[white on white]│[/][{color} on white]{suit.PadRight(9)}[/][white on white]│[/]",
+            $"[white on white]│[/][{color} on white]    {center}    [/][white on white]│[/]",
+            $"[white on white]│[/][{color} on white]{suit.PadLeft(9)}[/][white on white]│[/]",
+            $"[white on white]│[/][{color} on white]{rank.PadLeft(9)}[/][white on white]│[/]",
+            "[white on white]╰─────────╯[/]"
         };
     }
 
@@ -59,13 +67,13 @@ class CardRenderer
     {
         return new string[]
         {
-            "╭─────────╮",
-            "│◇ ♠ ◇ ♠ ◇│",
-            "│♠ ◇ ♠ ◇ ♠│",
-            "│◇ ♠ ◇ ♠ ◇│",
-            "│♠ ◇ ♠ ◇ ♠│",
-            "│◇ ♠ ◇ ♠ ◇│",
-            "╰─────────╯"
+            "[gold1 on #172A60]╭─────────╮[/]",
+            "[gold1 on #172A60]│◇ ♠ ◇ ♠ ◇│[/]",
+            "[gold1 on #172A60]│♠ ◇ ♠ ◇ ♠│[/]",
+            "[gold1 on #172A60]│◇ ♠ ◇ ♠ ◇│[/]",
+            "[gold1 on #172A60]│♠ ◇ ♠ ◇ ♠│[/]",
+            "[gold1 on #172A60]│◇ ♠ ◇ ♠ ◇│[/]",
+            "[gold1 on #172A60]╰─────────╯[/]"
         };
     }
 }
