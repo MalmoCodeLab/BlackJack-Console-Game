@@ -1,6 +1,7 @@
 using System.Text.Json;
+using System.Text;
 
-// Provides functionality for storing and loading player statistics.
+// Loads player statistics and saves both machine-readable and human-readable results.
 public class GameStorage
 {
     private readonly string _filePath;
@@ -31,7 +32,7 @@ public class GameStorage
             : new Dictionary<string, PlayerStatistics>(results, StringComparer.OrdinalIgnoreCase);
     }
 
-    // Saves player statistics as indented JSON, replacing any existing results file.
+    // Saves player statistics as JSON and a readable text report.
     // <param name="results">The player statistics to save, keyed by player name.</param>
     // <exception cref="ArgumentNullException"><paramref name="results"/> is <see langword="null"/>.</exception>
     // <exception cref="IOException">The results file cannot be written.</exception>
@@ -39,6 +40,12 @@ public class GameStorage
     {
         ArgumentNullException.ThrowIfNull(results);
 
+        SaveJsonResults(results);
+        SaveReadableResults(results);
+    }
+
+    private void SaveJsonResults(IReadOnlyDictionary<string, PlayerStatistics> results)
+    {
         var directory = Path.GetDirectoryName(Path.GetFullPath(_filePath))!;
         Directory.CreateDirectory(directory);
 
@@ -52,6 +59,46 @@ public class GameStorage
             }
 
             File.Move(temporaryFilePath, _filePath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryFilePath))
+            {
+                File.Delete(temporaryFilePath);
+            }
+        }
+    }
+
+    private void SaveReadableResults(IReadOnlyDictionary<string, PlayerStatistics> results)
+    {
+        string textFilePath = Path.ChangeExtension(_filePath, ".txt");
+        string directory = Path.GetDirectoryName(Path.GetFullPath(textFilePath))!;
+        Directory.CreateDirectory(directory);
+
+        var report = new StringBuilder()
+            .AppendLine("BLACKJACK 21 - SPARAD SPELARSTATISTIK")
+            .AppendLine("Sammanlagda resultat från tidigare spelsessioner.")
+            .AppendLine()
+            .AppendLine($"{"Spelare",-20} {"Vinster",8} {"Förluster",10} {"Lika",8} {"Rundor",8}")
+            .AppendLine(new string('-', 58));
+
+        foreach (var (name, statistics) in results.OrderBy(
+            result => result.Key,
+            StringComparer.OrdinalIgnoreCase))
+        {
+            int roundsPlayed = statistics.Wins + statistics.Losses + statistics.Pushes;
+            report.AppendLine(
+                $"{name,-20} {statistics.Wins,8} {statistics.Losses,10} {statistics.Pushes,8} {roundsPlayed,8}");
+        }
+
+        string temporaryFilePath = Path.Combine(
+            directory,
+            $".{Path.GetFileName(textFilePath)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            File.WriteAllText(temporaryFilePath, report.ToString(), Encoding.UTF8);
+            File.Move(temporaryFilePath, textFilePath, overwrite: true);
         }
         finally
         {
