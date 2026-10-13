@@ -25,6 +25,19 @@ class Deck
         }
 
     }
+    public void CheckIfNewShuffleIsNeeded()
+    {
+        if (DeckCards.Count < 15)
+        {
+            ShuffleDeck();
+        }
+    }
+    public Card DealCard()
+    {
+        Card dealCard = DeckCards[0];
+        DeckCards.RemoveAt(0);
+        return dealCard;
+    }
+
 
 }
-
