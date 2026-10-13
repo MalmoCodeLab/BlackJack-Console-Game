@@ -8,6 +8,9 @@ class Player : Participant
 
     public int GamesPlayed => Wins + Losses + Pushes;
 
+    // Får spelaren ta ett kort till? Nej om tjock eller redan 21 (story 6 och 8)
+    public bool CanHit => !IsBust && Score < 21;
+
     public Player(string name, int wins = 0, int losses = 0, int pushes = 0) : base(name)
     {
         Wins = wins;

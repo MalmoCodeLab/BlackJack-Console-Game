@@ -6,7 +6,6 @@ class Dealer : Participant
     {
     }
 
-
     public Card UpCard => Hand.CardsOnHand[0];
 
     public void ShowHoleCard()
@@ -14,14 +13,31 @@ class Dealer : Participant
         HoleCardVisible = true;
     }
 
+    public List<Card> VisibleCards()
+    {
+        if (HoleCardVisible)
+        {
+            return Hand.CardsOnHand;
+        }
+
+        List<Card> visible = new List<Card>();
+
+        if (Hand.CardsOnHand.Count > 0)
+        {
+            visible.Add(Hand.CardsOnHand[0]);
+        }
+
+        return visible;
+    }
+
     public bool ShouldHit()
     {
         return Score < 17;
     }
 
-    public override void NewRound()
+    public override void NewRound(Deck deck)
     {
-        base.NewRound();
+        base.NewRound(deck);
         HoleCardVisible = false;
     }
 }
