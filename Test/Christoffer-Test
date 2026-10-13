@@ -52,7 +52,16 @@ for (int i = 0; i < hand1.CardsOnHand.Count; i++)
 {
     System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
 }
+hand1.ReceiveCard();
+hand1.ReceiveCard();
 
+System.Console.WriteLine("Cards on hand:");
+for (int i = 0; i < hand1.CardsOnHand.Count; i++)
+{
+    System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
+}
+int hand1Score = hand1.CheckPointsOnHand();
+System.Console.WriteLine($"Points on hand are : {hand1Score}");
 
 
 

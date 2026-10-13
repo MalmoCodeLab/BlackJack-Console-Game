@@ -11,7 +11,7 @@ class Card
     }
 
 
-    public int IndividualCardValue ()
+    public int IndividualCardValue (Card card)
     {
         int cardValue;
         if (Rank == Rank.Two)

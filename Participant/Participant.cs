@@ -23,7 +23,7 @@ abstract class Participant
 
             foreach (Card card in Hand.CardsOnHand)
             {
-                total += card.IndividualCardValue();
+                total += card.IndividualCardValue(card);
                 if (card.Rank == Rank.Ace)
                 {
                     aces++;
