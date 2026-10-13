@@ -46,36 +46,34 @@ public class Game
     {
         int playerCount = ui.AskPlayerCount();
 
+        // Clears the menu header before displaying the table.
         Console.Clear();
 
-        // Creates temporary dealer cards for testing.
-        Hand dealerHand = new Hand();
+        // Creates the dealer and player.
+        Dealer dealer = new Dealer();
+        Player player = new Player("Player 1");
 
-        dealerHand.CardsOnHand.Add(
-            new Card(Suit.Clubs, Rank.Queen)
-        );
+        // Creates and shuffles a deck of 52 cards.
+        Deck deck = new Deck();
+        deck.CreateDeck();
+        deck.ShuffleDeck();
 
-        dealerHand.CardsOnHand.Add(
-            new Card(Suit.Diamonds, Rank.Seven)
-        );
+        // Deals two cards to the player and dealer.
+        player.ReceiveCard(deck);
+        dealer.ReceiveCard(deck);
 
-        // Creates temporary player cards for testing.
-        Hand playerHand = new Hand();
+        player.ReceiveCard(deck);
+        dealer.ReceiveCard(deck);
 
-        playerHand.CardsOnHand.Add(
-            new Card(Suit.Hearts, Rank.Ace)
-        );
-
-        playerHand.CardsOnHand.Add(
-            new Card(Suit.Spades, Rank.King)
-        );
-
-        // Displays both hands on the green Blackjack table.
-        ui.ShowTable(playerHand, dealerHand);
+        // Displays the cards on the Blackjack table.
+        ui.ShowTable(player.Hand, dealer.Hand);
 
         Console.WriteLine();
 
-        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
+        ui.ShowMessage(
+            "Tryck på valfri tangent för att återgå."
+        );
+
         Console.ReadKey(true);
     }
 
@@ -83,12 +81,16 @@ public class Game
     private void ShowTemporaryMessage(string message)
     {
         Console.Clear();
+
         ui.ShowHeader();
         ui.ShowMessage(message);
 
         Console.WriteLine();
 
-        ui.ShowMessage("Tryck på valfri tangent för att återgå.");
+        ui.ShowMessage(
+            "Tryck på valfri tangent för att återgå."
+        );
+
         Console.ReadKey(true);
     }
 }
