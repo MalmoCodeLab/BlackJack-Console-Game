@@ -13,6 +13,9 @@ class Dealer : Participant
         HoleCardVisible = true;
     }
 
+    // True when the dealer's face-up card is an ace (used for insurance).
+    public bool ShowsAce => Hand.CardsOnHand.Count > 0 && Hand.CardsOnHand[0].Rank == Rank.Ace;
+
     public List<Card> VisibleCards()
     {
         if (HoleCardVisible)

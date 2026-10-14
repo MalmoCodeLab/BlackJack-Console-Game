@@ -1,6 +1,6 @@
 abstract class Participant
 {
-    public const int BlackjackValue = 21;
+    public const int BlackjackValue = Hand.BlackjackValue;
 
     public string Name { get; }
     public Hand Hand { get; } = new Hand();
@@ -20,36 +20,7 @@ abstract class Participant
         Hand.ReceiveCard(deck);
     }
 
-    public int Score
-    {
-        get
-        {
-            int total = 0;
-            int aces = 0;
-
-            foreach (Card card in Hand.CardsOnHand)
-            {
-                total += card.IndividualCardValue(card);
-                if (card.Rank == Rank.Ace)
-                {
-                    aces++;
-                }
-            }
-
-            while (total > BlackjackValue && aces > 0)
-            {
-                total -= 10;
-                aces--;
-            }
-
-            return total;
-        }
-    }
-
-    public bool NaturalBlackjack()
-    {
-    return Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
-    }
+    public int Score => Hand.Score;
 
     public bool IsBust => Score > BlackjackValue;
     public bool HasBlackjack => Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
@@ -66,7 +37,7 @@ abstract class Participant
     }
 
     public void NewRound()
-{
+    {
     Hand.DiscardCards();
-}
+    }
 }
