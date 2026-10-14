@@ -3,7 +3,8 @@ class Deck
     public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
     public List<Hand> ListOfHands { get; } = [];
-    public int cardCounter;
+    public int RunningCount;
+    public double TrueCount;
 
     public Hand CreateHand()
     {
@@ -31,12 +32,14 @@ class Deck
     {
         if (DeckCards[0].Rank == Rank.Two || DeckCards[0].Rank == Rank.Three || DeckCards[0].Rank == Rank.Four || DeckCards[0].Rank == Rank.Five || DeckCards[0].Rank == Rank.Six)
         {
-            cardCounter++;
+            RunningCount++;
         }
         else if (DeckCards[0].Rank == Rank.Ten || DeckCards[0].Rank == Rank.Jack || DeckCards[0].Rank == Rank.Queen || DeckCards[0].Rank == Rank.King || DeckCards[0].Rank == Rank.Ace)
         {
-            cardCounter--;
+            RunningCount--;
         }
+        TrueCount = (double)RunningCount / (DeckCards.Count / 52);
+
     }
     public void ShuffleDeck()
     {

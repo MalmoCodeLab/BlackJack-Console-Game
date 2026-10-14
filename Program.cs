@@ -13,7 +13,8 @@ for (int i = 0; i < hand1.CardsOnHand.Count; i++)
 {
     System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
 }
-System.Console.WriteLine(deck.cardCounter);
+System.Console.WriteLine(deck.RunningCount);
+System.Console.WriteLine(deck.TrueCount);
 
 /*deck.ShuffleDeck();
 for (int i = 0; i < deck.DeckCards.Count; i++)
