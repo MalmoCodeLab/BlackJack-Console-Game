@@ -83,9 +83,6 @@ public partial class ConsoleUi
         AnsiConsole.Write(CenterPanel(panel));
     }
 
-<<<<<<< HEAD
-    // Displays centered Blackjack rules.
-=======
     // Displays cumulative player statistics loaded from the results file.
     public void ShowStatistics(IReadOnlyDictionary<string, PlayerStatistics> results)
     {
@@ -128,7 +125,7 @@ public partial class ConsoleUi
     }
 
     // Displays the Blackjack rules.
->>>>>>> dev
+
     public void ShowRules()
     {
         AnsiConsole.Clear();
