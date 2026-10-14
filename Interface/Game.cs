@@ -546,13 +546,12 @@ public class Game
                 }
             };
             gameStorage.SaveResults(results);
-<<<<<<< HEAD
-=======
+
 
             Dictionary<string, PlayerStatistics> savedResults =
                 gameStorage.LoadResults();
             ui.ShowStatistics(savedResults);
->>>>>>> dev
+
             return true;
         }
         catch (Exception ex) when (
@@ -571,27 +570,16 @@ public class Game
         return saved;
     }
 
+   
     // Selects a saved player and starts a new deal with their saved statistics.
     // Cards and the current round are intentionally not saved.
     private void LoadGame()
     {
         Dictionary<string, PlayerStatistics> results;
+
         try
         {
-<<<<<<< HEAD
             results = gameStorage.LoadResults();
-=======
-            Dictionary<string, PlayerStatistics> results =
-                gameStorage.LoadResults();
-
-            if (results.Count == 0)
-            {
-                ShowMessage("Det finns inga sparade resultat.");
-                return;
-            }
-
-            ui.ShowStatistics(results);
->>>>>>> dev
         }
         catch (Exception ex) when (
             ex is IOException ||
@@ -608,11 +596,16 @@ public class Game
             return;
         }
 
+        ui.ShowStatistics(results);
+
         List<string> names = new(results.Keys);
         names.Sort(StringComparer.OrdinalIgnoreCase);
+
         int selected = 0;
         bool cancelled = false;
+
         AnsiConsole.Clear();
+
         AnsiConsole.Live(BuildSavedPlayersMenu(names, results, selected))
             .Start(context =>
             {
