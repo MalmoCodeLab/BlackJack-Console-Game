@@ -1,11 +1,20 @@
 ﻿Deck deck = new();
 deck.CreateSixDecks();
+deck.ShuffleDeck();
 Hand hand1 = deck.CreateHand();
 for (int i = 0; i < deck.DeckCards.Count; i++)
 {
-
-    Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
+  Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
 }
+
+hand1.ReceiveCard(deck);
+hand1.ReceiveCard(deck);
+for (int i = 0; i < hand1.CardsOnHand.Count; i++)
+{
+    System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
+}
+System.Console.WriteLine(deck.cardCounter);
+
 /*deck.ShuffleDeck();
 for (int i = 0; i < deck.DeckCards.Count; i++)
 {
