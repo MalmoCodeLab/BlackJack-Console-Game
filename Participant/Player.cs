@@ -34,4 +34,19 @@ class Player : Participant
     {
         return $"{Name}  W: {Wins}  L: {Losses}  P: {Pushes}";
     }
+
+    internal void Win()
+    {
+        RecordWin();
+    }
+
+    internal void Lose()
+    {
+        RecordLoss();
+    }
+
+    internal void Push()
+    {
+        RecordPush();
+    }
 }

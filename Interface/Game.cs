@@ -96,29 +96,22 @@ public class Game
     private void DealNewHandAndShow(List<Player> players)
     {
         bool newRound;
+        int roundNumber = 1;
         do
         {
-            // Clear the previous hands before dealing a new round.
-            foreach (Player player in players)
-                player.NewRound();
-            Dealer dealer = new Dealer();
-            Deck deck = new Deck();
-            deck.CreateDeck();
-            deck.ShuffleDeck();
-            for (int cardNumber = 0; cardNumber < 2; cardNumber++)
-            {
-                foreach (Player player in players)
-                    player.ReceiveCard(deck);
-                dealer.ReceiveCard(deck);
-            }
-            newRound = ShowGame(players, dealer, deck);
+            Round round = new Round(roundNumber++, players, new Dealer());
+            round.StartRound();
+            newRound = ShowGame(round);
         }
         while (newRound);
     }
 
     // Displays the Blackjack table and handles input.
-    private bool ShowGame(List<Player> players, Dealer dealer, Deck deck)
+    private bool ShowGame(Round round)
     {
+        List<Player> players = round.Players;
+        Dealer dealer = round.Dealer;
+        Deck deck = round.Deck;
         // The third action activates the chips already drawn on the table.
         string[] gameOptions = GameMessages.GameOptions;
         string[] menuOptions = GameMessages.InGameMenuOptions;
@@ -269,7 +262,8 @@ public class Game
                                 else
                                 {
                                     roundFinished = true;
-                                    roundSummary = ResolveRound(players, dealer, deck);
+                                    round.EndRound();
+                                    roundSummary = ResolveRound(round);
                                     // Save the updated statistics as soon as the round ends.
                                     if (!SaveResultsOnly(players))
                                         roundSummary = GameMessages.AppendSaveResultsError(roundSummary);
@@ -292,67 +286,31 @@ public class Game
         return startNewRound;
     }
 
-    // Finishes the dealer's turn and records each player's result once.
-    private string ResolveRound(List<Player> players, Dealer dealer, Deck deck)
+    // Formats the outcomes that the round has already resolved and recorded.
+    private string ResolveRound(Round round)
     {
-        dealer.ShowHoleCard();
-        bool anyPlayerStillIn = players.Exists(player => !player.IsBust);
-        if (anyPlayerStillIn)
-        {
-            while (dealer.ShouldHit())
-                dealer.ReceiveCard(deck);
-        }
-
         List<string> messages = new();
-        foreach (Player player in players)
+        foreach (Player player in round.Players)
         {
-            string outcome;
-            if (player.IsBust)
+            string outcome = round.Outcomes[player] switch
             {
-                player.RecordLoss();
-                outcome = GameMessages.PlayerBustOutcome;
-            }
-            else if (dealer.IsBust)
+                Outcome.Win => GameMessages.WinOutcome,
+                Outcome.Loss => GameMessages.LossOutcome,
+                Outcome.Push => GameMessages.PushOutcome,
+                _ => throw new InvalidOperationException(
+                    $"Round {round.RoundNumber} did not resolve player '{player.Name}'.")
+            };
+            string headline = GameMessages.OutcomeHeadline(
+                outcome, soloPlayer: round.Players.Count == 1);
+
+            if (round.Players.Count == 1)
             {
-                player.RecordWin();
-                outcome = GameMessages.DealerBustOutcome;
-            }
-            else if (player.HasBlackjack && !dealer.HasBlackjack)
-            {
-                player.RecordWin();
-                outcome = GameMessages.PlayerBlackjackOutcome;
-            }
-            else if (dealer.HasBlackjack && !player.HasBlackjack)
-            {
-                player.RecordLoss();
-                outcome = GameMessages.DealerBlackjackOutcome;
-            }
-            else if (player.Score > dealer.Score)
-            {
-                player.RecordWin();
-                outcome = GameMessages.WinOutcome;
-            }
-            else if (player.Score < dealer.Score)
-            {
-                player.RecordLoss();
-                outcome = GameMessages.LossOutcome;
+                messages.Add(GameMessages.SoloResult(
+                    headline, player.Score, round.Dealer.Score));
             }
             else
-            {
-                player.RecordPush();
-                outcome = GameMessages.PushOutcome;
-            }
-            if (players.Count == 1)
-            {
-                string headline = GameMessages.OutcomeHeadline(outcome, soloPlayer: true);
-                messages.Add(GameMessages.SoloResult(headline, player.Score, dealer.Score));
-            }
-            else
-                {
-                string headline = GameMessages.OutcomeHeadline(outcome, soloPlayer: false);
                 messages.Add(GameMessages.NamedResult(
-                    player.Name, headline, player.Score, dealer.Score));
-            }
+                    player.Name, headline, player.Score, round.Dealer.Score));
         }
         return string.Join(Environment.NewLine, messages);
     }
