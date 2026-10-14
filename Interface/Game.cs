@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using Spectre.Console;
-
 public class Game
 {
     private readonly ConsoleUi ui = new ConsoleUi();
@@ -39,7 +38,7 @@ public class Game
     // Creates a new Blackjack game.
     private void StartNewGame()
     {
-        int playerCount = ui.AskPlayerCount();
+        int playerCount = ui.AskPlayerCountCentered();
         Dictionary<string, PlayerStatistics> results;
         try
         {
@@ -74,28 +73,39 @@ public class Game
                 players.Add(new Player(name));
             }
         }
-        Dealer dealer = new Dealer();
-        Deck deck = new Deck();
-        // Creates and shuffles the deck.
-        deck.CreateDeck();
-        deck.ShuffleDeck();
-        // Deals the starting cards.
-        for (int round = 0; round < 2; round++)
-        {
-            foreach (Player player in players)
-            {
-                player.ReceiveCard(deck);
-            }
-            dealer.ReceiveCard(deck);
-        }
-        ShowGame(players, dealer, deck);
+        DealNewHandAndShow(players);
     }
+
+    // Starts fresh rounds with the same players and their saved statistics.
+    private void DealNewHandAndShow(List<Player> players)
+    {
+        bool newRound;
+        do
+        {
+            // Clear the previous hands before dealing a new round.
+            foreach (Player player in players)
+                player.NewRound();
+            Dealer dealer = new Dealer();
+            Deck deck = new Deck();
+            deck.CreateDeck();
+            deck.ShuffleDeck();
+            for (int cardNumber = 0; cardNumber < 2; cardNumber++)
+            {
+                foreach (Player player in players)
+                    player.ReceiveCard(deck);
+                dealer.ReceiveCard(deck);
+            }
+            newRound = ShowGame(players, dealer, deck);
+        }
+        while (newRound);
+    }
+
     // Displays the Blackjack table and handles input.
-    private void ShowGame(List<Player> players, Dealer dealer, Deck deck)
+    private bool ShowGame(List<Player> players, Dealer dealer, Deck deck)
     {
         // The third action activates the chips already drawn on the table.
         string[] gameOptions = { "♥ Ta kort", "♠ Stanna", "♦ Satsa" };
-        string[] menuOptions = { "♦ Spara och avsluta", "♣ Till huvudmenyn" };
+        string[] menuOptions = { "♠ Ny runda", "♣ Huvudmeny", "♦ Spara och avsluta" };
         int selectedGameOption = 0;
         int selectedMenuOption = 0;
         bool sideMenuActive = false;
@@ -103,6 +113,8 @@ public class Game
         int currentPlayerIndex = 0;
         bool playing = true;
         bool roundFinished = false;
+        string? roundSummary = null;
+        bool startNewRound = false;
         AnsiConsole.Clear();
         try
         {
@@ -111,7 +123,8 @@ public class Game
             {
                 // Reuse the original layout, without clearing on every key press.
                 Console.SetCursorPosition(0, 0);
-                int totalHeight = Math.Max(22, Console.WindowHeight - 1);
+                // Keep the table compact while keeping the action buttons directly below it.
+                int totalHeight = Math.Max(22, Console.WindowHeight - 6);
                 int tableHeight = totalHeight - 3;
                 var layout = new Layout("Root")
                     .Size(totalHeight)
@@ -197,12 +210,20 @@ public class Game
                         {
                             if (selectedMenuOption == 0)
                             {
+                                // Start a new deal with the same players and statistics.
+                                startNewRound = true;
+                                playing = false;
+                            }
+                            else if (selectedMenuOption == 1)
+                            {
+                                // Leave the table and return to the main menu.
+                                playing = false;
+                            }
+                            else if (selectedMenuOption == 2)
+                            {
+                                // Save all players before leaving the table.
                                 if (SaveGame(players))
                                     playing = false;
-                            }
-                            else
-                            {
-                                playing = false;
                             }
                         }
                         else if (!roundFinished)
@@ -218,7 +239,9 @@ public class Game
                             {
                                 currentPlayer.ReceiveCard(deck);
                             }
-                            else if (selectedGameOption == 1)
+
+                            // A player who busts cannot take any more cards.
+                            if (selectedGameOption == 1 || currentPlayer.IsBust)
                             {
                                 if (currentPlayerIndex < players.Count - 1)
                                 {
@@ -228,6 +251,11 @@ public class Game
                                 else
                                 {
                                     roundFinished = true;
+                                    roundSummary = ResolveRound(players, dealer, deck);
+                                    // Save the updated statistics as soon as the round ends.
+                                    if (!SaveResultsOnly(players))
+                                        roundSummary += "\nKunde inte spara resultatet.";
+                                    playing = false;
                                 }
                             }
                         }
@@ -240,7 +268,158 @@ public class Game
             Console.CursorVisible = true;
             AnsiConsole.Clear();
         }
+        // Keep the player at the table and offer a fresh deal after the result.
+        if (roundSummary != null)
+            return ShowRoundEndMenu(roundSummary, players);
+        return startNewRound;
     }
+
+    // Finishes the dealer's turn and records each player's result once.
+    private string ResolveRound(List<Player> players, Dealer dealer, Deck deck)
+    {
+        dealer.ShowHoleCard();
+        bool anyPlayerStillIn = players.Exists(player => !player.IsBust);
+        if (anyPlayerStillIn)
+        {
+            while (dealer.ShouldHit())
+                dealer.ReceiveCard(deck);
+        }
+
+        List<string> messages = new();
+        foreach (Player player in players)
+        {
+            string outcome;
+            if (player.IsBust)
+            {
+                player.RecordLoss();
+                outcome = "Förlust (över 21)";
+            }
+            else if (dealer.IsBust)
+            {
+                player.RecordWin();
+                outcome = "Vinst (givaren sprack)";
+            }
+            else if (player.HasBlackjack && !dealer.HasBlackjack)
+            {
+                player.RecordWin();
+                outcome = "Vinst (naturlig 21)";
+            }
+            else if (dealer.HasBlackjack && !player.HasBlackjack)
+            {
+                player.RecordLoss();
+                outcome = "Förlust (givarens Blackjack)";
+            }
+            else if (player.Score > dealer.Score)
+            {
+                player.RecordWin();
+                outcome = "Vinst";
+            }
+            else if (player.Score < dealer.Score)
+            {
+                player.RecordLoss();
+                outcome = "Förlust";
+            }
+            else
+            {
+                player.RecordPush();
+                outcome = "Oavgjort";
+            }
+            if (players.Count == 1)
+            {
+                string headline = outcome.StartsWith("Vinst") ? "DU VANN!" :
+                                  outcome.StartsWith("Förlust") ? "DU FÖRLORADE!" : "OAVGJORT!";
+                messages.Add($"{headline} ({player.Score} mot {dealer.Score})");
+            }
+            else
+                messages.Add($"{player.Name}: {outcome} ({player.Score} mot {dealer.Score})");
+        }
+        return string.Join("\n", messages);
+    }
+
+    // Shows the outcome and lets the player start another round without leaving.
+    private bool ShowRoundEndMenu(string summary, List<Player> players)
+    {
+        string[] options = { "♠ Ny runda", "♣ Huvudmeny", "♦ Spara och avsluta" };
+        int selected = 0;
+        while (true)
+        {
+            AnsiConsole.Clear();
+            bool confirmed = false;
+            AnsiConsole.Live(BuildRoundEndPanel(summary, options, selected))
+                .Start(context =>
+                {
+                    context.Refresh();
+                    while (!confirmed)
+                    {
+                        ConsoleKey key = Console.ReadKey(true).Key;
+                        if (key == ConsoleKey.UpArrow)
+                            selected = (selected - 1 + options.Length) % options.Length;
+                        else if (key == ConsoleKey.DownArrow)
+                            selected = (selected + 1) % options.Length;
+                        else if (key == ConsoleKey.Enter)
+                        {
+                            confirmed = true;
+                            break;
+                        }
+                        else
+                            continue;
+                        context.UpdateTarget(BuildRoundEndPanel(summary, options, selected));
+                        context.Refresh();
+                    }
+                });
+            if (selected == 0)
+                return true;
+            if (selected == 1)
+                return false;
+            if (SaveGame(players))
+                return false;
+        }
+    }
+
+    // Builds a centered result panel in the same style as the main menu.
+    private Spectre.Console.Rendering.IRenderable BuildRoundEndPanel(
+        string summary, string[] options, int selected)
+    {
+        var rows = new List<Spectre.Console.Rendering.IRenderable>
+        {
+            new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
+            new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
+            new Rule("[gold1]RESULTAT[/]").RuleStyle(Color.Gold1),
+            new Text("")
+        };
+        foreach (string result in summary.Split('\n'))
+        {
+            string color = result.Contains("Förlust") || result.Contains("FÖRLORADE") ? "red" :
+                           result.Contains("Vinst") || result.Contains("VANN") ? "green1" : "gold1";
+            rows.Add(new Align(new Markup($"[{color}]{Markup.Escape(result)}[/]"),
+                HorizontalAlignment.Center));
+        }
+        rows.Add(new Text(""));
+        rows.Add(new Align(new Markup("[bold gold1]Vill du spela en ny runda?[/]"),
+            HorizontalAlignment.Center));
+        rows.Add(new Text(""));
+        for (int i = 0; i < options.Length; i++)
+        {
+            string label = Markup.Escape(options[i]);
+            string line = i == selected
+                ? $"[bold white on #961923] ❯ {label} [/]"
+                : $"[white]   {label} [/]";
+            rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
+            rows.Add(new Text(""));
+        }
+        rows.Add(new Rule().RuleStyle(Color.Gold1));
+        rows.Add(new Align(new Markup("[grey]↑ ↓ Navigera  •  Enter Välj[/]"),
+            HorizontalAlignment.Center));
+        var panel = new Panel(new Rows(rows))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Expand();
+        int terminalWidth = Math.Max(1, Console.WindowWidth);
+        int panelWidth = Math.Min(68, terminalWidth);
+        int left = (terminalWidth - panelWidth) / 2;
+        return new Padder(panel).PadLeft(left).PadRight(terminalWidth - panelWidth - left);
+    }
+
     // Builds the horizontal Hit, Stand and Bet buttons.
     private Panel BuildPlayerActions(
         string[] options,
@@ -283,7 +462,7 @@ public class Game
             new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
             HorizontalAlignment.Center));
         content.Add(new Text(""));
-        string[] shortOptions = { "♦ Spara/avsluta", "♣ Huvudmeny" };
+        string[] shortOptions = { "♠ Ny runda", "♣ Huvudmeny", "♦ Spara och avsluta" };
         for (int i = 0; i < menuOptions.Length; i++)
         {
             string label = Markup.Escape(
@@ -308,7 +487,6 @@ public class Game
                 $"[bold gold1]{player.Score}[/]");
         }
         content.Add(scoreTable);
-
         content.Add(new Text(""));
         content.Add(new Rule("[gold1]MARKER[/]").RuleStyle(Color.Gold1));
         var moneyTable = new Table()
@@ -329,13 +507,12 @@ public class Game
             .BorderColor(Color.Gold1)
             .Expand();
     }
-    // Saves player statistics.
-    private bool SaveGame(List<Player> players)
+    // Saves player statistics without interrupting the game UI.
+    private bool SaveResultsOnly(List<Player> players)
     {
         try
         {
-            Dictionary<string, PlayerStatistics> results =
-                gameStorage.LoadResults();
+            Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
             foreach (Player player in players)
             {
                 results[player.Name] = new PlayerStatistics
@@ -346,54 +523,32 @@ public class Game
                 };
             }
             gameStorage.SaveResults(results);
-            ShowMessage("Spelarstatistiken har sparats!");
             return true;
         }
         catch (Exception ex) when (
-            ex is IOException ||
-            ex is UnauthorizedAccessException ||
-            ex is JsonException)
+            ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
         {
-            ShowMessage("Kunde inte spara spelarstatistiken.");
             return false;
         }
     }
-    // Displays saved player statistics.
+
+    // Saves statistics when the player chooses Save and Quit.
+    private bool SaveGame(List<Player> players)
+    {
+        bool saved = SaveResultsOnly(players);
+        ShowMessage(saved ? "Spelarstatistiken har sparats!" :
+                            "Kunde inte spara spelarstatistiken.");
+        return saved;
+    }
+
+    // Selects a saved player and starts a new deal with their saved statistics.
+    // Cards and the current round are intentionally not saved.
     private void LoadGame()
     {
-        Console.Clear();
+        Dictionary<string, PlayerStatistics> results;
         try
         {
-            Dictionary<string, PlayerStatistics> results =
-                gameStorage.LoadResults();
-            if (results.Count == 0)
-            {
-                ShowMessage("Det finns inga sparade resultat.");
-                return;
-            }
-            ui.ShowHeader();
-            var table = new Table()
-                .Border(TableBorder.Rounded)
-                .BorderColor(Color.Gold1);
-            table.AddColumn("[gold1]Spelare[/]");
-            table.AddColumn("[green]Vinster[/]");
-            table.AddColumn("[red]Förluster[/]");
-            table.AddColumn("[yellow]Oavgjorda[/]");
-            foreach (var result in results)
-            {
-                table.AddRow(
-                    Markup.Escape(result.Key),
-                    result.Value.Wins.ToString(),
-                    result.Value.Losses.ToString(),
-                    result.Value.Pushes.ToString()
-                );
-            }
-            AnsiConsole.Write(table);
-            Console.WriteLine();
-            ui.ShowMessage(
-                "Tryck på valfri tangent för att återgå."
-            );
-            Console.ReadKey(true);
+            results = gameStorage.LoadResults();
         }
         catch (Exception ex) when (
             ex is IOException ||
@@ -401,18 +556,100 @@ public class Game
             ex is JsonException)
         {
             ShowMessage("Kunde inte ladda sparade resultat.");
+            return;
         }
+
+        if (results.Count == 0)
+        {
+            ShowMessage("Det finns inga sparade spel ännu.");
+            return;
+        }
+
+        List<string> names = new(results.Keys);
+        names.Sort(StringComparer.OrdinalIgnoreCase);
+        int selected = 0;
+        bool cancelled = false;
+        AnsiConsole.Clear();
+        AnsiConsole.Live(BuildSavedPlayersMenu(names, results, selected))
+            .Start(context =>
+            {
+                context.Refresh();
+                while (true)
+                {
+                    ConsoleKey key = Console.ReadKey(true).Key;
+                    if (key == ConsoleKey.UpArrow)
+                        selected = (selected - 1 + names.Count) % names.Count;
+                    else if (key == ConsoleKey.DownArrow)
+                        selected = (selected + 1) % names.Count;
+                    else if (key == ConsoleKey.Escape)
+                    {
+                        cancelled = true;
+                        break;
+                    }
+                    else if (key == ConsoleKey.Enter)
+                        break;
+                    else
+                        continue;
+                    context.UpdateTarget(BuildSavedPlayersMenu(names, results, selected));
+                    context.Refresh();
+                }
+            });
+
+        if (cancelled)
+            return;
+
+        string name = names[selected];
+        PlayerStatistics stats = results[name];
+        List<Player> players = new()
+        {
+            new Player(name, stats.Wins, stats.Losses, stats.Pushes)
+        };
+        DealNewHandAndShow(players);
     }
-    // Displays a message and waits for input.
+
+    // Displays saved players in the same centered casino style as the main menu.
+    private Spectre.Console.Rendering.IRenderable BuildSavedPlayersMenu(
+        List<string> names,
+        Dictionary<string, PlayerStatistics> results,
+        int selected)
+    {
+        List<Spectre.Console.Rendering.IRenderable> rows = new();
+        rows.Add(new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"),
+            HorizontalAlignment.Center));
+        rows.Add(new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"),
+            HorizontalAlignment.Center));
+        rows.Add(new Text(""));
+        rows.Add(new Rule("[gold1]♦ LADDA SPEL ♦[/]").RuleStyle(Color.Gold1));
+        rows.Add(new Text(""));
+
+        for (int i = 0; i < names.Count; i++)
+        {
+            string name = names[i];
+            PlayerStatistics stats = results[name];
+            string label = $"{name}  |  V: {stats.Wins}  F: {stats.Losses}  O: {stats.Pushes}";
+            string escaped = Markup.Escape(label);
+            string line = i == selected
+                ? $"[bold white on #961923] ❯ {escaped} [/]"
+                : $"[white]   {escaped} [/]";
+            rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
+            rows.Add(new Text(""));
+        }
+        rows.Add(new Rule().RuleStyle(Color.Gold1));
+        rows.Add(new Align(new Markup("[grey]↑ ↓ Välj spelare  •  Enter Spela  •  Esc Tillbaka[/]"),
+            HorizontalAlignment.Center));
+        var panel = new Panel(new Rows(rows))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Expand();
+        int terminalWidth = Math.Max(1, Console.WindowWidth);
+        int panelWidth = Math.Min(68, terminalWidth);
+        int left = (terminalWidth - panelWidth) / 2;
+        return new Padder(panel).PadLeft(left).PadRight(terminalWidth - panelWidth - left);
+    }
+
+    // Displays a centered message and waits for input.
     private void ShowMessage(string message)
     {
-        Console.Clear();
-        ui.ShowHeader();
-        ui.ShowMessage(message);
-        Console.WriteLine();
-        ui.ShowMessage(
-            "Tryck på valfri tangent för att återgå."
-        );
-        Console.ReadKey(true);
+        ui.ShowCenteredMessage(message);
     }
 }

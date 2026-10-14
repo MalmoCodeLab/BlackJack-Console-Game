@@ -1,73 +1,74 @@
-
 using System;
 using System.Collections.Generic;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
-    // Displays the Blackjack header.
+    // Displays the centered Blackjack header.
     public void ShowHeader()
     {
-        var header = new Panel(
-            new Markup(
-                "[bold gold1]♠ BLACKJACK 21 ♠[/]\n" +
-                "[italic green3]Tur kan inte kompileras.[/]"
-            )
-        )
-        .Border(BoxBorder.Rounded)
-        .BorderColor(Color.Gold1);
-
-        AnsiConsole.Write(header);
-        AnsiConsole.WriteLine();
+        var header = new Panel(new Rows(
+            new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
+            new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center)))
+            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+        AnsiConsole.Write(CenterPanel(header));
     }
 
-    // Displays a message.
+    // Centers a panel at up to 68 terminal columns.
+    private static IRenderable CenterPanel(Panel panel)
+    {
+        int terminalWidth = Math.Max(1, Console.WindowWidth);
+        int panelWidth = Math.Min(68, terminalWidth);
+        int left = (terminalWidth - panelWidth) / 2;
+        return new Padder(panel).PadLeft(left).PadRight(terminalWidth - panelWidth - left);
+    }
+
+    // Displays a centered message with a return instruction.
+    public void ShowCenteredMessage(string message)
+    {
+        AnsiConsole.Clear();
+        var panel = new Panel(new Rows(
+            new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
+            new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
+            new Text(""),
+            new Rule().RuleStyle(Color.Gold1),
+            new Text(""),
+            new Align(new Markup($"[bold white]{Markup.Escape(message)}[/]"), HorizontalAlignment.Center),
+            new Text(""),
+            new Align(new Markup("[grey]Tryck på valfri tangent för att återgå.[/]"), HorizontalAlignment.Center)))
+            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+        AnsiConsole.Write(CenterPanel(panel));
+        Console.ReadKey(true);
+    }
+
+    // Displays a message without waiting for input.
     public void ShowMessage(string message)
     {
-        AnsiConsole.MarkupLine(
-            $"[white]{Markup.Escape(message)}[/]"
-        );
+        AnsiConsole.MarkupLine($"[white]{Markup.Escape(message)}[/]");
     }
 
     // Displays the game actions.
     public string AskMove()
     {
-        return AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("[bold gold1]Vad vill du göra?[/]")
-                .PageSize(3)
-                .HighlightStyle(
-                    new Style(
-                        foreground: Color.White,
-                        background: new Color(0, 100, 50)
-                    )
-                )
-                .AddChoices(
-                    "♠ Köpa",
-                    "♥ Stanna",
-                    "♦ Satsa"
-                )
-        );
+        return AnsiConsole.Prompt(new SelectionPrompt<string>()
+            .Title("[bold gold1]Vad vill du göra?[/]")
+            .PageSize(3)
+            .HighlightStyle(new Style(foreground: Color.White, background: new Color(0, 100, 50)))
+            .AddChoices("♠ Köpa", "♥ Stanna", "♦ Satsa"));
     }
 
     // Opens betting mode when the player selects Bet.
-    // Internal matches the accessibility of Player and Dealer.
     internal string AskMove(List<Player> players, Dealer dealer)
     {
         while (true)
         {
             string choice = AskMove();
-
             if (choice == "♦ Satsa")
             {
-                // Opens selectable casino chips.
                 ShowBettingMode(players, dealer);
-
-                // Returns to the action menu.
                 continue;
             }
-
-            // Returns Hit or Stand to the game.
             return choice;
         }
     }
@@ -75,128 +76,82 @@ public partial class ConsoleUi
     // Displays the round result.
     public void ShowResult(string result)
     {
-        var panel = new Panel(
-            new Markup(
-                $"[bold gold1]{Markup.Escape(result)}[/]"
-            )
-        )
-        .Border(BoxBorder.Rounded)
-        .BorderColor(Color.Gold1);
-
-        AnsiConsole.Write(panel);
+        var panel = new Panel(new Align(
+            new Markup($"[bold gold1]{Markup.Escape(result)}[/]"),
+            HorizontalAlignment.Center))
+            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+        AnsiConsole.Write(CenterPanel(panel));
     }
 
-    // Displays the Blackjack rules.
+    // Displays centered Blackjack rules.
     public void ShowRules()
     {
         AnsiConsole.Clear();
-
-        var rules = new Panel(
+        var rules = new Panel(new Rows(
+            new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
+            new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
+            new Rule("[gold1]♥ SPELREGLER ♥[/]").RuleStyle(Color.Gold1),
             new Markup(
-                "[bold gold1]♥ SPELREGLER ♥[/]\n\n" +
-
                 "[bold gold1]MÅL[/]\n" +
-                "[white]Kom så nära 21 som möjligt utan att gå över.[/]\n" +
-                "[white]Din hand ska vara högre än givarens.[/]\n\n" +
-
+                "[white]Kom så nära 21 som möjligt utan att gå över.\nDin hand ska vara högre än givarens.[/]\n\n" +
                 "[bold gold1]KORTENS VÄRDE[/]\n" +
-                "[white]2–10 = Kortets värde[/]\n" +
-                "[white]J, Q, K = 10 poäng[/]\n" +
-                "[white]Ess = 1 eller 11 poäng[/]\n\n" +
-
+                "[white]2–10 = Kortets värde\nJ, Q, K = 10 poäng\nEss = 1 eller 11 poäng[/]\n\n" +
                 "[bold gold1]SPELETS GÅNG[/]\n" +
-                "[white]Varje spelare får två öppna kort.[/]\n" +
-                "[white]Givaren får ett öppet och ett dolt kort.[/]\n" +
-                "[white]Ess + tiokort på de två första korten[/]\n" +
-                "[white]är naturlig tjugoett.[/]\n\n" +
-
+                "[white]Varje spelare får två öppna kort.\nGivaren får ett öppet och ett dolt kort.\nEss + tiokort på de två första korten är naturlig tjugoett.[/]\n\n" +
                 "[bold gold1]DIN TUR[/]\n" +
-                "[white]♠ Köpa – Ta ett nytt kort.[/]\n" +
-                "[white]♥ Stanna – Avsluta din tur.[/]\n" +
-                "[white]♦ Satsa – Välj och placera marker.[/]\n" +
-                "[white]Över 21 innebär att du spräcker och förlorar.[/]\n\n" +
-
+                "[white]♠ Köpa – Ta ett nytt kort.\n♥ Stanna – Avsluta din tur.\n♦ Satsa – Välj och placera marker.\nÖver 21 innebär att du spräcker och förlorar.[/]\n\n" +
                 "[bold gold1]GIVARENS TUR[/]\n" +
-                "[white]Givaren visar sitt dolda kort.[/]\n" +
-                "[white]Givaren köper på 16 eller lägre.[/]\n" +
-                "[white]Givaren stannar på 17 eller högre,[/]\n" +
-                "[white]även på mjuk 17.[/]\n\n" +
-
+                "[white]Givaren visar sitt dolda kort.\nGivaren köper på 16 eller lägre.\nGivaren stannar på 17 eller högre, även på mjuk 17.[/]\n\n" +
                 "[bold gold1]VINST OCH FÖRLUST[/]\n" +
-                "[white]Givaren spräcker = spelaren vinner,[/]\n" +
-                "[white]om spelaren inte redan har spräckt.[/]\n" +
-                "[white]Annars vinner högsta handen.[/]\n" +
-                "[white]Lika poäng innebär oavgjort.[/]\n" +
-                "[white]Naturlig 21 slår vanlig 21.[/]\n" +
-                "[white]Två naturliga 21 ger oavgjort.[/]"
-            )
-        )
-        .Border(BoxBorder.Rounded)
-        .BorderColor(Color.Gold1);
-
-        AnsiConsole.Write(rules);
-        AnsiConsole.WriteLine();
-
-        AnsiConsole.MarkupLine(
-            "[grey]Tryck på valfri tangent för att återgå.[/]"
-        );
-
+                "[white]Givaren spräcker = spelaren vinner, om spelaren inte redan har spräckt.\nAnnars vinner högsta handen.\nLika poäng innebär oavgjort.\nNaturlig 21 slår vanlig 21.\nTvå naturliga 21 ger oavgjort.[/]"),
+            new Text(""),
+            new Align(new Markup("[grey]Tryck på valfri tangent för att återgå.[/]"), HorizontalAlignment.Center)))
+            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+        AnsiConsole.Write(CenterPanel(rules));
         Console.ReadKey(true);
     }
 
-    // Displays the contributors.
+    // Displays centered contributors.
     public void ShowCredits()
     {
         AnsiConsole.Clear();
 
-        var credits = new Panel(
-            new Markup(
-                "[bold gold1]♣ MEDVERKANDE ♣[/]\n\n" +
-                "[white]Alice       - Interface[/]\n" +
-                "[white]Sofia       - GameStorage[/]\n" +
-                "[white]Christoffer - Cards[/]\n" +
-                "[white]Niclas      - Participant[/]"
-            )
-        )
-        .Border(BoxBorder.Rounded)
-        .BorderColor(Color.Gold1);
+        // Align names and roles in two columns.
+        var credits = new Grid();
+        credits.AddColumn(new GridColumn().NoWrap().PadRight(6));
+        credits.AddColumn(new GridColumn().NoWrap());
+        credits.AddRow(new Markup("[white]Alice[/]"), new Markup("[gold1]Interface[/]"));
+        credits.AddRow(new Markup("[white]Sofia[/]"), new Markup("[gold1]GameStorage[/]"));
+        credits.AddRow(new Markup("[white]Christoffer[/]"), new Markup("[gold1]Cards[/]"));
+        credits.AddRow(new Markup("[white]Niclas[/]"), new Markup("[gold1]Participant[/]"));
 
-        AnsiConsole.Write(credits);
-        AnsiConsole.WriteLine();
+        var panel = new Panel(new Rows(
+            new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
+            new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
+            new Rule("[gold1]♣ MEDVERKANDE ♣[/]").RuleStyle(Color.Gold1),
+            new Text(""),
+            new Align(credits, HorizontalAlignment.Center),
+            new Text(""),
+            new Rule().RuleStyle(Color.Gold1),
+            new Align(new Markup("[grey]Tryck på valfri tangent för att återgå.[/]"), HorizontalAlignment.Center)))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Expand();
 
-        AnsiConsole.MarkupLine(
-            "[grey]Tryck på valfri tangent för att återgå.[/]"
-        );
-
+        AnsiConsole.Write(CenterPanel(panel));
         Console.ReadKey(true);
     }
 
-    // Asks how many players will join.
+    // Original player-count method kept for compatibility.
     public int AskPlayerCount()
     {
         AnsiConsole.Clear();
         ShowHeader();
-
-        string choice = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("[bold gold1]♠ Hur många spelare? ♠[/]")
-                .PageSize(5)
-                .HighlightStyle(
-                    new Style(
-                        foreground: Color.White,
-                        background: new Color(0, 100, 50)
-                    )
-                )
-                .AddChoices(
-                    "1 spelare",
-                    "2 spelare",
-                    "3 spelare",
-                    "4 spelare",
-                    "5 spelare"
-                )
-        );
-
-        // Converts the selected option to a number.
+        string choice = AnsiConsole.Prompt(new SelectionPrompt<string>()
+            .Title("[bold gold1]♠ Hur många spelare? ♠[/]")
+            .PageSize(5)
+            .HighlightStyle(new Style(foreground: Color.White, background: new Color(0, 100, 50)))
+            .AddChoices("1 spelare", "2 spelare", "3 spelare", "4 spelare", "5 spelare"));
         return int.Parse(choice.Split(' ')[0]);
     }
 }
