@@ -1,232 +1,203 @@
-
 using System;
 using System.Collections.Generic;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
-    private readonly CardRenderer cardRenderer = new();
+    private static readonly Color TableGreen = new Color(7, 80, 46);
+    private static readonly Color TableGold = Color.Gold1;
 
-    private const int TableWidth = 40;
-    private const int CardWidth = 11;
-    private const int CardSpacing = 2;
-
-    private const string Felt = "#004B28";
-    private const string Gold = "gold1";
-
-    // Displays the Blackjack table for all players.
-    internal void ShowTable(List<Player> players, Dealer dealer)
+    internal Panel BuildBlackjackTable(List<Player> players, Dealer dealer, int tableHeight = 0)
     {
-        AnsiConsole.MarkupLine(
-            $"[{Gold}]╭{new string('─', TableWidth)}╮[/]"
-        );
+        List<IRenderable> tableContent = new();
 
-        WriteTableLine("♠ BLACKJACK 21 ♠");
-        WriteTableLine("");
-
-        // Displays Player 2-5 with small colored cards.
-        if (players.Count > 1)
+        if (players.Count == 1)
         {
+            tableContent.Add(new Align(new Markup("[bold gold1]♣ PRIVAT SPELBORD ♣[/]"), HorizontalAlignment.Center));
+            tableContent.Add(new Align(new Markup("[gold1]♥ Endast du och givaren ♥[/]"), HorizontalAlignment.Center));
+        }
+        else if (players.Count > 1)
+        {
+            var playerGrid = new Grid();
+            for (int i = 1; i < players.Count; i++)
+                playerGrid.AddColumn(new GridColumn().NoWrap());
+
+            List<IRenderable> names = new(), cards = new();
             for (int i = 1; i < players.Count; i++)
             {
-                WritePlayerSummary(players[i]);
+                Player player = players[i];
+                names.Add(new Markup($"[bold gold1]SPELARE {i + 1}[/]"));
+                cards.Add(new Markup(BuildSmallCards(player.Hand.CardsOnHand)));
             }
-
-            WriteTableLine("");
-            WriteTableLine("────────────────────────────");
-            WriteTableLine("");
+            playerGrid.AddRow(names.ToArray());
+            playerGrid.AddRow(cards.ToArray());
+            tableContent.Add(new Align(playerGrid, HorizontalAlignment.Center));
         }
 
-        WriteTableLine("DEALER");
-        WriteTableLine("");
+        tableContent.Add(new Rule("[gold1]GIVARE[/]").RuleStyle(TableGold));
+        AddRenderedCards(tableContent, dealer.Hand.CardsOnHand, !dealer.HoleCardVisible);
 
-        // Displays the dealer's cards.
-        WriteCards(dealer.Hand, !dealer.HoleCardVisible);
+        int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
+        int dealerRows = dealer.Hand.CardsOnHand.Count > 0 ? 8 : 2;
+        int playerRows = players.Count > 0 ? (players[0].Hand.CardsOnHand.Count > 0 ? 8 : 2) : 0;
+        int multiplayerRows = players.Count > 1 ? 3 : 0;
+        int bettingRows = 2;
+        int fixedRows = dealerRows + playerRows + multiplayerRows + bettingRows;
+        int spacerRows = Math.Max(0, innerHeight - fixedRows);
 
-        WriteTableLine("");
-        WriteTableLine("────────────────────────────");
-        WriteTableLine("");
+        // Avoid extra blank rows that push Player 1's cards below the table.
+        int topSpace = 0;
+        int bottomSpace = 0;
+        for (int i = 0; i < topSpace; i++)
+            tableContent.Add(new Text(" "));
 
-        WriteTableLine(players[0].Name.ToUpper());
-        WriteTableLine("");
+        tableContent.Add(BettingUI.Create());
+        for (int i = 0; i < bottomSpace; i++)
+            tableContent.Add(new Text(" "));
 
-        // Displays Player 1 with large playing cards.
-        WriteCards(players[0].Hand, false);
-
-        WriteTableLine("");
-
-        AnsiConsole.MarkupLine(
-            $"[{Gold}]╰{new string('─', TableWidth)}╯[/]"
-        );
-    }
-
-    // Displays a player's cards with colored suits.
-    private void WritePlayerSummary(Player player)
-    {
-        string cards = "";
-
-        foreach (Card card in player.Hand.CardsOnHand)
+        if (players.Count > 0)
         {
-            string cardText = GetCardText(card);
+            tableContent.Add(new Rule($"[gold1]{Markup.Escape(players[0].Name.ToUpperInvariant())}[/]").RuleStyle(TableGold));
+            AddRenderedCards(tableContent, players[0].Hand.CardsOnHand, false);
 
-            if (card.Suit == Suit.Hearts ||
-                card.Suit == Suit.Diamonds)
-            {
-                cards += $"[red on white]{cardText}[/] ";
-            }
-            else
-            {
-                cards += $"[black on white]{cardText}[/] ";
-            }
+            // Leave a little space between the cards and the bottom border.
+            tableContent.Add(new Text(" "));
+            tableContent.Add(new Text(" "));
         }
 
-        WriteColoredTableLine(
-            $"{Markup.Escape(player.Name)}: {cards.TrimEnd()}"
-        );
+        var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
+        return new Panel(greenTable)
+            .Header("[gold1] ♠ BLACKJACK ♠ [/]")
+            .Border(BoxBorder.Rounded)
+            .BorderColor(TableGold)
+            .Expand();
     }
 
-    // Converts a card into a short text representation.
-    private string GetCardText(Card card)
+    internal void ShowBlackjackTable(List<Player> players, Dealer dealer)
     {
-        string rank = card.Rank switch
-        {
-            Rank.Ace => "A",
-            Rank.King => "K",
-            Rank.Queen => "Q",
-            Rank.Jack => "J",
-            Rank.Ten => "10",
-            _ => ((int)card.Rank + 2).ToString()
-        };
-
-        string suit = card.Suit switch
-        {
-            Suit.Hearts => "♥",
-            Suit.Diamonds => "♦",
-            Suit.Clubs => "♣",
-            Suit.Spades => "♠",
-            _ => ""
-        };
-
-        return rank + suit;
+        AnsiConsole.Write(BuildBlackjackTable(players, dealer));
     }
 
-    // Writes a centered line on the table.
-    private void WriteTableLine(string text)
+    private string BuildSmallCards(List<Card> cards)
     {
-        if (text.Length > TableWidth)
+        if (cards.Count == 0)
+            return "[grey]Inga kort[/]";
+
+        List<string> labels = new();
+        foreach (Card card in cards)
         {
-            text = text.Substring(0, TableWidth);
+            string color = GetCardColor(card);
+            labels.Add($"[{color} on white] {GetCardLabel(card)} [/]");
         }
-
-        int left = (TableWidth - text.Length) / 2;
-
-        string content =
-            new string(' ', left) +
-            text.PadRight(TableWidth - left);
-
-        AnsiConsole.MarkupLine(
-            $"[{Gold}]│[/]" +
-            $"[white on {Felt}]" +
-            Markup.Escape(content) +
-            "[/]" +
-            $"[{Gold}]│[/]"
-        );
+        return string.Join(" ", labels);
     }
 
-    // Writes a colored line on the Blackjack table.
-    private void WriteColoredTableLine(string text)
+    private void AddRenderedCards(List<IRenderable> content, List<Card> cards, bool hideSecondCard)
     {
-        string plainText = Markup.Remove(text);
-
-        if (plainText.Length > TableWidth)
-        {
-            throw new ArgumentException(
-                "Player summary is wider than the table."
-            );
-        }
-
-        int left = (TableWidth - plainText.Length) / 2;
-        int right = TableWidth - plainText.Length - left;
-
-        AnsiConsole.MarkupLine(
-            $"[{Gold}]│[/]" +
-            $"[on {Felt}]{new string(' ', left)}[/]" +
-            $"[white on {Felt}]{text}[/]" +
-            $"[on {Felt}]{new string(' ', right)}[/]" +
-            $"[{Gold}]│[/]"
-        );
-    }
-
-    // Places the playing cards on the table.
-    private void WriteCards(Hand hand, bool hideSecondCard)
-    {
-        List<string[]> cards = new();
-
-        for (int i = 0; i < hand.CardsOnHand.Count; i++)
-        {
-            bool hidden = hideSecondCard && i == 1;
-
-            cards.Add(hidden
-                ? cardRenderer.RenderHiddenCard()
-                : cardRenderer.RenderCard(hand.CardsOnHand[i]));
-        }
-
         if (cards.Count == 0)
         {
-            WriteTableLine("No cards yet.");
+            content.Add(new Markup("[grey]Inga kort[/]"));
             return;
         }
 
-        int totalWidth =
-            cards.Count * CardWidth +
-            (cards.Count - 1) * CardSpacing;
+        CardRenderer renderer = new();
+        List<string[]> renderedCards = new();
+        for (int i = 0; i < cards.Count; i++)
+            renderedCards.Add(hideSecondCard && i == 1
+                ? renderer.RenderHiddenCard()
+                : renderer.RenderCard(cards[i]));
 
-        int left = Math.Max(
-            0,
-            (TableWidth - totalWidth) / 2
-        );
-
-        int right = Math.Max(
-            0,
-            TableWidth - totalWidth - left
-        );
-
-        for (int row = 0; row < cards[0].Length; row++)
+        List<IRenderable> cardRows = new();
+        for (int row = 0; row < 7; row++)
         {
-            string line = "";
-
-            for (int i = 0; i < cards.Count; i++)
-            {
-                line += cards[i][row];
-
-                if (i < cards.Count - 1)
-                {
-                    line +=
-                        $"[on {Felt}]" +
-                        new string(' ', CardSpacing) +
-                        "[/]";
-                }
-            }
-
-            AnsiConsole.MarkupLine(
-                $"[{Gold}]│[/]" +
-                $"[on {Felt}]{new string(' ', left)}[/]" +
-                line +
-                $"[on {Felt}]{new string(' ', right)}[/]" +
-                $"[{Gold}]│[/]"
-            );
+            List<string> pieces = new();
+            foreach (string[] card in renderedCards)
+                pieces.Add(card[row]);
+            cardRows.Add(new Markup(string.Join("  ", pieces)));
         }
+        content.Add(new Align(new Rows(cardRows), HorizontalAlignment.Center));
     }
 
-    // Displays a player's cards.
-    internal void ShowHand(Hand hand)
+    private string GetCardLabel(Card card)
     {
-        WriteCards(hand, false);
+        string rank = card.Rank switch
+        {
+            Rank.Ace => "A", Rank.King => "K", Rank.Queen => "Q", Rank.Jack => "J",
+            Rank.Ten => "10", Rank.Nine => "9", Rank.Eight => "8", Rank.Seven => "7",
+            Rank.Six => "6", Rank.Five => "5", Rank.Four => "4", Rank.Three => "3",
+            Rank.Two => "2", _ => "?"
+        };
+        string suit = card.Suit switch
+        {
+            Suit.Hearts => "♥", Suit.Diamonds => "♦", Suit.Clubs => "♣",
+            Suit.Spades => "♠", _ => "?"
+        };
+        return rank + suit;
     }
 
-    // Displays the dealer's cards.
-    internal void ShowDealerCards(Dealer dealer)
+    private string GetCardColor(Card card) =>
+        card.Suit == Suit.Hearts || card.Suit == Suit.Diamonds ? "red" : "black";
+}
+
+internal sealed class GreenTableBackground : Renderable
+{
+    private readonly IRenderable content;
+    private readonly Color background;
+    private readonly int minimumRows;
+
+    public GreenTableBackground(IRenderable content, Color background, int minimumRows = 0)
     {
-        WriteCards(dealer.Hand, !dealer.HoleCardVisible);
+        this.content = content;
+        this.background = background;
+        this.minimumRows = minimumRows;
+    }
+
+    protected override Measurement Measure(RenderOptions options, int maxWidth) =>
+        content.Measure(options, maxWidth);
+
+    protected override IEnumerable<Segment> Render(RenderOptions options, int maxWidth)
+    {
+        Style greenStyle = new Style(background: background);
+        int width = Math.Max(1, maxWidth), currentWidth = 0, finishedRows = 0;
+        bool atLineStart = true;
+
+        foreach (Segment segment in content.Render(options, maxWidth))
+        {
+            if (segment.IsLineBreak)
+            {
+                if (currentWidth < width)
+                    yield return new Segment(new string(' ', width - currentWidth), greenStyle);
+                yield return segment;
+                finishedRows++;
+                currentWidth = 0;
+                atLineStart = true;
+            }
+            else
+            {
+                Style original = segment.Style;
+                Style finalStyle = original.Background == Color.Default
+                    ? original.Combine(greenStyle)
+                    : original;
+                yield return new Segment(segment.Text, finalStyle);
+                currentWidth += segment.CellCount();
+                atLineStart = false;
+            }
+        }
+
+        if (!atLineStart)
+        {
+            if (currentWidth < width)
+                yield return new Segment(new string(' ', width - currentWidth), greenStyle);
+            finishedRows++;
+        }
+
+        while (finishedRows < minimumRows)
+        {
+            if (finishedRows > 0)
+                yield return Segment.LineBreak;
+            yield return new Segment(new string(' ', width), greenStyle);
+            finishedRows++;
+        }
     }
 }
