@@ -22,7 +22,9 @@ This is the basic game: it does not use bets, chips, insurance, doubling down, o
 - `Game` coordinates rounds, turns, and outcomes.
 - `Player` and `Dealer` represent the people playing; `Participant` contains behavior shared by both.
 - `Deck`, `Hand`, and `Card` handle cards, dealing, and hand contents.
-- `GameStorage` loads and saves player statistics in `player-results.json`.
+- `GameStorage` loads and saves player statistics in the user's local
+application-data folder.
+On macOS, the save will typically be under ~/Library/Application Support/Mai26ma-Grupp1-BlackJack; on Windows, it’s under %LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack.
 
 See [Uml.md](Uml.md) for the class diagram and more detail about each class's responsibility.
 The project's detailed requirements and user stories are in [UserStories.md](UserStories.md).
@@ -35,9 +37,12 @@ From the project directory, run:
 dotnet run
 ```
 
-Player statistics are saved in `player-results.json` and summarized in the human-readable
-`player-results.txt`, both in the current working directory. The text report contains cumulative
-totals from previous sessions as well as the latest saved results.
+Player statistics are saved as `player-results.json` and summarized in `player-results.txt` under
+the user's local application-data folder (`%LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack` on Windows).
+The text report contains cumulative totals from previous sessions as well as the latest saved
+results. If the game finds an older `player-results.json` in its current working directory and no
+app-data results exist yet, it imports those results into the new location without removing the
+older file. Results are local to one computer and are not automatically synchronized.
 
 ## Language
 

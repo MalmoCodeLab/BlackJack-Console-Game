@@ -5,28 +5,64 @@ using System.Text;
 public class GameStorage
 {
     private readonly string _filePath;
+    private readonly bool _migrateLegacyResults;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
-    
     // Creates storage that reads and writes player results at the specified path.
     public GameStorage(string? filePath = null)
     {
-        _filePath = filePath ?? Path.Combine(Environment.CurrentDirectory, "player-results.json");
+        _migrateLegacyResults = filePath is null;
+        _filePath = filePath ?? GetDefaultFilePath();
     }
-    
+
     // Loads player statistics from the JSON results file.
     // <exception cref="IOException">The results file cannot be read.</exception>
     // <exception cref="System.Text.Json.JsonException">The results file contains invalid JSON.</exception>
     public Dictionary<string, PlayerStatistics> LoadResults()
     {
-        if (!File.Exists(_filePath))
+        if (File.Exists(_filePath))
+            return ReadResults(_filePath);
+
+        string legacyFilePath = Path.Combine(
+            Environment.CurrentDirectory, "player-results.json");
+        if (_migrateLegacyResults &&
+            !PathsEqual(_filePath, legacyFilePath) &&
+            File.Exists(legacyFilePath))
         {
-            return new Dictionary<string, PlayerStatistics>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, PlayerStatistics> legacyResults =
+                ReadResults(legacyFilePath);
+            SaveResults(legacyResults);
+            return legacyResults;
         }
 
-        using var stream = File.OpenRead(_filePath);
-        var results = JsonSerializer.Deserialize<Dictionary<string, PlayerStatistics>>(stream);
+        return new Dictionary<string, PlayerStatistics>(StringComparer.OrdinalIgnoreCase);
+    }
 
+    private static string GetDefaultFilePath()
+    {
+        string localApplicationData =
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localApplicationData))
+            throw new InvalidOperationException(
+                "The local application data folder could not be determined.");
+
+        return Path.Combine(
+            localApplicationData, "Mai26ma-Grupp1-BlackJack", "player-results.json");
+    }
+
+    private static bool PathsEqual(string firstPath, string secondPath)
+    {
+        StringComparison comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return string.Equals(
+            Path.GetFullPath(firstPath), Path.GetFullPath(secondPath), comparison);
+    }
+
+    private static Dictionary<string, PlayerStatistics> ReadResults(string filePath)
+    {
+        using var stream = File.OpenRead(filePath);
+        var results = JsonSerializer.Deserialize<Dictionary<string, PlayerStatistics>>(stream);
         return results is null
             ? new Dictionary<string, PlayerStatistics>(StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, PlayerStatistics>(results, StringComparer.OrdinalIgnoreCase);
