@@ -546,6 +546,13 @@ public class Game
                 }
             };
             gameStorage.SaveResults(results);
+<<<<<<< HEAD
+=======
+
+            Dictionary<string, PlayerStatistics> savedResults =
+                gameStorage.LoadResults();
+            ui.ShowStatistics(savedResults);
+>>>>>>> dev
             return true;
         }
         catch (Exception ex) when (
@@ -571,7 +578,20 @@ public class Game
         Dictionary<string, PlayerStatistics> results;
         try
         {
+<<<<<<< HEAD
             results = gameStorage.LoadResults();
+=======
+            Dictionary<string, PlayerStatistics> results =
+                gameStorage.LoadResults();
+
+            if (results.Count == 0)
+            {
+                ShowMessage("Det finns inga sparade resultat.");
+                return;
+            }
+
+            ui.ShowStatistics(results);
+>>>>>>> dev
         }
         catch (Exception ex) when (
             ex is IOException ||
