@@ -50,7 +50,7 @@ public static class BettingUI
 
         return new Rows(
             new Align(
-                new Markup("[bold gold1]♠ CASINO CHIPS ♠[/]"),
+                new Markup("[bold gold1]♠ SPELMARKER ♠[/]"),
                 HorizontalAlignment.Center),
 
             new Align(
@@ -64,16 +64,16 @@ public static class BettingUI
     {
         return new Panel(
             new Rows(
-                new Markup("[bold gold1]BETTING MODE[/]"),
+                new Markup("[bold gold1]SPELMARKER[/]"),
                 new Text(""),
                 new Markup(
-                    $"[white]Balance:[/] [green1]{Balance}[/]"),
+                    $"[white]Saldo:[/] [green1]{Balance}[/]"),
                 new Markup(
-                    $"[white]Current Bet:[/] [gold1]{CurrentBet}[/]"),
+                    $"[white]Nuvarande insats:[/] [gold1]{CurrentBet}[/]"),
                 new Text(""),
-                new Markup("[grey]Left / Right: Select[/]"),
-                new Markup("[grey]Enter: Place Bet[/]"),
-                new Markup("[grey]Esc: Back[/]")
+                new Markup("[grey]← / →: Välj[/]"),
+                new Markup("[grey]Enter: Lägg insats[/]"),
+                new Markup("[grey]Esc: Tillbaka[/]")
             ))
             .Border(BoxBorder.Rounded)
             .BorderColor(Color.Gold1);
