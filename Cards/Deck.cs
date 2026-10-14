@@ -2,6 +2,14 @@ class Deck
 {
     public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
+    public List<Hand> ListOfHands { get; } = [];
+
+    public Hand CreateHand()
+    {
+        Hand hand = new Hand();
+        ListOfHands.Add(hand);
+        return hand;
+    }
 
     public void CreateDeck()
     {
@@ -25,7 +33,7 @@ class Deck
                 DiscardedCards.RemoveAt(0);
             }
         }
-        for (int i = DeckCards.Count; i >= 0; i--)
+        for (int i = DeckCards.Count -1; i > 0; i--)
         {
             int number = Random.Shared.Next(0, i + 1);
             Card TempCard = DeckCards[number];
@@ -46,6 +54,13 @@ class Deck
         Card dealCard = DeckCards[0];
         DeckCards.RemoveAt(0);
         return dealCard;
+    }
+    public void ForceRetriveAllCards()
+    {
+        for (int i = 0; i < ListOfHands.Count; i++)
+        {
+            ReciveDiscardedCard(ListOfHands[i]);
+        }
     }
     public void ReciveDiscardedCard(Hand hand)
     {
