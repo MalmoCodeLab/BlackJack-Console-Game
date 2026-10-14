@@ -38,6 +38,9 @@ public class Game
     // Creates a new Blackjack game.
     private void StartNewGame()
     {
+        Deck deck = new Deck();
+        deck.CreateDeck();
+        deck.ShuffleDeck();
         int playerCount = ui.AskPlayerCountCentered();
         Dictionary<string, PlayerStatistics> results;
         try
@@ -66,7 +69,7 @@ public class Game
         for (int i = 2; i <= playerCount; i++)
             players.Add(new Player(GameMessages.PlayerName(i)));
 
-        DealNewHandAndShow(players);
+        DealNewHandAndShow(players, deck);
     }
 
     // Centers the name prompt horizontally and vertically in the console.
@@ -93,23 +96,22 @@ public class Game
     }
 
     // Starts fresh rounds with the same players and their saved statistics.
-    private void DealNewHandAndShow(List<Player> players)
+    private void DealNewHandAndShow(List<Player> players, Deck deck)
     {
         bool newRound;
         do
         {
             // Clear the previous hands before dealing a new round.
+            deck.ForceRetriveAllCards();
+            deck.CheckIfNewShuffleIsNeeded();
             foreach (Player player in players)
-                player.NewRound();
+            player.NewRound();
             Dealer dealer = new Dealer();
-            Deck deck = new Deck();
-            deck.CreateDeck();
-            deck.ShuffleDeck();
             for (int cardNumber = 0; cardNumber < 2; cardNumber++)
             {
                 foreach (Player player in players)
                     player.ReceiveCard(deck);
-                dealer.ReceiveCard(deck);
+                    dealer.ReceiveCard(deck);
             }
             newRound = ShowGame(players, dealer, deck);
         }
@@ -639,7 +641,9 @@ public class Game
         {
             new Player(name, stats.Wins, stats.Losses, stats.Pushes)
         };
-        DealNewHandAndShow(players);
+        Deck deck = new Deck();
+        deck.ShuffleDeck();
+        DealNewHandAndShow(players, deck);
     }
 
     // Displays saved players in the same centered casino style as the main menu.
