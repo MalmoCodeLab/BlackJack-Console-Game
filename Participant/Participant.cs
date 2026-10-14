@@ -46,6 +46,11 @@ abstract class Participant
         }
     }
 
+    public bool NaturalBlackjack()
+    {
+    return Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
+    }
+
     public bool IsBust => Score > BlackjackValue;
     public bool HasBlackjack => Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
 
