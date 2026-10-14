@@ -1,15 +1,12 @@
 class Player : Participant
 {
-
     public int Wins { get; private set; }
     public int Losses { get; private set; }
     public int Pushes { get; private set; }
 
-
     public int GamesPlayed => Wins + Losses + Pushes;
 
-    // Får spelaren ta ett kort till? Nej om tjock eller redan 21 (story 6 och 8)
-    public bool CanHit => !IsBust && Score < 21;
+    public bool CanHit => !IsBust && Score < BlackjackValue;
 
     public Player(string name, int wins = 0, int losses = 0, int pushes = 0) : base(name)
     {
@@ -18,19 +15,22 @@ class Player : Participant
         Pushes = pushes;
     }
 
-    public void RecordWin()
-    {
-        Wins++;
-    }
 
-    public void RecordLoss()
+    public void RecordResult(Outcome outcome)
     {
-        Losses++;
-    }
-
-    public void RecordPush()
-    {
-        Pushes++;
+        switch (outcome)
+        {
+            case Outcome.Win:
+            case Outcome.Blackjack:
+                Wins++;
+                break;
+            case Outcome.Lose:
+                Losses++;
+                break;
+            case Outcome.Push:
+                Pushes++;
+                break;
+        }
     }
 
     public string StatsText()

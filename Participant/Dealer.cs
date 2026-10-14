@@ -1,12 +1,12 @@
 class Dealer : Participant
 {
+    private const int DealerStandsOn = 17;
+
     public bool HoleCardVisible { get; private set; }
 
     public Dealer() : base("Dealer")
     {
     }
-
-    public Card UpCard => Hand.CardsOnHand[0];
 
     public void ShowHoleCard()
     {
@@ -32,7 +32,17 @@ class Dealer : Participant
 
     public bool ShouldHit()
     {
-        return Score < 17;
+        return Score < DealerStandsOn;
+    }
+
+    public void PlayTurn(Deck deck)
+    {
+        ShowHoleCard();
+
+        while (ShouldHit())
+        {
+            ReceiveCard(deck);
+        }
     }
 
     public override void NewRound(Deck deck)
