@@ -16,19 +16,19 @@ public class Game
             string choice = ui.ShowMenu();
             switch (choice)
             {
-                case "♠ Nytt spel":
+                case GameMessages.NewGame:
                     StartNewGame();
                     break;
-                case "♦ Ladda spel":
+                case GameMessages.LoadGame:
                     LoadGame();
                     break;
-                case "♥ Spelregler":
+                case GameMessages.ShowRules:
                     ui.ShowRules();
                     break;
-                case "♣ Medverkande":
+                case GameMessages.ShowCredits:
                     ui.ShowCredits();
                     break;
-                case "♠ Avsluta":
+                case GameMessages.Exit:
                     running = false;
                     break;
             }
@@ -49,13 +49,13 @@ public class Game
             ex is UnauthorizedAccessException ||
             ex is JsonException)
         {
-            ShowMessage("Kunde inte ladda spelarstatistiken.");
+            ShowMessage(GameMessages.LoadPlayerStatisticsError);
             return;
         }
         // Only Player 1 gets a custom name and persistent statistics.
         string playerOneName = AskPlayerOneNameCentered();
         if (string.IsNullOrWhiteSpace(playerOneName))
-            playerOneName = "Spelare 1";
+            playerOneName = GameMessages.DefaultPlayerName;
 
         List<Player> players = new();
         if (results.TryGetValue(playerOneName, out PlayerStatistics? savedStats))
@@ -64,7 +64,7 @@ public class Game
             players.Add(new Player(playerOneName));
 
         for (int i = 2; i <= playerCount; i++)
-            players.Add(new Player($"Spelare {i}"));
+            players.Add(new Player(GameMessages.PlayerName(i)));
 
         DealNewHandAndShow(players);
     }
@@ -73,7 +73,7 @@ public class Game
     private string AskPlayerOneNameCentered()
     {
         AnsiConsole.Clear();
-        const string prompt = "Skriv in ditt namn: ";
+        const string prompt = GameMessages.EnterPlayerNamePrompt;
         int width = Math.Max(1, Console.WindowWidth);
         int height = Math.Max(1, Console.WindowHeight);
         int left = Math.Max(0, (width - prompt.Length - 16) / 2);
@@ -120,8 +120,8 @@ public class Game
     private bool ShowGame(List<Player> players, Dealer dealer, Deck deck)
     {
         // The third action activates the chips already drawn on the table.
-        string[] gameOptions = { "♥ Ta kort", "♠ Stanna", "♦ Satsa" };
-        string[] menuOptions = { "♠ Ny runda", "♣ Huvudmeny", "♦ Spara och avsluta" };
+        string[] gameOptions = GameMessages.GameOptions;
+        string[] menuOptions = GameMessages.InGameMenuOptions;
         int selectedGameOption = 0;
         int selectedMenuOption = 0;
         bool sideMenuActive = false;
@@ -272,7 +272,7 @@ public class Game
                                     roundSummary = ResolveRound(players, dealer, deck);
                                     // Save the updated statistics as soon as the round ends.
                                     if (!SaveResultsOnly(players))
-                                        roundSummary += "\nKunde inte spara resultatet.";
+                                        roundSummary = GameMessages.AppendSaveResultsError(roundSummary);
                                     playing = false;
                                 }
                             }
@@ -310,58 +310,57 @@ public class Game
             if (player.IsBust)
             {
                 player.RecordLoss();
-                outcome = "Förlust (över 21)";
+                outcome = GameMessages.PlayerBustOutcome;
             }
             else if (dealer.IsBust)
             {
                 player.RecordWin();
-                outcome = "Vinst (givaren sprack)";
+                outcome = GameMessages.DealerBustOutcome;
             }
             else if (player.HasBlackjack && !dealer.HasBlackjack)
             {
                 player.RecordWin();
-                outcome = "Vinst (naturlig 21)";
+                outcome = GameMessages.PlayerBlackjackOutcome;
             }
             else if (dealer.HasBlackjack && !player.HasBlackjack)
             {
                 player.RecordLoss();
-                outcome = "Förlust (givarens Blackjack)";
+                outcome = GameMessages.DealerBlackjackOutcome;
             }
             else if (player.Score > dealer.Score)
             {
                 player.RecordWin();
-                outcome = "Vinst";
+                outcome = GameMessages.WinOutcome;
             }
             else if (player.Score < dealer.Score)
             {
                 player.RecordLoss();
-                outcome = "Förlust";
+                outcome = GameMessages.LossOutcome;
             }
             else
             {
                 player.RecordPush();
-                outcome = "Oavgjort";
+                outcome = GameMessages.PushOutcome;
             }
             if (players.Count == 1)
             {
-                string headline = outcome.StartsWith("Vinst") ? "DU VANN!" :
-                                  outcome.StartsWith("Förlust") ? "DU FÖRLORADE!" : "OAVGJORT!";
-                messages.Add($"{headline} ({player.Score} mot {dealer.Score})");
+                string headline = GameMessages.OutcomeHeadline(outcome, soloPlayer: true);
+                messages.Add(GameMessages.SoloResult(headline, player.Score, dealer.Score));
             }
             else
                 {
-                string headline = outcome.StartsWith("Vinst") ? "VANN!" :
-                                  outcome.StartsWith("Förlust") ? "FÖRLORADE!" : "OAVGJORT!";
-                messages.Add($"{player.Name}: {headline} ({player.Score} mot {dealer.Score})");
+                string headline = GameMessages.OutcomeHeadline(outcome, soloPlayer: false);
+                messages.Add(GameMessages.NamedResult(
+                    player.Name, headline, player.Score, dealer.Score));
             }
         }
-        return string.Join("\n", messages);
+        return string.Join(Environment.NewLine, messages);
     }
 
     // Shows the outcome and lets the player start another round without leaving.
     private bool ShowRoundEndMenu(string summary, List<Player> players)
     {
-        string[] options = { "♠ Ny runda", "♣ Huvudmeny", "♦ Spara och avsluta" };
+        string[] options = GameMessages.RoundEndMenuOptions;
         int selected = 0;
         while (true)
         {
@@ -404,20 +403,20 @@ public class Game
     {
         var rows = new List<Spectre.Console.Rendering.IRenderable>
         {
-            new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
-            new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
-            new Rule("[gold1]RESULTAT[/]").RuleStyle(Color.Gold1),
+            new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
+            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Rule(GameMessages.ResultTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
         foreach (string result in summary.Split('\n'))
         {
-            string color = result.Contains("Förlust") || result.Contains("FÖRLORADE") ? "red" :
-                           result.Contains("Vinst") || result.Contains("VANN") ? "green1" : "gold1";
+            string color = GameMessages.IsLossOutcome(result) ? "red" :
+                           GameMessages.IsWinOutcome(result) ? "green1" : "gold1";
             rows.Add(new Align(new Markup($"[{color}]{Markup.Escape(result)}[/]"),
                 HorizontalAlignment.Center));
         }
         rows.Add(new Text(""));
-        rows.Add(new Align(new Markup("[bold gold1]Vill du spela en ny runda?[/]"),
+        rows.Add(new Align(new Markup($"[bold gold1]{GameMessages.NewRoundPrompt}[/]"),
             HorizontalAlignment.Center));
         rows.Add(new Text(""));
         for (int i = 0; i < options.Length; i++)
@@ -430,7 +429,7 @@ public class Game
             rows.Add(new Text(""));
         }
         rows.Add(new Rule().RuleStyle(Color.Gold1));
-        rows.Add(new Align(new Markup("[grey]↑ ↓ Navigera  •  Enter Välj[/]"),
+        rows.Add(new Align(new Markup(GameMessages.RoundEndNavigationMarkup),
             HorizontalAlignment.Center));
         var panel = new Panel(new Rows(rows))
             .Border(BoxBorder.Rounded)
@@ -481,10 +480,10 @@ public class Game
     {
         List<Spectre.Console.Rendering.IRenderable> content = new();
         content.Add(new Align(
-            new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
+            new Markup(GameMessages.GameMenuTitleMarkup),
             HorizontalAlignment.Center));
         content.Add(new Text(""));
-        string[] shortOptions = { "♠ Ny runda", "♣ Huvudmeny", "♦ Spara och avsluta" };
+        string[] shortOptions = GameMessages.InGameMenuOptions;
         for (int i = 0; i < menuOptions.Length; i++)
         {
             string label = Markup.Escape(
@@ -495,7 +494,7 @@ public class Game
             content.Add(new Text(""));
         }
         // Two columns keep the labels left and the values right aligned.
-        content.Add(new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1));
+        content.Add(new Rule(GameMessages.PointsTitleMarkup).RuleStyle(Color.Gold1));
         var scoreTable = new Table()
             .NoBorder()
             .HideHeaders()
@@ -505,12 +504,12 @@ public class Game
         foreach (Player player in players)
         {
             scoreTable.AddRow(
-                $"[white]{Markup.Escape(player.Name)}:[/]",
-                $"[bold gold1]{player.Score}[/]");
+                GameMessages.ScoreMarkup(Markup.Escape(player.Name)),
+                GameMessages.PlayerScoreMarkup(player.Score));
         }
         content.Add(scoreTable);
         content.Add(new Text(""));
-        content.Add(new Rule("[gold1]MARKER[/]").RuleStyle(Color.Gold1));
+        content.Add(new Rule(GameMessages.ChipsTitleMarkup).RuleStyle(Color.Gold1));
         var moneyTable = new Table()
             .NoBorder()
             .HideHeaders()
@@ -518,11 +517,11 @@ public class Game
         moneyTable.AddColumn(new TableColumn("").LeftAligned());
         moneyTable.AddColumn(new TableColumn("").RightAligned());
         moneyTable.AddRow(
-            "[white]Saldo:[/]",
-            $"[green1]{BettingUI.Balance} kr[/]");
+            GameMessages.BalanceMarkup,
+            GameMessages.Balance(BettingUI.Balance));
         moneyTable.AddRow(
-            "[white]Aktuell insats:[/]",
-            $"[gold1]{BettingUI.CurrentBet} kr[/]");
+            GameMessages.CurrentBetMarkup,
+            GameMessages.CurrentBet(BettingUI.CurrentBet));
         content.Add(moneyTable);
         return new Panel(new Rows(content))
             .Border(BoxBorder.Rounded)
@@ -565,8 +564,8 @@ public class Game
     private bool SaveGame(List<Player> players)
     {
         bool saved = SaveResultsOnly(players);
-        ShowMessage(saved ? "Spelarstatistiken har sparats!" :
-                            "Kunde inte spara spelarstatistiken.");
+        ShowMessage(saved ? GameMessages.SaveStatisticsSuccess :
+                            GameMessages.SaveStatisticsError);
         return saved;
     }
 
@@ -586,13 +585,13 @@ public class Game
             ex is UnauthorizedAccessException ||
             ex is JsonException)
         {
-            ShowMessage("Kunde inte ladda sparade resultat.");
+            ShowMessage(GameMessages.LoadSavedResultsError);
             return;
         }
 
         if (results.Count == 0)
         {
-            ShowMessage("Det finns inga sparade spel ännu.");
+            ShowMessage(GameMessages.NoSavedGames);
             return;
         }
 
@@ -650,19 +649,20 @@ public class Game
         int selected)
     {
         List<Spectre.Console.Rendering.IRenderable> rows = new();
-        rows.Add(new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"),
+        rows.Add(new Align(new Markup(GameMessages.GameTitleMarkup),
             HorizontalAlignment.Center));
-        rows.Add(new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"),
+        rows.Add(new Align(new Markup(GameMessages.GameSubtitleMarkup),
             HorizontalAlignment.Center));
         rows.Add(new Text(""));
-        rows.Add(new Rule("[gold1]♦ LADDA SPEL ♦[/]").RuleStyle(Color.Gold1));
+        rows.Add(new Rule(GameMessages.SavedPlayersTitleMarkup).RuleStyle(Color.Gold1));
         rows.Add(new Text(""));
 
         for (int i = 0; i < names.Count; i++)
         {
             string name = names[i];
             PlayerStatistics stats = results[name];
-            string label = $"{name}  |  V: {stats.Wins}  F: {stats.Losses}  O: {stats.Pushes}";
+            string label = GameMessages.SavedPlayerStatistics(
+                name, stats.Wins, stats.Losses, stats.Pushes);
             string escaped = Markup.Escape(label);
             string line = i == selected
                 ? $"[bold white on #961923] ❯ {escaped} [/]"
@@ -671,7 +671,7 @@ public class Game
             rows.Add(new Text(""));
         }
         rows.Add(new Rule().RuleStyle(Color.Gold1));
-        rows.Add(new Align(new Markup("[grey]↑ ↓ Välj spelare  •  Enter Spela  •  Esc Tillbaka[/]"),
+        rows.Add(new Align(new Markup(GameMessages.SavedPlayersNavigationMarkup),
             HorizontalAlignment.Center));
         var panel = new Panel(new Rows(rows))
             .Border(BoxBorder.Rounded)
