@@ -5,14 +5,7 @@ using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
-    private readonly string[] menuOptions =
-    {
-        "♠ Nytt spel",
-        "♦ Ladda spel",
-        "♥ Spelregler",
-        "♣ Medverkande",
-        "♠ Avsluta"
-    };
+    private readonly string[] menuOptions = GameMessages.MainMenuOptions;
 
     // Displays the main menu with arrow-key navigation.
     public string ShowMenu()
@@ -93,15 +86,15 @@ public partial class ConsoleUi
     private IRenderable CreatePlayerCountMenu(int selectedOption)
     {
         List<IRenderable> rows = new();
-        rows.Add(new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center));
-        rows.Add(new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center));
+        rows.Add(new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center));
+        rows.Add(new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center));
         rows.Add(new Text(""));
-        rows.Add(new Rule("[gold1]♠ VÄLJ ANTAL SPELARE ♠[/]").RuleStyle(Color.Gold1));
+        rows.Add(new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1));
         rows.Add(new Text(""));
 
         for (int i = 0; i < 5; i++)
         {
-            string label = $"{i + 1} spelare".PadRight(17);
+            string label = string.Format(GameMessages.PlayerCountFormat, i + 1).PadRight(17);
             string line = i == selectedOption
                 ? $"[bold white on #961923] ❯ {label} [/]"
                 : $"[white]   {label} [/]";
@@ -110,7 +103,7 @@ public partial class ConsoleUi
         }
 
         rows.Add(new Rule().RuleStyle(Color.Gold1));
-        rows.Add(new Align(new Markup("[grey]↑ ↓ Navigera  •  Enter Välj[/]"), HorizontalAlignment.Center));
+        rows.Add(new Align(new Markup(GameMessages.MenuNavigationMarkup), HorizontalAlignment.Center));
         return CenterMenuPanel(rows);
     }
 
@@ -119,13 +112,13 @@ public partial class ConsoleUi
     {
         List<IRenderable> rows = new();
         rows.Add(new Align(
-            new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"),
+            new Markup(GameMessages.GameTitleMarkup),
             HorizontalAlignment.Center));
         rows.Add(new Align(
-            new Markup("[italic green3]Tur kan inte kompileras.[/]"),
+            new Markup(GameMessages.GameSubtitleMarkup),
             HorizontalAlignment.Center));
         rows.Add(new Text(""));
-        rows.Add(new Rule("[gold1]♠ HUVUDMENY ♠[/]").RuleStyle(Color.Gold1));
+        rows.Add(new Rule(GameMessages.MainMenuTitleMarkup).RuleStyle(Color.Gold1));
         rows.Add(new Text(""));
 
         for (int i = 0; i < menuOptions.Length; i++)
@@ -142,7 +135,7 @@ public partial class ConsoleUi
 
         rows.Add(new Rule().RuleStyle(Color.Gold1));
         rows.Add(new Align(
-            new Markup("[grey]↑ ↓ Navigera  •  Enter Välj[/]"),
+            new Markup(GameMessages.MenuNavigationMarkup),
             HorizontalAlignment.Center));
 
         return CenterMenuPanel(rows);
