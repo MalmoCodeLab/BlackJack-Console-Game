@@ -11,9 +11,11 @@ class Deck
         return hand;
     }
 
-    public void CreateDeck()
+    public void CreateSixDecks()
     {
-        for (int s = 0; s < 4; s++)
+        for (int i = 0; i < 6; i++)
+        {
+            for (int s = 0; s < 4; s++)
         {
             for (int r = 0; r < 13; r++)
             {
@@ -21,6 +23,8 @@ class Deck
                 DeckCards.Add(card);
             }
         }
+        }
+        
     }
     public void ShuffleDeck()
     {
