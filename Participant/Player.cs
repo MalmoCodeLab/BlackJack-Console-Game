@@ -33,8 +33,19 @@ class Player : Participant
         }
     }
 
-    public string StatsText()
+    public void RecordWin()
     {
-        return $"{Name}  W: {Wins}  L: {Losses}  P: {Pushes}";
+        Wins++;
     }
+
+    public void RecordLoss()
+    {
+        Losses++;
+    }
+
+public void RecordPush()
+    {
+        Pushes++;
+    }
+
 }
