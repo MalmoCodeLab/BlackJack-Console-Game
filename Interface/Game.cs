@@ -52,28 +52,44 @@ public class Game
             ShowMessage("Kunde inte ladda spelarstatistiken.");
             return;
         }
+        // Only Player 1 gets a custom name and persistent statistics.
+        string playerOneName = AskPlayerOneNameCentered();
+        if (string.IsNullOrWhiteSpace(playerOneName))
+            playerOneName = "Spelare 1";
+
         List<Player> players = new();
-        // Creates the selected number of players.
-        for (int i = 1; i <= playerCount; i++)
-        {
-            string name = $"Spelare {i}";
-            if (results.TryGetValue(
-                name,
-                out PlayerStatistics? stats))
-            {
-                players.Add(new Player(
-                    name,
-                    stats.Wins,
-                    stats.Losses,
-                    stats.Pushes
-                ));
-            }
-            else
-            {
-                players.Add(new Player(name));
-            }
-        }
+        if (results.TryGetValue(playerOneName, out PlayerStatistics? savedStats))
+            players.Add(new Player(playerOneName, savedStats.Wins, savedStats.Losses, savedStats.Pushes));
+        else
+            players.Add(new Player(playerOneName));
+
+        for (int i = 2; i <= playerCount; i++)
+            players.Add(new Player($"Spelare {i}"));
+
         DealNewHandAndShow(players);
+    }
+
+    // Centers the name prompt horizontally and vertically in the console.
+    private string AskPlayerOneNameCentered()
+    {
+        AnsiConsole.Clear();
+        const string prompt = "Skriv in ditt namn: ";
+        int width = Math.Max(1, Console.WindowWidth);
+        int height = Math.Max(1, Console.WindowHeight);
+        int left = Math.Max(0, (width - prompt.Length - 16) / 2);
+        int top = Math.Max(0, height / 2);
+        try
+        {
+            Console.SetCursorPosition(left, top);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Use the current cursor position if the terminal is resized.
+        }
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.Write(prompt);
+        Console.ResetColor();
+        return (Console.ReadLine() ?? "").Trim();
     }
 
     // Starts fresh rounds with the same players and their saved statistics.
@@ -124,7 +140,8 @@ public class Game
                 // Reuse the original layout, without clearing on every key press.
                 Console.SetCursorPosition(0, 0);
                 // Keep the table compact while keeping the action buttons directly below it.
-                int totalHeight = Math.Max(22, Console.WindowHeight - 6);
+                // A fixed compact table avoids unpainted layout rows (black stripes).
+                int totalHeight = 27;
                 int tableHeight = totalHeight - 3;
                 var layout = new Layout("Root")
                     .Size(totalHeight)
@@ -221,7 +238,7 @@ public class Game
                             }
                             else if (selectedMenuOption == 2)
                             {
-                                // Save all players before leaving the table.
+                                // Save only Player 1 before leaving the table.
                                 if (SaveGame(players))
                                     playing = false;
                             }
@@ -240,8 +257,9 @@ public class Game
                                 currentPlayer.ReceiveCard(deck);
                             }
 
-                            // A player who busts cannot take any more cards.
-                            if (selectedGameOption == 1 || currentPlayer.IsBust)
+                            // Automatically finish this player’s turn at 21 or after a bust.
+                            // The dealer still plays before the final result is decided.
+                            if (selectedGameOption == 1 || currentPlayer.IsBust || currentPlayer.Score == 21)
                             {
                                 if (currentPlayerIndex < players.Count - 1)
                                 {
@@ -331,7 +349,11 @@ public class Game
                 messages.Add($"{headline} ({player.Score} mot {dealer.Score})");
             }
             else
-                messages.Add($"{player.Name}: {outcome} ({player.Score} mot {dealer.Score})");
+                {
+                string headline = outcome.StartsWith("Vinst") ? "VANN!" :
+                                  outcome.StartsWith("Förlust") ? "FÖRLORADE!" : "OAVGJORT!";
+                messages.Add($"{player.Name}: {headline} ({player.Score} mot {dealer.Score})");
+            }
         }
         return string.Join("\n", messages);
     }
@@ -512,16 +534,17 @@ public class Game
     {
         try
         {
-            Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
-            foreach (Player player in players)
+            // Store only Player 1. Other players are temporary.
+            Player player = players[0];
+            Dictionary<string, PlayerStatistics> results = new()
             {
-                results[player.Name] = new PlayerStatistics
+                [player.Name] = new PlayerStatistics
                 {
                     Wins = player.Wins,
                     Losses = player.Losses,
                     Pushes = player.Pushes
-                };
-            }
+                }
+            };
             gameStorage.SaveResults(results);
             return true;
         }

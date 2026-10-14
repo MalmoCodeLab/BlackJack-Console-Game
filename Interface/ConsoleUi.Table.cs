@@ -12,7 +12,12 @@ public partial class ConsoleUi
     {
         List<IRenderable> tableContent = new();
 
-        if (players.Count > 1)
+        if (players.Count == 1)
+        {
+            tableContent.Add(new Align(new Markup("[bold gold1]♣ PRIVAT SPELBORD ♣[/]"), HorizontalAlignment.Center));
+            tableContent.Add(new Align(new Markup("[gold1]♥ Endast du och givaren ♥[/]"), HorizontalAlignment.Center));
+        }
+        else if (players.Count > 1)
         {
             var playerGrid = new Grid();
             for (int i = 1; i < players.Count; i++)
@@ -29,36 +34,39 @@ public partial class ConsoleUi
             playerGrid.AddRow(cards.ToArray());
             tableContent.Add(new Align(playerGrid, HorizontalAlignment.Center));
         }
-        else if (players.Count == 1)
-        {
-            // Show a gold title when playing alone against the dealer.
-            tableContent.Add(new Align(
-                new Markup("[bold gold1]♣ PRIVAT SPELBORD ♣[/]"),
-                HorizontalAlignment.Center));
-
-            tableContent.Add(new Align(
-                new Markup("[gold1]♥ Endast du och givaren ♥[/]"),
-                HorizontalAlignment.Center));
-        }
 
         tableContent.Add(new Rule("[gold1]GIVARE[/]").RuleStyle(TableGold));
-        // Always render all seven rows of each card.
         AddRenderedCards(tableContent, dealer.Hand.CardsOnHand, !dealer.HoleCardVisible);
 
-        // Keep the chips between the dealer and Player 1.
-        // Do not add blank rows here: the cards must fit inside the table.
+        int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
+        int dealerRows = dealer.Hand.CardsOnHand.Count > 0 ? 8 : 2;
+        int playerRows = players.Count > 0 ? (players[0].Hand.CardsOnHand.Count > 0 ? 8 : 2) : 0;
+        int multiplayerRows = players.Count > 1 ? 3 : 0;
+        int bettingRows = 2;
+        int fixedRows = dealerRows + playerRows + multiplayerRows + bettingRows;
+        int spacerRows = Math.Max(0, innerHeight - fixedRows);
+
+        // Avoid extra blank rows that push Player 1's cards below the table.
+        int topSpace = 0;
+        int bottomSpace = 0;
+        for (int i = 0; i < topSpace; i++)
+            tableContent.Add(new Text(" "));
+
         tableContent.Add(BettingUI.Create());
+        for (int i = 0; i < bottomSpace; i++)
+            tableContent.Add(new Text(" "));
 
         if (players.Count > 0)
         {
-            tableContent.Add(new Rule("[gold1]SPELARE 1[/]").RuleStyle(TableGold));
+            tableContent.Add(new Rule($"[gold1]{Markup.Escape(players[0].Name.ToUpperInvariant())}[/]").RuleStyle(TableGold));
             AddRenderedCards(tableContent, players[0].Hand.CardsOnHand, false);
+
+            // Leave a little space between the cards and the bottom border.
+            tableContent.Add(new Text(" "));
+            tableContent.Add(new Text(" "));
         }
 
-        int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
-        var greenTable = new GreenTableBackground(
-            new Rows(tableContent), TableGreen, innerHeight);
-
+        var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
         return new Panel(greenTable)
             .Header("[gold1] ♠ BLACKJACK ♠ [/]")
             .Border(BoxBorder.Rounded)
@@ -115,28 +123,15 @@ public partial class ConsoleUi
     {
         string rank = card.Rank switch
         {
-            Rank.Ace => "A",
-            Rank.King => "K",
-            Rank.Queen => "Q",
-            Rank.Jack => "J",
-            Rank.Ten => "10",
-            Rank.Nine => "9",
-            Rank.Eight => "8",
-            Rank.Seven => "7",
-            Rank.Six => "6",
-            Rank.Five => "5",
-            Rank.Four => "4",
-            Rank.Three => "3",
-            Rank.Two => "2",
-            _ => "?"
+            Rank.Ace => "A", Rank.King => "K", Rank.Queen => "Q", Rank.Jack => "J",
+            Rank.Ten => "10", Rank.Nine => "9", Rank.Eight => "8", Rank.Seven => "7",
+            Rank.Six => "6", Rank.Five => "5", Rank.Four => "4", Rank.Three => "3",
+            Rank.Two => "2", _ => "?"
         };
         string suit = card.Suit switch
         {
-            Suit.Hearts => "♥",
-            Suit.Diamonds => "♦",
-            Suit.Clubs => "♣",
-            Suit.Spades => "♠",
-            _ => "?"
+            Suit.Hearts => "♥", Suit.Diamonds => "♦", Suit.Clubs => "♣",
+            Suit.Spades => "♠", _ => "?"
         };
         return rank + suit;
     }
@@ -164,52 +159,45 @@ internal sealed class GreenTableBackground : Renderable
     protected override IEnumerable<Segment> Render(RenderOptions options, int maxWidth)
     {
         Style greenStyle = new Style(background: background);
-        int width = Math.Max(1, maxWidth - 1);
-        int currentWidth = 0;
-        int renderedRows = 0;
-        bool rowHasContent = false;
+        int width = Math.Max(1, maxWidth), currentWidth = 0, finishedRows = 0;
+        bool atLineStart = true;
 
-        // Paint every actual row, including its unused cells, green.
         foreach (Segment segment in content.Render(options, maxWidth))
         {
             if (segment.IsLineBreak)
             {
                 if (currentWidth < width)
                     yield return new Segment(new string(' ', width - currentWidth), greenStyle);
-                yield return Segment.LineBreak;
-                renderedRows++;
+                yield return segment;
+                finishedRows++;
                 currentWidth = 0;
-                rowHasContent = false;
+                atLineStart = true;
             }
             else
             {
-                Style style = segment.Style.Background == Color.Default
-                    ? segment.Style.Combine(greenStyle)
-                    : segment.Style;
-                yield return new Segment(segment.Text, style);
+                Style original = segment.Style;
+                Style finalStyle = original.Background == Color.Default
+                    ? original.Combine(greenStyle)
+                    : original;
+                yield return new Segment(segment.Text, finalStyle);
                 currentWidth += segment.CellCount();
-                rowHasContent = true;
+                atLineStart = false;
             }
         }
 
-        // The last line may already have ended with a line break.
-        // Do not add another one before padding: it creates a black stripe.
-        if (rowHasContent)
+        if (!atLineStart)
         {
             if (currentWidth < width)
                 yield return new Segment(new string(' ', width - currentWidth), greenStyle);
-            renderedRows++;
+            finishedRows++;
         }
 
-        // Fill only the remaining rows, without inserting empty black rows.
-        bool lastEndedWithBreak = !rowHasContent && renderedRows > 0;
-        while (renderedRows < minimumRows)
+        while (finishedRows < minimumRows)
         {
-            if (!lastEndedWithBreak)
+            if (finishedRows > 0)
                 yield return Segment.LineBreak;
             yield return new Segment(new string(' ', width), greenStyle);
-            renderedRows++;
-            lastEndedWithBreak = false;
+            finishedRows++;
         }
     }
 }

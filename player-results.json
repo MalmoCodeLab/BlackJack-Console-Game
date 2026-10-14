@@ -1,27 +1,7 @@
 {
-  "Spelare 1": {
-    "Wins": 2,
-    "Losses": 12,
-    "Pushes": 0
-  },
-  "Spelare 2": {
-    "Wins": 0,
-    "Losses": 1,
-    "Pushes": 0
-  },
-  "Spelare 3": {
-    "Wins": 0,
-    "Losses": 1,
-    "Pushes": 0
-  },
-  "Spelare 4": {
-    "Wins": 0,
-    "Losses": 1,
-    "Pushes": 0
-  },
-  "Spelare 5": {
-    "Wins": 0,
-    "Losses": 1,
-    "Pushes": 0
+  "Alice": {
+    "Wins": 8,
+    "Losses": 51,
+    "Pushes": 2
   }
 }
