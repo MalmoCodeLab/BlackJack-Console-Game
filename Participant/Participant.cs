@@ -1,14 +1,20 @@
 abstract class Participant
 {
+    public const int BlackjackValue = 21;
+
     public string Name { get; }
     public Hand Hand { get; } = new Hand();
 
     protected Participant(string name)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Namnet får inte vara tomt.");
+        }
+
         Name = name.Trim();
     }
 
-  
     public void ReceiveCard(Deck deck)
     {
         Hand.ReceiveCard(deck);
@@ -30,7 +36,7 @@ abstract class Participant
                 }
             }
 
-            while (total > 21 && aces > 0)
+            while (total > BlackjackValue && aces > 0)
             {
                 total -= 10;
                 aces--;
@@ -40,16 +46,27 @@ abstract class Participant
         }
     }
 
-    public bool IsBust => Score > 21;
-    public bool HasBlackjack => Hand.CardsOnHand.Count == 2 && Score == 21;
+    public bool NaturalBlackjack()
+    {
+    return Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
+    }
+
+    public bool IsBust => Score > BlackjackValue;
+    public bool HasBlackjack => Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
 
     public override string ToString()
     {
         return Name;
     }
 
-    public virtual void NewRound()
+    public virtual void NewRound(Deck deck)
     {
-        Hand.DiscardCards();
+        List<Card> discarded = Hand.DiscardCards();
+        deck.DiscardedCards.AddRange(discarded);
     }
+
+    public void NewRound()
+{
+    Hand.DiscardCards();
+}
 }
