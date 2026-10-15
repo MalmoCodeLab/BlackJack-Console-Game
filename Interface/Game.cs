@@ -39,7 +39,7 @@ public class Game
     private void StartNewGame()
     {
         Deck deck = new Deck();
-        deck.CreateSixDecks();
+        deck.CreateDeck();
         deck.ShuffleDeck();
         int playerCount = ui.AskPlayerCountCentered();
         Dictionary<string, PlayerStatistics> results;

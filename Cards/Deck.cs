@@ -13,7 +13,7 @@
         return hand;
     }
 
-    public void CreateSixDecks()
+    public void CreateDeck()
     {
         for (int i = 0; i < 6; i++)
         {
@@ -38,7 +38,8 @@
         {
             RunningCount--;
         }
-        TrueCount = (double)RunningCount / (DeckCards.Count / 52);
+        double decksRemaining = DeckCards.Count / 52.0;
+        TrueCount = (double)RunningCount / decksRemaining;
 
     }
     public void ShuffleDeck()

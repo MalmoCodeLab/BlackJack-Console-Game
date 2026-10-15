@@ -1,5 +1,5 @@
 ﻿Deck deck = new();
-deck.CreateSixDecks();
+deck.CreateDeck();
 deck.ShuffleDeck();
 Hand hand1 = deck.CreateHand();
 for (int i = 0; i < deck.DeckCards.Count; i++)
