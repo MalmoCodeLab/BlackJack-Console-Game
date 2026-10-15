@@ -66,6 +66,9 @@ public static class BettingUI
                 // The player checks that the bet is allowed (not zero, not more than the chips).
                 player.TryPlaceBet(chipValues[SelectedChip]);
                 return true;
+            case ConsoleKey.Backspace:
+                player.CancelBet();
+                return true;
             default:
                 return false;
         }

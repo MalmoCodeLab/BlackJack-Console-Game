@@ -31,7 +31,7 @@ internal static class RoundResultFormatter
             if (player.IsOutOfChips)
                 messages.Add(GameMessages.PlayerOutOfChips(player.Name));
         }
-        
+
         return string.Join(Environment.NewLine, messages);
     }
 }

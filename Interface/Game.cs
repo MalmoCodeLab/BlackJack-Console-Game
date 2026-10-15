@@ -82,7 +82,7 @@ public class Game
 
             if (action != GameTableAction.StartNewRound)
                 return;
-                
+
             // A player who runs out of chips leaves the table.
             players.RemoveAll(player => player.IsOutOfChips);
             if (players.Count == 0)
@@ -90,6 +90,6 @@ public class Game
                 ui.ShowCenteredMessage(GameMessages.AllPlayersOutOfChips);
                 return;
             }
-        }   
+        }
     }
 }
