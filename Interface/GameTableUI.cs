@@ -26,6 +26,66 @@ internal sealed class GameTableUI
         BettingUI.Reset();
     }
 
+    // Every player places a bet on the table before the cards are dealt.
+    // Returns false if Esc is pressed; then all bets are given back.
+    public bool PlaceBets(Round round)
+    {
+        List<Player> players = round.Players;
+        string[] statuses = Enumerable.Repeat("VÄNTAR", players.Count).ToArray();
+        int current = 0;
+        string? error = null;
+        statuses[0] = "SATSAR";
+        
+        // Shows whose turn it is, or an error if the bet was not allowed.
+        string Notice()
+        {
+            Player player = players[current];
+            return error ?? $"{player.Name.ToUpperInvariant()}: SALDO {player.Chips} KR, " +
+                $"INSATS {player.CurrentBet} KR – MELLANSLAG = KLAR";
+        }
+
+        // Draws the normal game table with the chips selected.
+        void Draw() => DrawTable(BuildTable(
+            round, statuses, Notice(), selectedGameOption: 2,
+            selectedMenuOption: 0, sideMenuActive: false,
+            roundFinished: false, bettingMode: true));
+
+        ui.CheckWidth(TableHeight);
+        OpenTableScreen();
+        try
+        {
+            Draw();
+            while (true)
+            {
+                ConsoleKey key = ReadTableKey();
+                if (key == ConsoleKey.NoName)
+                {
+                    Draw();
+                    continue;
+                }
+
+                error = null;
+                Player player = players[current];
+
+                // Esc goes back to the main menu and gives every bet back.
+                if (key == ConsoleKey.Escape)
+                {
+                    foreach (Player p in players)
+                        p.CancelBet();
+                    CloseTableScreen();
+                    return false;
+                }
+
+                Draw();
+            }
+        }
+        catch
+        {
+            CloseTableScreen();
+            throw;
+        }
+    }
+   
     public GameTableAction PlayRound(
         Round round,
         Func<List<Player>, bool> saveGame)
