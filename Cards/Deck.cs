@@ -62,6 +62,8 @@
             DeckCards[number] = DeckCards[i];
             DeckCards[i] = TempCard;
         }
+        RunningCount = 0;
+        TrueCount = 0;
 
     }
     public void CheckIfNewShuffleIsNeeded()
