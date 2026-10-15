@@ -55,6 +55,13 @@ class Player : Participant
         return true;
     }
 
+    // Gives the whole bet back to the player.
+    public void CancelBet()
+    {
+        Chips += CurrentBet;
+        CurrentBet = 0;
+    }
+
     // Pays out the bet. The bet was already taken from Chips when it was placed.
     public void SettleBet(Outcome outcome)
     {

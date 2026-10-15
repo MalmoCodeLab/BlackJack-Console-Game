@@ -115,8 +115,8 @@ public class GameStorage
             .AppendLine("BLACKJACK 21 - SPARAD SPELARSTATISTIK")
             .AppendLine("Sammanlagda resultat från tidigare spelsessioner.")
             .AppendLine()
-            .AppendLine($"{"Spelare",-20} {"Vinster",8} {"Förluster",10} {"Lika",8} {"Rundor",8}")
-            .AppendLine(new string('-', 58));
+            .AppendLine($"{"Spelare",-20} {"Vinster",8} {"Förluster",10} {"Lika",8} {"Rundor",8} {"Marker",8}")
+            .AppendLine(new string('-', 67));
 
         foreach (var (name, statistics) in results.OrderBy(
             result => result.Key,
@@ -124,7 +124,7 @@ public class GameStorage
         {
             int roundsPlayed = statistics.Wins + statistics.Losses + statistics.Pushes;
             report.AppendLine(
-                $"{name,-20} {statistics.Wins,8} {statistics.Losses,10} {statistics.Pushes,8} {roundsPlayed,8}");
+                $"{name,-20} {statistics.Wins,8} {statistics.Losses,10} {statistics.Pushes,8} {roundsPlayed,8} {statistics.Chips,8}");
         }
 
         string temporaryFilePath = Path.Combine(
@@ -146,7 +146,7 @@ public class GameStorage
     }
 }
 
-// Tracks a player's total wins, losses, and pushes across rounds.
+// Tracks a player's total wins, losses, pushes and chips across rounds.
 public class PlayerStatistics
 {
     // Gets or sets the number of rounds the player has won.
@@ -157,4 +157,7 @@ public class PlayerStatistics
 
     // Gets or sets the number of tied rounds.
     public int Pushes { get; set; }
+
+    // Gets or sets the player's chips. Old saves without chips get the starting amount.
+    public int Chips { get; set; } = Player.StartingChips;
 }
