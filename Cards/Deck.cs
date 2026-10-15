@@ -3,6 +3,8 @@
     public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
     public List<Hand> ListOfHands { get; } = [];
+    public int RunningCount;
+    public double TrueCount;
 
     public Hand CreateHand()
     {
@@ -13,14 +15,34 @@
 
     public void CreateDeck()
     {
-        for (int s = 0; s < 4; s++)
+        for (int i = 0; i < 6; i++)
         {
-            for (int r = 0; r < 13; r++)
+            for (int s = 0; s < 4; s++)
             {
-                Card card = new((Suit)s, (Rank)r);
-                DeckCards.Add(card);
+                for (int r = 0; r < 13; r++)
+                {
+                    Card card = new((Suit)s, (Rank)r);
+                    DeckCards.Add(card);
+                }
             }
         }
+
+    }
+    public void CardCounter()
+    {
+        Rank rank = DeckCards[0].Rank;
+        if (rank <= Rank.Six)
+        {
+            RunningCount++;
+        }
+        else if (rank >= Rank.Ten)
+        {
+            RunningCount--;
+        }
+        double decksRemaining = DeckCards.Count / 52.0;
+        double rawTrueCount = (double)RunningCount / decksRemaining;
+        TrueCount = Math.Round(rawTrueCount, 2, MidpointRounding.AwayFromZero);
+
     }
     public void ShuffleDeck()
     {
@@ -33,13 +55,15 @@
                 DiscardedCards.RemoveAt(0);
             }
         }
-        for (int i = DeckCards.Count -1; i > 0; i--)
+        for (int i = DeckCards.Count - 1; i > 0; i--)
         {
             int number = Random.Shared.Next(0, i + 1);
             Card TempCard = DeckCards[number];
             DeckCards[number] = DeckCards[i];
             DeckCards[i] = TempCard;
         }
+        RunningCount = 0;
+        TrueCount = 0;
 
     }
     public void CheckIfNewShuffleIsNeeded()
@@ -51,6 +75,7 @@
     }
     public Card DealCard()
     {
+        CardCounter();
         Card dealCard = DeckCards[0];
         DeckCards.RemoveAt(0);
         return dealCard;

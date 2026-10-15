@@ -1,7 +1,22 @@
 Deck deck = new();
 deck.CreateDeck();
-Hand hand1 = deck.CreateHand();
 deck.ShuffleDeck();
+Hand hand1 = deck.CreateHand();
+for (int i = 0; i < deck.DeckCards.Count; i++)
+{
+  Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
+}
+
+hand1.ReceiveCard(deck);
+hand1.ReceiveCard(deck);
+for (int i = 0; i < hand1.CardsOnHand.Count; i++)
+{
+    System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
+}
+System.Console.WriteLine(deck.RunningCount);
+System.Console.WriteLine(deck.TrueCount);
+
+/*deck.ShuffleDeck();
 for (int i = 0; i < deck.DeckCards.Count; i++)
 {
     Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
@@ -78,7 +93,7 @@ for (int i = 0; i < deck.DeckCards.Count; i++)
 {
     Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
 }
-
+*/
 
 
 
