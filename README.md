@@ -43,14 +43,14 @@ dotnet run
 To run the automated game and UI tests after a change:
 
 ```text
-dotnet test Test/Blackjack.Tests.csproj
+dotnet test
 ```
 
 The test summary is printed in the terminal. To also save a report that can be
 opened later, run:
 
 ```text
-dotnet test Test/Blackjack.Tests.csproj --logger "trx;LogFileName=blackjack-tests.trx"
+dotnet test --logger "trx;LogFileName=blackjack-tests.trx"
 ```
 
 The report is written to `Test/TestResults/blackjack-tests.trx`. It lists each
