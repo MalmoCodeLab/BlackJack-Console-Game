@@ -60,6 +60,12 @@ public class Game
         string playerOneName = AskPlayerOneNameCentered();
         if (string.IsNullOrWhiteSpace(playerOneName))
             playerOneName = GameMessages.DefaultPlayerName;
+        // At most three distinct saved players; existing names may be reused.
+        if (!results.ContainsKey(playerOneName) && results.Count >= 3)
+        {
+            ShowMessage("Du har redan tre sparade spelare. Ta bort en under Ladda spel först.");
+            return;
+        }
         List<Player> players = new();
         if (results.TryGetValue(playerOneName, out PlayerStatistics? savedStats))
             players.Add(new Player(playerOneName, savedStats.Wins, savedStats.Losses, savedStats.Pushes));
@@ -67,6 +73,7 @@ public class Game
             players.Add(new Player(playerOneName));
         for (int i = 2; i <= playerCount; i++)
             players.Add(new Player(GameMessages.PlayerName(i)));
+        BettingUI.Reset();
         DealNewHandAndShow(players, deck);
     }
     // Centers the name prompt horizontally and vertically in the console.
@@ -522,10 +529,11 @@ public class Game
                     Pushes = player.Pushes
                 }
             };
-            gameStorage.SaveResults(results);
-            Dictionary<string, PlayerStatistics> savedResults =
-                gameStorage.LoadResults();
-            ui.ShowStatistics(savedResults);
+            Dictionary<string, PlayerStatistics> existing = gameStorage.LoadResults();
+            if (!existing.ContainsKey(player.Name) && existing.Count >= 3)
+                return false;
+            foreach (var entry in results) existing[entry.Key] = entry.Value;
+            gameStorage.SaveResults(existing);
             return true;
         }
         catch (Exception ex) when (
@@ -542,19 +550,13 @@ public class Game
                             GameMessages.SaveStatisticsError);
         return saved;
     }
-    // Selects a saved player and starts a new deal with their saved statistics.
-    // Cards and the current round are intentionally not saved.
+    // Shows up to three saved profiles. Delete removes a profile after confirmation.
+    // The storage class itself remains unchanged.
     private void LoadGame()
     {
         Dictionary<string, PlayerStatistics> results;
-        try
-        {
-            results = gameStorage.LoadResults();
-        }
-        catch (Exception ex) when (
-            ex is IOException ||
-            ex is UnauthorizedAccessException ||
-            ex is JsonException)
+        try { results = gameStorage.LoadResults(); }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
         {
             ShowMessage(GameMessages.LoadSavedResultsError);
             return;
@@ -564,85 +566,121 @@ public class Game
             ShowMessage(GameMessages.NoSavedGames);
             return;
         }
-        ui.ShowStatistics(results);
         List<string> names = new(results.Keys);
         names.Sort(StringComparer.OrdinalIgnoreCase);
         int selected = 0;
-        bool cancelled = false;
+        bool cancelled = false, confirmingDelete = false;
+        string? error = null;
         AnsiConsole.Clear();
-        AnsiConsole.Live(BuildSavedPlayersMenu(names, results, selected))
-            .Start(context =>
-            {
-                context.Refresh();
-                while (true)
-                {
-                    ConsoleKey key = Console.ReadKey(true).Key;
-                    if (key == ConsoleKey.UpArrow)
-                        selected = (selected - 1 + names.Count) % names.Count;
-                    else if (key == ConsoleKey.DownArrow)
-                        selected = (selected + 1) % names.Count;
-                    else if (key == ConsoleKey.Escape)
-                    {
-                        cancelled = true;
-                        break;
-                    }
-                    else if (key == ConsoleKey.Enter)
-                        break;
-                    else
-                        continue;
-                    context.UpdateTarget(BuildSavedPlayersMenu(names, results, selected));
-                    context.Refresh();
-                }
-            });
-        if (cancelled)
-            return;
-        string name = names[selected];
-        PlayerStatistics stats = results[name];
-        List<Player> players = new()
+        AnsiConsole.Live(BuildSavedPlayersMenu(names, results, selected, confirmingDelete)).Start(context =>
         {
-            new Player(name, stats.Wins, stats.Losses, stats.Pushes)
-        };
+            context.Refresh();
+            while (names.Count > 0)
+            {
+                ConsoleKey key = Console.ReadKey(true).Key;
+                if (confirmingDelete)
+                {
+                    if (key == ConsoleKey.Enter || key == ConsoleKey.Y || key == ConsoleKey.J)
+                    {
+                        string name = names[selected];
+                        // Save a copy so the UI never claims deletion if writing fails.
+                        var updated = new Dictionary<string, PlayerStatistics>(results, StringComparer.OrdinalIgnoreCase);
+                        updated.Remove(name);
+                        try { gameStorage.SaveResults(updated); }
+                        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
+                        {
+                            error = "Kunde inte ta bort sparfilen.";
+                            cancelled = true;
+                            break;
+                        }
+                        results = updated;
+                        names.RemoveAt(selected);
+                        if (names.Count == 0) { cancelled = true; break; }
+                        selected = Math.Min(selected, names.Count - 1);
+                    }
+                    confirmingDelete = false;
+                }
+                else if (key == ConsoleKey.UpArrow)
+                    selected = (selected - 1 + names.Count) % names.Count;
+                else if (key == ConsoleKey.DownArrow)
+                    selected = (selected + 1) % names.Count;
+                else if (key == ConsoleKey.Delete)
+                    confirmingDelete = true;
+                else if (key == ConsoleKey.Escape)
+                {
+                    cancelled = true;
+                    break;
+                }
+                else if (key == ConsoleKey.Enter)
+                    break;
+                else
+                    continue;
+                context.UpdateTarget(BuildSavedPlayersMenu(names, results, selected, confirmingDelete));
+                context.Refresh();
+            }
+        });
+        if (error != null) ShowMessage(error);
+        if (cancelled || names.Count == 0) return;
+        string selectedName = names[selected];
+        PlayerStatistics stats = results[selectedName];
+        List<Player> players = new() { new Player(selectedName, stats.Wins, stats.Losses, stats.Pushes) };
+        BettingUI.Reset();
         Deck deck = new Deck();
         deck.CreateDeck();
         deck.ShuffleDeck();
         DealNewHandAndShow(players, deck);
     }
-    // Displays saved players in the same centered casino style as the main menu.
+    // Renders a centered casino-style save selection with selected-player statistics.
     private Spectre.Console.Rendering.IRenderable BuildSavedPlayersMenu(
-        List<string> names,
-        Dictionary<string, PlayerStatistics> results,
-        int selected)
+        List<string> names, Dictionary<string, PlayerStatistics> results,
+        int selected, bool confirmingDelete)
     {
-        List<Spectre.Console.Rendering.IRenderable> rows = new();
-        rows.Add(new Align(new Markup(GameMessages.GameTitleMarkup),
-            HorizontalAlignment.Center));
-        rows.Add(new Align(new Markup(GameMessages.GameSubtitleMarkup),
-            HorizontalAlignment.Center));
-        rows.Add(new Text(""));
-        rows.Add(new Rule(GameMessages.SavedPlayersTitleMarkup).RuleStyle(Color.Gold1));
-        rows.Add(new Text(""));
+        var rows = new List<Spectre.Console.Rendering.IRenderable>
+        {
+            new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
+            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
+            new Rule("[bold gold1]♠ LADDA SPEL ♠[/]").RuleStyle(Color.Gold1),
+            new Align(new Markup($"[grey]SPARADE SPELARE  ({names.Count}/3)[/]"), HorizontalAlignment.Center),
+            new Text("")
+        };
         for (int i = 0; i < names.Count; i++)
         {
-            string name = names[i];
-            PlayerStatistics stats = results[name];
-            string label = GameMessages.SavedPlayerStatistics(
-                name, stats.Wins, stats.Losses, stats.Pushes);
-            string escaped = Markup.Escape(label);
+            string label = Markup.Escape(names[i]);
             string line = i == selected
-                ? $"[bold white on #961923] ❯ {escaped} [/]"
-                : $"[white]   {escaped} [/]";
+                ? $"[bold white on #961923] ❯  {label}  [/]"
+                : $"[white]    {label}[/]";
             rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
-            rows.Add(new Text(""));
+        }
+        for (int i = names.Count; i < 3; i++)
+            rows.Add(new Align(new Markup("[grey]    — Tom plats —[/]"), HorizontalAlignment.Center));
+        PlayerStatistics stats = results[names[selected]];
+        rows.Add(new Text(""));
+        rows.Add(new Rule("[gold1]SPELARSTATISTIK[/]").RuleStyle(Color.Gold1));
+        var table = new Table().NoBorder().HideHeaders();
+        table.AddColumn(new TableColumn("").RightAligned());
+        table.AddColumn(new TableColumn("").LeftAligned());
+        table.AddColumn(new TableColumn("").RightAligned());
+        table.AddColumn(new TableColumn("").LeftAligned());
+        table.AddRow("[white]Vinster[/]", $"[green1]{stats.Wins}[/]", "[white]Förluster[/]", $"[red]{stats.Losses}[/]");
+        table.AddRow("[white]Oavgjorda[/]", $"[gold1]{stats.Pushes}[/]", "[white]Rundor[/]", $"[deepskyblue1]{stats.Wins + stats.Losses + stats.Pushes}[/]");
+        rows.Add(new Align(table, HorizontalAlignment.Center));
+        rows.Add(new Text(""));
+        if (confirmingDelete)
+        {
+            rows.Add(new Align(new Markup($"[bold red]Ta bort {Markup.Escape(names[selected])} permanent?[/]"), HorizontalAlignment.Center));
+            rows.Add(new Align(new Markup("[white]Enter: Ja     Esc: Nej[/]"), HorizontalAlignment.Center));
+        }
+        else
+        {
+            rows.Add(new Align(new Markup("[green1]Enter[/] [grey]Ladda spel[/]   [red]Delete[/] [grey]Ta bort[/]"), HorizontalAlignment.Center));
+            rows.Add(new Align(new Markup("[grey]↑ / ↓: Välj spelare     Esc: Tillbaka[/]"), HorizontalAlignment.Center));
         }
         rows.Add(new Rule().RuleStyle(Color.Gold1));
-        rows.Add(new Align(new Markup(GameMessages.SavedPlayersNavigationMarkup),
-            HorizontalAlignment.Center));
-        var panel = new Panel(new Rows(rows))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1)
-            .Expand();
+        var panel = new Panel(new Rows(rows)).Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1).Expand();
         int terminalWidth = Math.Max(1, Console.WindowWidth);
-        int panelWidth = Math.Min(68, terminalWidth);
+        int panelWidth = Math.Min(72, terminalWidth);
         int left = (terminalWidth - panelWidth) / 2;
         return new Padder(panel).PadLeft(left).PadRight(terminalWidth - panelWidth - left);
     }
