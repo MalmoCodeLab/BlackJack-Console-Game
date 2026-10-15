@@ -35,6 +35,7 @@ public partial class ConsoleUi
     }
     private static string GetHandType(Player player)
     {
+        if (player.Score != 21) return "";
         if (player.HasBlackjack) return "NATURAL BLACKJACK";
         int total = 0, aces = 0;
         foreach (Card card in player.Hand.CardsOnHand)
@@ -43,7 +44,7 @@ public partial class ConsoleUi
             if (card.Rank == Rank.Ace) aces++;
         }
         while (total > 21 && aces > 0) { total -= 10; aces--; }
-        return aces > 0 ? "MJUK HAND" : "HÅRD HAND";
+        return aces > 0 ? "MJUK BLACKJACK" : "HÅRD BLACKJACK";
     }
     private const int SideSeatWidth = 13;
     private const int AliceSeatWidth = 35;
@@ -63,11 +64,9 @@ public partial class ConsoleUi
             if (index < players.Count)
             {
                 Player player = players[index];
-                string name = index == 0
-                    ? player.Name.ToUpperInvariant()
-                    : $"SPELARE {index + 1}";
+                string name = player.Name.ToUpperInvariant();
                 string handType = GetHandType(player);
-                string label = index == 0 ? $"{name}  ·  {handType}" : name;
+                string label = index == 0 && handType.Length > 0 ? $"{name} · {handType}" : name;
                 if (label.Length > width) label = label[..width];
                 lines[0] = CenterText(Markup.Escape(label), label.Length, width, "bold gold1");
                 if (index == 0)
@@ -80,6 +79,12 @@ public partial class ConsoleUi
                 {
                     string cards = BuildCompactCards(player.Hand.CardsOnHand, width);
                     lines[1] = CenterMarkup(cards, CompactVisibleWidth(player.Hand.CardsOnHand, width), width);
+                    if (handType.Length > 0)
+                    {
+                        string shortType = player.HasBlackjack ? "NATURAL BJ" :
+                            handType.StartsWith("MJUK") ? "MJUK BJ" : "HÅRD BJ";
+                        lines[2] = CenterText(shortType, shortType.Length, width, "bold gold1");
+                    }
                 }
             }
             columns.Add(lines);

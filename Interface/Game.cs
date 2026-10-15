@@ -56,31 +56,44 @@ public class Game
             ShowMessage(GameMessages.LoadPlayerStatisticsError);
             return;
         }
-        // Only Player 1 gets a custom name and persistent statistics.
-        string playerOneName = AskPlayerOneNameCentered();
-        if (string.IsNullOrWhiteSpace(playerOneName))
-            playerOneName = GameMessages.DefaultPlayerName;
-        // At most three distinct saved players; existing names may be reused.
-        if (!results.ContainsKey(playerOneName) && results.Count >= 3)
-        {
-            ShowMessage("Du har redan tre sparade spelare. Ta bort en under Ladda spel först.");
-            return;
-        }
+        // Ask every player for a name. Only Player 1 has saved statistics.
         List<Player> players = new();
-        if (results.TryGetValue(playerOneName, out PlayerStatistics? savedStats))
-            players.Add(new Player(playerOneName, savedStats.Wins, savedStats.Losses, savedStats.Pushes));
-        else
-            players.Add(new Player(playerOneName));
-        for (int i = 2; i <= playerCount; i++)
-            players.Add(new Player(GameMessages.PlayerName(i)));
+        HashSet<string> usedNames = new(StringComparer.OrdinalIgnoreCase);
+        for (int i = 1; i <= playerCount; i++)
+        {
+            string name;
+            while (true)
+            {
+                name = AskPlayerNameCentered(i);
+                if (string.IsNullOrWhiteSpace(name))
+                    name = GameMessages.PlayerName(i);
+                if (usedNames.Add(name))
+                    break;
+                ShowMessage("Namnet används redan. Välj ett annat namn.");
+            }
+            if (i == 1)
+            {
+                if (!results.ContainsKey(name) && results.Count >= 3)
+                {
+                    ShowMessage("Du har redan tre sparade spelare. Ta bort en under Ladda spel först.");
+                    return;
+                }
+                if (results.TryGetValue(name, out PlayerStatistics? stats))
+                    players.Add(new Player(name, stats.Wins, stats.Losses, stats.Pushes));
+                else
+                    players.Add(new Player(name));
+            }
+            else
+                players.Add(new Player(name));
+        }
         BettingUI.Reset();
         DealNewHandAndShow(players, deck);
     }
     // Centers the name prompt horizontally and vertically in the console.
-    private string AskPlayerOneNameCentered()
+    private string AskPlayerNameCentered(int playerNumber)
     {
         AnsiConsole.Clear();
-        const string prompt = GameMessages.EnterPlayerNamePrompt;
+        string prompt = $"Ange namn för spelare {playerNumber}: ";
         int width = Math.Max(1, Console.WindowWidth);
         int height = Math.Max(1, Console.WindowHeight);
         int left = Math.Max(0, (width - prompt.Length - 16) / 2);
@@ -130,9 +143,9 @@ public class Game
         bool roundFinished = false;
         string? roundSummary = null;
         bool startNewRound = false;
-        string? tableNotice = players[0].HasBlackjack ? "NATURAL BLACKJACK!" : null;
+        string? tableNotice = players[0].HasBlackjack ? $"{players[0].Name.ToUpperInvariant()} – NATURAL BLACKJACK!" : null;
         DateTime noticeUntil = tableNotice == null ? DateTime.MinValue : DateTime.UtcNow.AddSeconds(2.4);
-        bool flashOn = true;
+
         void AdvanceTurn()
         {
             if (currentPlayerIndex < players.Count - 1)
@@ -141,9 +154,9 @@ public class Game
                 selectedGameOption = 0;
                 if (players[currentPlayerIndex].HasBlackjack)
                 {
-                    tableNotice = "NATURAL BLACKJACK!";
+                    tableNotice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()} – NATURAL BLACKJACK!";
                     noticeUntil = DateTime.UtcNow.AddSeconds(2.4);
-                    flashOn = true;
+
                 }
             }
             else
@@ -169,12 +182,16 @@ public class Game
         try
         {
             Console.CursorVisible = false;
-            while (playing)
-            {
+            AnsiConsole.Live(new Text(""))
+                .AutoClear(false)
+                .Start(context =>
+                {
+                    while (playing)
+                    {
                 int totalHeight = 27; // Same compact table size for 1–5 players.
                 ui.CheckWidth();
                 // Reuse the original layout, without clearing on every key press.
-                Console.SetCursorPosition(0, 0);
+                // Spectre Live updates the existing table without repositioning the cursor.
                 // Keep the table compact while keeping the action buttons directly below it.
                 // A fixed compact table avoids unpainted layout rows (black stripes).
                 int tableHeight = totalHeight - 3;
@@ -186,8 +203,7 @@ public class Game
                 layout["Table"].SplitRows(
                     new Layout("BlackjackTable").Size(tableHeight),
                     new Layout("PlayerActions").Size(3));
-                string? visibleNotice = tableNotice != null && (noticeUntil == DateTime.MinValue || flashOn)
-                    ? tableNotice : null;
+                string? visibleNotice = tableNotice;
                 layout["BlackjackTable"].Update(
                     ui.BuildBlackjackTable(players, dealer, tableHeight, visibleNotice));
                 layout["PlayerActions"].Update(
@@ -203,25 +219,35 @@ public class Game
                     BuildGameMenu(menuOptions, selectedMenuOption,
                         players, sideMenuActive));
                 layout["MenuSpace"].Update(new Text(""));
-                AnsiConsole.Write(layout);
-                Console.Write("\u001b[J");
-                ConsoleKey key = ReadTableKey(totalHeight, tableNotice != null && noticeUntil > DateTime.UtcNow ? 300 : -1);
-                if (key == ConsoleKey.NoName)
+                // Batch the redraw so VS Code does not display partially painted frames.
+                Console.Write("\u001b[?2026h");
+                try
                 {
-                    if (tableNotice != null && noticeUntil > DateTime.MinValue)
-                    {
-                        flashOn = !flashOn;
-                        if (DateTime.UtcNow >= noticeUntil)
-                        {
-                            tableNotice = null;
-                            noticeUntil = DateTime.MinValue;
-                            if (players[currentPlayerIndex].HasBlackjack && !roundFinished)
-                                AdvanceTurn();
-                        }
-                    }
-                    continue;
+                    context.UpdateTarget(layout);
+                    context.Refresh();
                 }
-                if (tableNotice != null && noticeUntil > DateTime.UtcNow) continue;
+                finally
+                {
+                    Console.Write("\u001b[?2026l");
+                }
+                ConsoleKey key = ReadTableKey(totalHeight, tableNotice != null && noticeUntil > DateTime.UtcNow
+                    ? Math.Max(1, (int)(noticeUntil - DateTime.UtcNow).TotalMilliseconds) : -1);
+                // Finish the notification regardless of whether a key was pressed.
+                if (tableNotice != null && noticeUntil != DateTime.MinValue)
+                {
+                    if (DateTime.UtcNow >= noticeUntil)
+                    {
+                        tableNotice = null;
+                        noticeUntil = DateTime.MinValue;
+                        if (!roundFinished && players[currentPlayerIndex].HasBlackjack)
+                            AdvanceTurn();
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                if (key == ConsoleKey.NoName) continue;
                 // When betting, arrows control the chips rather than Hit/Stand.
                 if (bettingMode)
                 {
@@ -330,7 +356,8 @@ public class Game
                         }
                         break;
                 }
-            }
+                    }
+                });
         }
         finally
         {
