@@ -5,6 +5,43 @@ using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
+    // Minimum space for the full Blackjack table and its side menu.
+    public const int MinWidth = 100;
+    public const int MinHeight = 30;
+
+    // Clears the screen and scrollback in terminals that support ANSI escapes.
+    public void HardClear(bool check = true)
+    {
+        if (check)
+            CheckWidth();
+
+        Console.Write("\x1b[2J\x1b[3J\x1b[H");
+    }
+
+    // Waits until the terminal has enough columns AND rows for the table.
+    public void CheckWidth(int requiredHeight = MinHeight)
+    {
+        if (Console.IsOutputRedirected || Console.IsInputRedirected)
+            return;
+
+        bool warningShown = false;
+        while (Console.WindowWidth < MinWidth || Console.WindowHeight < requiredHeight)
+        {
+            warningShown = true;
+            HardClear(false);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("TERMINALEN ÄR FÖR LITEN!");
+            Console.ResetColor();
+            Console.WriteLine($"Nuvarande storlek: {Console.WindowWidth} kolumner x {Console.WindowHeight} rader");
+            Console.WriteLine($"Minsta storlek: {MinWidth} kolumner x {requiredHeight} rader");
+            Console.WriteLine("Förstora terminalen och tryck sedan Enter för att fortsätta...");
+            Console.ReadLine();
+        }
+
+        if (warningShown)
+            HardClear(false);
+    }
+
     // Displays the centered Blackjack header.
     public void ShowHeader()
     {
@@ -125,7 +162,6 @@ public partial class ConsoleUi
     }
 
     // Displays the Blackjack rules.
-
     public void ShowRules()
     {
         AnsiConsole.Clear();
