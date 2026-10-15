@@ -16,12 +16,16 @@ class Player : Participant
 
     public Player(string name, int wins = 0, int losses = 0, int pushes = 0, int chips = StartingChips) : base(name)
     {
+        if (wins < 0 || losses < 0 || pushes < 0)
+            throw new ArgumentException("Statistiken kan inte vara negativ.");
+        if (chips < 0)
+            throw new ArgumentOutOfRangeException(nameof(chips), "Marker kan inte vara negativa.");
+
         Wins = wins;
         Losses = losses;
         Pushes = pushes;
         Chips = chips;
     }
-
 
     public void RecordResult(Outcome outcome)
     {
@@ -40,21 +44,6 @@ class Player : Participant
         }
     }
 
-    public void RecordWin()
-    {
-        Wins++;
-    }
-
-    public void RecordLoss()
-    {
-        Losses++;
-    }
-
-    public void RecordPush()
-    {
-        Pushes++;
-    }
-
     // Places a bet before the deal. Returns false if the amount is not allowed.
     public bool TryPlaceBet(int amount)
     {
@@ -62,7 +51,7 @@ class Player : Participant
             return false;
 
         Chips -= amount;
-        CurrentBet = amount;
+        CurrentBet += amount;
         return true;
     }
 
@@ -86,5 +75,4 @@ class Player : Participant
         RecordResult(outcome);
         CurrentBet = 0;
     }
-
 }
