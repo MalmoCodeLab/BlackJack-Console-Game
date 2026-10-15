@@ -55,9 +55,11 @@ public partial class ConsoleUi
                     else
                     {
                         if (key == ConsoleKey.UpArrow)
-                            selected = (selected - 1 + names.Count) % names.Count;
+                            selected = MenuNavigation.MoveWrapped(
+                                selected, names.Count, key);
                         else if (key == ConsoleKey.DownArrow)
-                            selected = (selected + 1) % names.Count;
+                            selected = MenuNavigation.MoveWrapped(
+                                selected, names.Count, key);
                         else if (key == ConsoleKey.Delete)
                             confirmingDelete = true;
                         else if (key == ConsoleKey.Escape)

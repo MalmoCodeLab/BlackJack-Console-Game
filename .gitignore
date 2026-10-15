@@ -2,6 +2,7 @@
 /obj
 Test/bin/
 Test/obj/
+Test/TestResults/
 
 player-results.json
 player-results.txt

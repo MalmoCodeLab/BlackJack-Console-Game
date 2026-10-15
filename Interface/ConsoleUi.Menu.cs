@@ -19,10 +19,9 @@ public partial class ConsoleUi
             while (true)
             {
                 ConsoleKey key = Console.ReadKey(true).Key;
-                if (key == ConsoleKey.UpArrow)
-                    selectedOption = (selectedOption - 1 + menuOptions.Length) % menuOptions.Length;
-                else if (key == ConsoleKey.DownArrow)
-                    selectedOption = (selectedOption + 1) % menuOptions.Length;
+                if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
+                    selectedOption = MenuNavigation.MoveWrapped(
+                        selectedOption, menuOptions.Length, key);
                 else if (key == ConsoleKey.Enter)
                 {
                     choice = menuOptions[selectedOption];
@@ -49,10 +48,9 @@ public partial class ConsoleUi
             while (true)
             {
                 ConsoleKey key = Console.ReadKey(true).Key;
-                if (key == ConsoleKey.UpArrow)
-                    selectedOption = (selectedOption + 4) % 5;
-                else if (key == ConsoleKey.DownArrow)
-                    selectedOption = (selectedOption + 1) % 5;
+                if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
+                    selectedOption = MenuNavigation.MoveWrapped(
+                        selectedOption, 5, key);
                 else if (key == ConsoleKey.Enter)
                 {
                     playerCount = selectedOption + 1;

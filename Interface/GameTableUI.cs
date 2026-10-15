@@ -137,14 +137,15 @@ internal sealed class GameTableUI
                                     break;
                                 case ConsoleKey.LeftArrow:
                                     sideMenuActive = false;
-                                    selectedGameOption = Math.Max(
-                                        0, selectedGameOption - 1);
+                                    selectedGameOption = MenuNavigation.MoveClamped(
+                                        selectedGameOption,
+                                        GameMessages.GameOptions.Length, key);
                                     break;
                                 case ConsoleKey.RightArrow:
                                     sideMenuActive = false;
-                                    selectedGameOption = Math.Min(
-                                        GameMessages.GameOptions.Length - 1,
-                                        selectedGameOption + 1);
+                                    selectedGameOption = MenuNavigation.MoveClamped(
+                                        selectedGameOption,
+                                        GameMessages.GameOptions.Length, key);
                                     break;
                                 case ConsoleKey.UpArrow:
                                     if (!sideMenuActive)
@@ -154,10 +155,9 @@ internal sealed class GameTableUI
                                     }
                                     else
                                     {
-                                        selectedMenuOption =
-                                            (selectedMenuOption - 1 +
-                                             GameMessages.InGameMenuOptions.Length) %
-                                            GameMessages.InGameMenuOptions.Length;
+                                        selectedMenuOption = MenuNavigation.MoveWrapped(
+                                            selectedMenuOption,
+                                            GameMessages.InGameMenuOptions.Length, key);
                                     }
                                     break;
                                 case ConsoleKey.DownArrow:
@@ -166,7 +166,9 @@ internal sealed class GameTableUI
                                         if (selectedMenuOption <
                                             GameMessages.InGameMenuOptions.Length - 1)
                                         {
-                                            selectedMenuOption++;
+                                            selectedMenuOption = MenuNavigation.MoveClamped(
+                                                selectedMenuOption,
+                                                GameMessages.InGameMenuOptions.Length, key);
                                         }
                                         else
                                         {
@@ -274,18 +276,11 @@ internal sealed class GameTableUI
                             context.Refresh();
 
                             ConsoleKey key = ReadTableKey();
-                            if (key == ConsoleKey.UpArrow)
+                            if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
                             {
-                                selectedMenuOption =
-                                    (selectedMenuOption - 1 +
-                                     GameMessages.InGameMenuOptions.Length) %
-                                    GameMessages.InGameMenuOptions.Length;
-                            }
-                            else if (key == ConsoleKey.DownArrow)
-                            {
-                                selectedMenuOption =
-                                    (selectedMenuOption + 1) %
-                                    GameMessages.InGameMenuOptions.Length;
+                                selectedMenuOption = MenuNavigation.MoveWrapped(
+                                    selectedMenuOption,
+                                    GameMessages.InGameMenuOptions.Length, key);
                             }
                             else if (key == ConsoleKey.Enter)
                             {

@@ -40,15 +40,28 @@ From the project directory, run:
 dotnet run
 ```
 
-To run the automated game scenarios after a change:
+To run the automated game and UI tests after a change:
 
 ```text
-dotnet run --project Test\ScenarioRunner.csproj
+dotnet test Test/Blackjack.Tests.csproj
 ```
 
-The scenario runner uses deterministic card sequences to check card scoring, dealing,
+The test summary is printed in the terminal. To also save a report that can be
+opened later, run:
+
+```text
+dotnet test Test/Blackjack.Tests.csproj --logger "trx;LogFileName=blackjack-tests.trx"
+```
+
+The report is written to `Test/TestResults/blackjack-tests.trx`. It lists each
+test as passed or failed and includes failure details, such as expected and
+actual values. A report can only detect a rule or count that the tests assert;
+add or update a test when adding functionality or changing expected behavior.
+
+The xUnit suite uses deterministic card sequences to check card scoring, dealing,
 player and dealer rules, round outcomes, reshuffling, and statistics persistence. It
-returns a nonzero exit code if any scenario fails.
+also checks UI menu navigation and betting controls without requiring interactive
+terminal input. `dotnet test` returns a nonzero exit code if any test fails.
 
 Player statistics are saved as `player-results.json` and summarized in `player-results.txt` under
 the user's local application-data folder (`%LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack` on Windows).
