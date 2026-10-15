@@ -10,6 +10,7 @@ public class Game
     // Runs the main menu.
     public void Run()
     {
+        ui.HardClear();
         bool running = true;
         while (running)
         {
@@ -59,19 +60,15 @@ public class Game
         string playerOneName = AskPlayerOneNameCentered();
         if (string.IsNullOrWhiteSpace(playerOneName))
             playerOneName = GameMessages.DefaultPlayerName;
-
         List<Player> players = new();
         if (results.TryGetValue(playerOneName, out PlayerStatistics? savedStats))
             players.Add(new Player(playerOneName, savedStats.Wins, savedStats.Losses, savedStats.Pushes));
         else
             players.Add(new Player(playerOneName));
-
         for (int i = 2; i <= playerCount; i++)
             players.Add(new Player(GameMessages.PlayerName(i)));
-
         DealNewHandAndShow(players, deck);
     }
-
     // Centers the name prompt horizontally and vertically in the console.
     private string AskPlayerOneNameCentered()
     {
@@ -94,7 +91,6 @@ public class Game
         Console.ResetColor();
         return (Console.ReadLine() ?? "").Trim();
     }
-
     // Starts fresh rounds with the same players and their saved statistics.
     private void DealNewHandAndShow(List<Player> players, Deck deck)
     {
@@ -109,7 +105,6 @@ public class Game
         }
         while (newRound);
     }
-
     // Displays the Blackjack table and handles input.
     private bool ShowGame(Round round)
     {
@@ -128,17 +123,18 @@ public class Game
         bool roundFinished = false;
         string? roundSummary = null;
         bool startNewRound = false;
-        AnsiConsole.Clear();
+        ui.HardClear();
         try
         {
             Console.CursorVisible = false;
             while (playing)
             {
+                int totalHeight = 27; // Same compact table size for 1–5 players.
+                ui.CheckWidth();
                 // Reuse the original layout, without clearing on every key press.
                 Console.SetCursorPosition(0, 0);
                 // Keep the table compact while keeping the action buttons directly below it.
                 // A fixed compact table avoids unpainted layout rows (black stripes).
-                int totalHeight = 27;
                 int tableHeight = totalHeight - 3;
                 var layout = new Layout("Root")
                     .Size(totalHeight)
@@ -165,7 +161,9 @@ public class Game
                 layout["MenuSpace"].Update(new Text(""));
                 AnsiConsole.Write(layout);
                 Console.Write("\u001b[J");
-                ConsoleKey key = Console.ReadKey(true).Key;
+                ConsoleKey key = ReadTableKey(totalHeight);
+                if (key == ConsoleKey.NoName)
+                    continue;
                 // When betting, arrows control the chips rather than Hit/Stand.
                 if (bettingMode)
                 {
@@ -253,7 +251,6 @@ public class Game
                             {
                                 currentPlayer.ReceiveCard(deck);
                             }
-
                             // Automatically finish this player’s turn at 21 or after a bust.
                             // The dealer still plays before the final result is decided.
                             if (selectedGameOption == 1 || currentPlayer.IsBust || currentPlayer.Score == 21)
@@ -289,7 +286,26 @@ public class Game
             return ShowRoundEndMenu(roundSummary, players);
         return startNewRound;
     }
-
+    // Watches terminal width and height while waiting for a key without redrawing the table.
+    private ConsoleKey ReadTableKey(int requiredHeight)
+    {
+        while (true)
+        {
+            if (Console.WindowWidth < ConsoleUi.MinWidth ||
+                Console.WindowHeight < requiredHeight)
+            {
+                // Restore the cursor before displaying the resize warning.
+                Console.CursorVisible = true;
+                ui.CheckWidth(requiredHeight);
+                ui.HardClear(false);
+                Console.CursorVisible = false;
+                return ConsoleKey.NoName; // Redraw the table at its new size.
+            }
+            if (Console.KeyAvailable)
+                return Console.ReadKey(true).Key;
+            System.Threading.Thread.Sleep(75);
+        }
+    }
     // Formats the outcomes that the round has already resolved and recorded.
     private string ResolveRound(Round round)
     {
@@ -310,7 +326,6 @@ public class Game
             };
             string headline = GameMessages.OutcomeHeadline(
                 outcome, soloPlayer: round.Players.Count == 1);
-
             if (round.Players.Count == 1)
             {
                 messages.Add(GameMessages.SoloResult(
@@ -322,7 +337,6 @@ public class Game
         }
         return string.Join(Environment.NewLine, messages);
     }
-
     // Shows the outcome and lets the player start another round without leaving.
     private bool ShowRoundEndMenu(string summary, List<Player> players)
     {
@@ -362,7 +376,6 @@ public class Game
                 return false;
         }
     }
-
     // Builds a centered result panel in the same style as the main menu.
     private Spectre.Console.Rendering.IRenderable BuildRoundEndPanel(
         string summary, string[] options, int selected)
@@ -406,7 +419,6 @@ public class Game
         int left = (terminalWidth - panelWidth) / 2;
         return new Padder(panel).PadLeft(left).PadRight(terminalWidth - panelWidth - left);
     }
-
     // Builds the horizontal Hit, Stand and Bet buttons.
     private Panel BuildPlayerActions(
         string[] options,
@@ -511,12 +523,9 @@ public class Game
                 }
             };
             gameStorage.SaveResults(results);
-
-
             Dictionary<string, PlayerStatistics> savedResults =
                 gameStorage.LoadResults();
             ui.ShowStatistics(savedResults);
-
             return true;
         }
         catch (Exception ex) when (
@@ -525,7 +534,6 @@ public class Game
             return false;
         }
     }
-
     // Saves statistics when the player chooses Save and Quit.
     private bool SaveGame(List<Player> players)
     {
@@ -534,14 +542,11 @@ public class Game
                             GameMessages.SaveStatisticsError);
         return saved;
     }
-
-   
     // Selects a saved player and starts a new deal with their saved statistics.
     // Cards and the current round are intentionally not saved.
     private void LoadGame()
     {
         Dictionary<string, PlayerStatistics> results;
-
         try
         {
             results = gameStorage.LoadResults();
@@ -554,23 +559,17 @@ public class Game
             ShowMessage(GameMessages.LoadSavedResultsError);
             return;
         }
-
         if (results.Count == 0)
         {
             ShowMessage(GameMessages.NoSavedGames);
             return;
         }
-
         ui.ShowStatistics(results);
-
         List<string> names = new(results.Keys);
         names.Sort(StringComparer.OrdinalIgnoreCase);
-
         int selected = 0;
         bool cancelled = false;
-
         AnsiConsole.Clear();
-
         AnsiConsole.Live(BuildSavedPlayersMenu(names, results, selected))
             .Start(context =>
             {
@@ -595,10 +594,8 @@ public class Game
                     context.Refresh();
                 }
             });
-
         if (cancelled)
             return;
-
         string name = names[selected];
         PlayerStatistics stats = results[name];
         List<Player> players = new()
@@ -610,7 +607,6 @@ public class Game
         deck.ShuffleDeck();
         DealNewHandAndShow(players, deck);
     }
-
     // Displays saved players in the same centered casino style as the main menu.
     private Spectre.Console.Rendering.IRenderable BuildSavedPlayersMenu(
         List<string> names,
@@ -625,7 +621,6 @@ public class Game
         rows.Add(new Text(""));
         rows.Add(new Rule(GameMessages.SavedPlayersTitleMarkup).RuleStyle(Color.Gold1));
         rows.Add(new Text(""));
-
         for (int i = 0; i < names.Count; i++)
         {
             string name = names[i];
@@ -651,7 +646,6 @@ public class Game
         int left = (terminalWidth - panelWidth) / 2;
         return new Padder(panel).PadLeft(left).PadRight(terminalWidth - panelWidth - left);
     }
-
     // Displays a centered message and waits for input.
     private void ShowMessage(string message)
     {
