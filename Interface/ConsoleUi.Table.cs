@@ -110,7 +110,7 @@ public partial class ConsoleUi
             string style = status switch
             {
                 "DIN TUR" => "bold black on gold1",
-                "BUST" => "bold red",
+                "TJOCK" => "bold red",
                 "STANNAT" => "bold white",
                 "BLACKJACK" => "bold gold1",
                 "21 POÄNG" => "bold gold1",

@@ -164,7 +164,18 @@ public class Game
             else
             {
                 round.EndRound();
-                playerStatuses[currentPlayerIndex] = playerStatuses[currentPlayerIndex] == "DIN TUR" ? "KLAR" : playerStatuses[currentPlayerIndex];
+                // Display the final outcome for every player; Round owns the game rules.
+                for (int i = 0; i < players.Count; i++)
+                {
+                    playerStatuses[i] = round.Outcomes[players[i]] switch
+                    {
+                        Outcome.Blackjack => "VANN",
+                        Outcome.Win => "VANN",
+                        Outcome.Lose => "FÖRLORADE",
+                        Outcome.Push => "OAVGJORT",
+                        _ => "KLAR"
+                    };
+                }
                 roundSummary = ResolveRound(round);
                 roundFinished = true;
                 sideMenuActive = true;
@@ -174,7 +185,7 @@ public class Game
                 {
                     Outcome.Blackjack => "NATURAL BLACKJACK – DU VANN!",
                     Outcome.Win => "DU VANN!",
-                    Outcome.Lose when mainPlayer.IsBust => "BUST – DU FÖRLORADE!",
+                    Outcome.Lose when mainPlayer.IsBust => "TJOCK – DU FÖRLORADE!",
                     Outcome.Lose when dealer.HasBlackjack => "DEALERN FICK BLACKJACK – DU FÖRLORADE!",
                     Outcome.Lose => "DU FÖRLORADE!",
                     Outcome.Push => "OAVGJORT!",
@@ -355,7 +366,7 @@ public class Game
                             // The dealer still plays before the final result is decided.
                             if (selectedGameOption == 1 || currentPlayer.IsBust || currentPlayer.Score == 21)
                             {
-                                playerStatuses[currentPlayerIndex] = currentPlayer.IsBust ? "BUST" :
+                                playerStatuses[currentPlayerIndex] = currentPlayer.IsBust ? "TJOCK" :
                                     currentPlayer.HasBlackjack ? "BLACKJACK" :
                                     currentPlayer.Score == 21 ? "21 POÄNG" : "STANNAT";
                                 if (currentPlayerIndex < players.Count - 1)
@@ -567,8 +578,9 @@ public class Game
             Player player = players[i];
             string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
             string status = playerStatuses[i];
-            string statusColor = status == "BUST" ? "red" :
-                status == "DIN TUR" ? "green1" : "grey";
+            string statusColor = status == "TJOCK" || status == "FÖRLORADE" ? "red" :
+                status == "DIN TUR" || status == "VANN" ? "green1" :
+                status == "OAVGJORT" ? "gold1" : "grey";
             content.Add(new Markup(
                 $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
                 $"[gold1]{player.Score.ToString().PadLeft(2)}[/] " +
