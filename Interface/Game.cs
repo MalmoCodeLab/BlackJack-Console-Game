@@ -130,6 +130,41 @@ public class Game
         bool roundFinished = false;
         string? roundSummary = null;
         bool startNewRound = false;
+        string? tableNotice = players[0].HasBlackjack ? "NATURAL BLACKJACK!" : null;
+        DateTime noticeUntil = tableNotice == null ? DateTime.MinValue : DateTime.UtcNow.AddSeconds(2.4);
+        bool flashOn = true;
+        void AdvanceTurn()
+        {
+            if (currentPlayerIndex < players.Count - 1)
+            {
+                currentPlayerIndex++;
+                selectedGameOption = 0;
+                if (players[currentPlayerIndex].HasBlackjack)
+                {
+                    tableNotice = "NATURAL BLACKJACK!";
+                    noticeUntil = DateTime.UtcNow.AddSeconds(2.4);
+                    flashOn = true;
+                }
+            }
+            else
+            {
+                round.EndRound();
+                roundSummary = ResolveRound(round);
+                roundFinished = true;
+                sideMenuActive = true;
+                selectedMenuOption = 0;
+                tableNotice = round.Outcomes[players[0]] switch
+                {
+                    Outcome.Blackjack => "NATURAL BLACKJACK – DU VANN!",
+                    Outcome.Win => "DU VANN!",
+                    Outcome.Lose => "DU FÖRLORADE!",
+                    _ => "OAVGJORT!"
+                };
+                noticeUntil = DateTime.MinValue;
+                if (!SaveResultsOnly(players))
+                    roundSummary = GameMessages.AppendSaveResultsError(roundSummary);
+            }
+        }
         ui.HardClear();
         try
         {
@@ -151,14 +186,16 @@ public class Game
                 layout["Table"].SplitRows(
                     new Layout("BlackjackTable").Size(tableHeight),
                     new Layout("PlayerActions").Size(3));
+                string? visibleNotice = tableNotice != null && (noticeUntil == DateTime.MinValue || flashOn)
+                    ? tableNotice : null;
                 layout["BlackjackTable"].Update(
-                    ui.BuildBlackjackTable(players, dealer, tableHeight));
+                    ui.BuildBlackjackTable(players, dealer, tableHeight, visibleNotice));
                 layout["PlayerActions"].Update(
                     BuildPlayerActions(
                         gameOptions, selectedGameOption,
                         sideMenuActive, roundFinished, bettingMode));
                 // Extra room for Balance and Current Bet.
-                int menuHeight = Math.Min(totalHeight - 3, 15 + players.Count);
+                int menuHeight = totalHeight - 3;
                 layout["Menu"].SplitRows(
                     new Layout("MenuContent").Size(menuHeight),
                     new Layout("MenuSpace").Ratio(1));
@@ -168,9 +205,23 @@ public class Game
                 layout["MenuSpace"].Update(new Text(""));
                 AnsiConsole.Write(layout);
                 Console.Write("\u001b[J");
-                ConsoleKey key = ReadTableKey(totalHeight);
+                ConsoleKey key = ReadTableKey(totalHeight, tableNotice != null && noticeUntil > DateTime.UtcNow ? 300 : -1);
                 if (key == ConsoleKey.NoName)
+                {
+                    if (tableNotice != null && noticeUntil > DateTime.MinValue)
+                    {
+                        flashOn = !flashOn;
+                        if (DateTime.UtcNow >= noticeUntil)
+                        {
+                            tableNotice = null;
+                            noticeUntil = DateTime.MinValue;
+                            if (players[currentPlayerIndex].HasBlackjack && !roundFinished)
+                                AdvanceTurn();
+                        }
+                    }
                     continue;
+                }
+                if (tableNotice != null && noticeUntil > DateTime.UtcNow) continue;
                 // When betting, arrows control the chips rather than Hit/Stand.
                 if (bettingMode)
                 {
@@ -254,6 +305,11 @@ public class Game
                                 break;
                             }
                             Player currentPlayer = players[currentPlayerIndex];
+                            if (currentPlayer.HasBlackjack)
+                            {
+                                AdvanceTurn();
+                                break;
+                            }
                             if (selectedGameOption == 0)
                             {
                                 currentPlayer.ReceiveCard(deck);
@@ -264,18 +320,11 @@ public class Game
                             {
                                 if (currentPlayerIndex < players.Count - 1)
                                 {
-                                    currentPlayerIndex++;
-                                    selectedGameOption = 0;
+                                    AdvanceTurn();
                                 }
                                 else
                                 {
-                                    roundFinished = true;
-                                    round.EndRound();
-                                    roundSummary = ResolveRound(round);
-                                    // Save the updated statistics as soon as the round ends.
-                                    if (!SaveResultsOnly(players))
-                                        roundSummary = GameMessages.AppendSaveResultsError(roundSummary);
-                                    playing = false;
+                                    AdvanceTurn();
                                 }
                             }
                         }
@@ -288,14 +337,13 @@ public class Game
             Console.CursorVisible = true;
             AnsiConsole.Clear();
         }
-        // Keep the player at the table and offer a fresh deal after the result.
-        if (roundSummary != null)
-            return ShowRoundEndMenu(roundSummary, players);
+        // Keep the final cards on the table until the player chooses an option.
         return startNewRound;
     }
     // Watches terminal width and height while waiting for a key without redrawing the table.
-    private ConsoleKey ReadTableKey(int requiredHeight)
+    private ConsoleKey ReadTableKey(int requiredHeight, int timeoutMs = -1)
     {
+        DateTime until = timeoutMs < 0 ? DateTime.MaxValue : DateTime.UtcNow.AddMilliseconds(timeoutMs);
         while (true)
         {
             if (Console.WindowWidth < ConsoleUi.MinWidth ||
@@ -310,7 +358,8 @@ public class Game
             }
             if (Console.KeyAvailable)
                 return Console.ReadKey(true).Key;
-            System.Threading.Thread.Sleep(75);
+            if (DateTime.UtcNow >= until) return ConsoleKey.NoName;
+            System.Threading.Thread.Sleep(35);
         }
     }
     // Formats the outcomes that the round has already resolved and recorded.
@@ -456,62 +505,38 @@ public class Game
             .BorderColor(Color.Gold1)
             .Expand();
     }
-    // Builds the right menu with scores and temporary betting values.
-    private Panel BuildGameMenu(
-        string[] menuOptions,
-        int selectedOption,
-        List<Player> players,
-        bool sideMenuActive)
+    // Shows the menu, saved statistics, live bet and controls on the right.
+    private Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive)
     {
-        List<Spectre.Console.Rendering.IRenderable> content = new();
-        content.Add(new Align(
-            new Markup(GameMessages.GameMenuTitleMarkup),
-            HorizontalAlignment.Center));
-        content.Add(new Text(""));
-        string[] shortOptions = GameMessages.InGameMenuOptions;
+        var content = new List<Spectre.Console.Rendering.IRenderable>
+        {
+            new Align(new Markup(GameMessages.GameMenuTitleMarkup), HorizontalAlignment.Center)
+        };
         for (int i = 0; i < menuOptions.Length; i++)
         {
-            string label = Markup.Escape(
-                i < shortOptions.Length ? shortOptions[i] : menuOptions[i]);
+            string label = Markup.Escape(menuOptions[i]);
             content.Add(new Markup(sideMenuActive && i == selectedOption
                 ? $"[bold white on #961923] ❯ {label} [/]"
                 : $"[white]   {label}[/]"));
-            content.Add(new Text(""));
         }
-        // Two columns keep the labels left and the values right aligned.
-        content.Add(new Rule(GameMessages.PointsTitleMarkup).RuleStyle(Color.Gold1));
-        var scoreTable = new Table()
-            .NoBorder()
-            .HideHeaders()
-            .Expand();
-        scoreTable.AddColumn(new TableColumn("").LeftAligned());
-        scoreTable.AddColumn(new TableColumn("").RightAligned());
+        content.Add(new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1));
         foreach (Player player in players)
-        {
-            scoreTable.AddRow(
-                GameMessages.ScoreMarkup(Markup.Escape(player.Name)),
-                GameMessages.PlayerScoreMarkup(player.Score));
-        }
-        content.Add(scoreTable);
-        content.Add(new Text(""));
-        content.Add(new Rule(GameMessages.ChipsTitleMarkup).RuleStyle(Color.Gold1));
-        var moneyTable = new Table()
-            .NoBorder()
-            .HideHeaders()
-            .Expand();
-        moneyTable.AddColumn(new TableColumn("").LeftAligned());
-        moneyTable.AddColumn(new TableColumn("").RightAligned());
-        moneyTable.AddRow(
-            GameMessages.BalanceMarkup,
-            GameMessages.Balance(BettingUI.Balance));
-        moneyTable.AddRow(
-            GameMessages.CurrentBetMarkup,
-            GameMessages.CurrentBet(BettingUI.CurrentBet));
-        content.Add(moneyTable);
+            content.Add(new Markup($"[white]{Markup.Escape(player.Name)}:[/] [gold1]{player.Score}[/]"));
+        Player main = players[0];
+        content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
+        content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
+        content.Add(new Markup($"[white]Rundor: {main.GamesPlayed}[/]"));
+        content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
+        content.Add(new Markup($"[white]Saldo:[/] [green1]{BettingUI.Balance} kr[/]"));
+        content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{BettingUI.CurrentBet} kr[/]"));
+        content.Add(new Rule("[gold1]STYRNING[/]").RuleStyle(Color.Gold1));
+        content.Add(new Markup("[grey]← →  Välj handling[/]"));
+        content.Add(new Markup("[grey]↑ ↓  Spelmeny[/]"));
+        content.Add(new Markup("[grey]Enter  Bekräfta[/]"));
+        content.Add(new Markup("[grey]Vid insats: ← → välj mark[/]"));
+        content.Add(new Markup("[grey]Enter satsa, Esc tillbaka[/]"));
         return new Panel(new Rows(content))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1)
-            .Expand();
+            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
     }
     // Saves player statistics without interrupting the game UI.
     private bool SaveResultsOnly(List<Player> players)

@@ -6,14 +6,19 @@ public partial class ConsoleUi
 {
     private static readonly Color TableGreen = new Color(7, 80, 46);
     private static readonly Color TableGold = Color.Gold1;
-    internal Panel BuildBlackjackTable(List<Player> players, Dealer dealer, int tableHeight = 0)
+    internal Panel BuildBlackjackTable(List<Player> players, Dealer dealer, int tableHeight = 0, string? notice = null)
     {
         List<IRenderable> tableContent = new();
-        tableContent.Add(new Align(new Markup(
-            "[gold1]╭──────── MARKERSTÄLL ────────╮[/]"), HorizontalAlignment.Center));
-        tableContent.Add(new Align(new Markup(
-            "[white]● ●[/]  [red]● ●[/]  [green]● ●[/]  [blue]● ●[/]  [yellow]● ●[/]"),
-            HorizontalAlignment.Center));
+        if (notice != null)
+        {
+            tableContent.Add(new Align(new Markup($"[bold black on gold1]  ★ {Markup.Escape(notice)} ★  [/]"), HorizontalAlignment.Center));
+            tableContent.Add(new Align(new Markup("[gold1]╰──── ♠ BLACKJACK 21 ♠ ────╯[/]"), HorizontalAlignment.Center));
+        }
+        else
+        {
+            tableContent.Add(new Align(new Markup("[gold1]╭──────── MARKERSTÄLL ────────╮[/]"), HorizontalAlignment.Center));
+            tableContent.Add(new Align(new Markup("[white]● ●[/]  [red]● ●[/]  [green]● ●[/]  [blue]● ●[/]  [yellow]● ●[/]"), HorizontalAlignment.Center));
+        }
         tableContent.Add(new Rule("[gold1]GIVARE[/]").RuleStyle(TableGold));
         AddRenderedCards(tableContent, dealer.Hand.CardsOnHand, !dealer.HoleCardVisible);
         // Fixed-width seat layout: the center never shrinks when other players join.
@@ -27,6 +32,18 @@ public partial class ConsoleUi
             .Border(BoxBorder.Rounded)
             .BorderColor(TableGold)
             .Expand();
+    }
+    private static string GetHandType(Player player)
+    {
+        if (player.HasBlackjack) return "NATURAL BLACKJACK";
+        int total = 0, aces = 0;
+        foreach (Card card in player.Hand.CardsOnHand)
+        {
+            total += card.IndividualCardValue(card);
+            if (card.Rank == Rank.Ace) aces++;
+        }
+        while (total > 21 && aces > 0) { total -= 10; aces--; }
+        return aces > 0 ? "MJUK HAND" : "HÅRD HAND";
     }
     private const int SideSeatWidth = 13;
     private const int AliceSeatWidth = 35;
@@ -49,8 +66,10 @@ public partial class ConsoleUi
                 string name = index == 0
                     ? player.Name.ToUpperInvariant()
                     : $"SPELARE {index + 1}";
-                lines[0] = CenterText(Markup.Escape(name), name.Length, width,
-                    "bold gold1");
+                string handType = GetHandType(player);
+                string label = index == 0 ? $"{name}  ·  {handType}" : name;
+                if (label.Length > width) label = label[..width];
+                lines[0] = CenterText(Markup.Escape(label), label.Length, width, "bold gold1");
                 if (index == 0)
                 {
                     List<string> fan = BuildFanCardLines(player.Hand.CardsOnHand);
