@@ -6,7 +6,7 @@ public partial class ConsoleUi
 {
     private static readonly Color TableGreen = new Color(7, 80, 46);
     private static readonly Color TableGold = Color.Gold1;
-    internal Panel BuildBlackjackTable(List<Player> players, Dealer dealer, int tableHeight = 0, string? notice = null)
+    internal Panel BuildBlackjackTable(List<Player> players, Dealer dealer, int tableHeight = 0, string? notice = null, string[]? playerStatuses = null)
     {
         List<IRenderable> tableContent = new();
         if (notice != null)
@@ -23,7 +23,7 @@ public partial class ConsoleUi
         AddRenderedCards(tableContent, dealer.Hand.CardsOnHand, !dealer.HoleCardVisible);
         // Fixed-width seat layout: the center never shrinks when other players join.
         // 13 + 13 + 35 + 13 + 13 = 87 terminal cells.
-        tableContent.Add(BuildPlayerRow(players));
+        tableContent.Add(BuildPlayerRow(players, playerStatuses));
         tableContent.Add(BettingUI.Create());
         int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
         var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
@@ -48,7 +48,7 @@ public partial class ConsoleUi
     }
     private const int SideSeatWidth = 13;
     private const int AliceSeatWidth = 35;
-    private IRenderable BuildPlayerRow(List<Player> players)
+    private IRenderable BuildPlayerRow(List<Player> players, string[]? playerStatuses)
     {
         int[] order = { 1, 2, 0, 3, 4 };
         int[] widths = { SideSeatWidth, SideSeatWidth, AliceSeatWidth,
@@ -97,6 +97,30 @@ public partial class ConsoleUi
                 line += columns[seat][r];
             output.Add(new Markup(line));
         }
+        // Status is shown under each player's cards, without moving the seats.
+        string statusRow = "";
+        for (int seat = 0; seat < order.Length; seat++)
+        {
+            int index = order[seat];
+            int width = widths[seat];
+            string status = playerStatuses != null && index < players.Count && index < playerStatuses.Length
+                ? playerStatuses[index]
+                : "";
+            if (status.Length > width) status = status[..width];
+            string style = status switch
+            {
+                "DIN TUR" => "bold black on gold1",
+                "BUST" => "bold red",
+                "STANNAT" => "bold white",
+                "BLACKJACK" => "bold gold1",
+                "21 POÄNG" => "bold gold1",
+                "KLAR" => "grey",
+                _ => "grey"
+            };
+            statusRow += CenterText(Markup.Escape(status), status.Length, width, style);
+        }
+        output.Add(new Markup(statusRow));
+
         return new Align(new Rows(output), HorizontalAlignment.Center);
     }
     private static string CenterMarkup(string markup, int visibleWidth, int width)

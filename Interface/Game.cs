@@ -139,39 +139,46 @@ public class Game
         bool sideMenuActive = false;
         bool bettingMode = false;
         int currentPlayerIndex = 0;
+        string[] playerStatuses = new string[players.Count];
+        for (int i = 0; i < players.Count; i++) playerStatuses[i] = "VÄNTAR";
+        playerStatuses[0] = "DIN TUR";
         bool playing = true;
         bool roundFinished = false;
         string? roundSummary = null;
         bool startNewRound = false;
         string? tableNotice = players[0].HasBlackjack ? $"{players[0].Name.ToUpperInvariant()} – NATURAL BLACKJACK!" : null;
         DateTime noticeUntil = tableNotice == null ? DateTime.MinValue : DateTime.UtcNow.AddSeconds(2.4);
-
         void AdvanceTurn()
         {
             if (currentPlayerIndex < players.Count - 1)
             {
                 currentPlayerIndex++;
                 selectedGameOption = 0;
+                playerStatuses[currentPlayerIndex] = "DIN TUR";
                 if (players[currentPlayerIndex].HasBlackjack)
                 {
                     tableNotice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()} – NATURAL BLACKJACK!";
                     noticeUntil = DateTime.UtcNow.AddSeconds(2.4);
-
                 }
             }
             else
             {
                 round.EndRound();
+                playerStatuses[currentPlayerIndex] = playerStatuses[currentPlayerIndex] == "DIN TUR" ? "KLAR" : playerStatuses[currentPlayerIndex];
                 roundSummary = ResolveRound(round);
                 roundFinished = true;
                 sideMenuActive = true;
                 selectedMenuOption = 0;
-                tableNotice = round.Outcomes[players[0]] switch
+                Player mainPlayer = players[0];
+                tableNotice = round.Outcomes[mainPlayer] switch
                 {
                     Outcome.Blackjack => "NATURAL BLACKJACK – DU VANN!",
                     Outcome.Win => "DU VANN!",
+                    Outcome.Lose when mainPlayer.IsBust => "BUST – DU FÖRLORADE!",
+                    Outcome.Lose when dealer.HasBlackjack => "DEALERN FICK BLACKJACK – DU FÖRLORADE!",
                     Outcome.Lose => "DU FÖRLORADE!",
-                    _ => "OAVGJORT!"
+                    Outcome.Push => "OAVGJORT!",
+                    _ => "RESULTAT SAKNAS"
                 };
                 noticeUntil = DateTime.MinValue;
                 if (!SaveResultsOnly(players))
@@ -205,7 +212,7 @@ public class Game
                     new Layout("PlayerActions").Size(3));
                 string? visibleNotice = tableNotice;
                 layout["BlackjackTable"].Update(
-                    ui.BuildBlackjackTable(players, dealer, tableHeight, visibleNotice));
+                    ui.BuildBlackjackTable(players, dealer, tableHeight, visibleNotice, playerStatuses));
                 layout["PlayerActions"].Update(
                     BuildPlayerActions(
                         gameOptions, selectedGameOption,
@@ -217,7 +224,7 @@ public class Game
                     new Layout("MenuSpace").Ratio(1));
                 layout["MenuContent"].Update(
                     BuildGameMenu(menuOptions, selectedMenuOption,
-                        players, sideMenuActive));
+                        players, sideMenuActive, playerStatuses));
                 layout["MenuSpace"].Update(new Text(""));
                 // Batch the redraw so VS Code does not display partially painted frames.
                 Console.Write("\u001b[?2026h");
@@ -240,7 +247,10 @@ public class Game
                         tableNotice = null;
                         noticeUntil = DateTime.MinValue;
                         if (!roundFinished && players[currentPlayerIndex].HasBlackjack)
+                            {
+                            playerStatuses[currentPlayerIndex] = "BLACKJACK";
                             AdvanceTurn();
+                        }
                     }
                     else
                     {
@@ -333,6 +343,7 @@ public class Game
                             Player currentPlayer = players[currentPlayerIndex];
                             if (currentPlayer.HasBlackjack)
                             {
+                                playerStatuses[currentPlayerIndex] = "BLACKJACK";
                                 AdvanceTurn();
                                 break;
                             }
@@ -344,6 +355,9 @@ public class Game
                             // The dealer still plays before the final result is decided.
                             if (selectedGameOption == 1 || currentPlayer.IsBust || currentPlayer.Score == 21)
                             {
+                                playerStatuses[currentPlayerIndex] = currentPlayer.IsBust ? "BUST" :
+                                    currentPlayer.HasBlackjack ? "BLACKJACK" :
+                                    currentPlayer.Score == 21 ? "21 POÄNG" : "STANNAT";
                                 if (currentPlayerIndex < players.Count - 1)
                                 {
                                     AdvanceTurn();
@@ -533,7 +547,7 @@ public class Game
             .Expand();
     }
     // Shows the menu, saved statistics, live bet and controls on the right.
-    private Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive)
+    private Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, string[] playerStatuses)
     {
         var content = new List<Spectre.Console.Rendering.IRenderable>
         {
@@ -547,8 +561,19 @@ public class Game
                 : $"[white]   {label}[/]"));
         }
         content.Add(new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1));
-        foreach (Player player in players)
-            content.Add(new Markup($"[white]{Markup.Escape(player.Name)}:[/] [gold1]{player.Score}[/]"));
+        content.Add(new Markup("[grey]SPELARE     P   RESULTAT[/]"));
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player player = players[i];
+            string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
+            string status = playerStatuses[i];
+            string statusColor = status == "BUST" ? "red" :
+                status == "DIN TUR" ? "green1" : "grey";
+            content.Add(new Markup(
+                $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
+                $"[gold1]{player.Score.ToString().PadLeft(2)}[/] " +
+                $"[{statusColor}]{Markup.Escape(status.PadLeft(9))}[/]"));
+        }
         Player main = players[0];
         content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
         content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
