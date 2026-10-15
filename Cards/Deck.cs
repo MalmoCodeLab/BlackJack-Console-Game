@@ -39,7 +39,8 @@
             RunningCount--;
         }
         double decksRemaining = DeckCards.Count / 52.0;
-        TrueCount = (double)RunningCount / decksRemaining;
+        double rawTrueCount = (double)RunningCount / decksRemaining;
+        TrueCount = Math.Round(rawTrueCount, 2, MidpointRounding.AwayFromZero);
 
     }
     public void ShuffleDeck()
