@@ -27,18 +27,43 @@ internal sealed class PlayerSessionService
             return null;
         }
 
-        string playerName = ui.AskPlayerNameCentered();
-        if (string.IsNullOrWhiteSpace(playerName))
-            playerName = GameMessages.DefaultPlayerName;
-
         List<Player> players = new();
-        if (results.TryGetValue(playerName, out PlayerStatistics? stats))
-            players.Add(new Player(playerName, stats.Wins, stats.Losses, stats.Pushes));
-        else
-            players.Add(new Player(playerName));
+        HashSet<string> usedNames = new(StringComparer.OrdinalIgnoreCase);
+        for (int i = 1; i <= playerCount; i++)
+        {
+            string playerName;
+            while (true)
+            {
+                playerName = ui.AskPlayerNameCentered(i);
+                if (string.IsNullOrWhiteSpace(playerName))
+                    playerName = GameMessages.PlayerName(i);
 
-        for (int i = 2; i <= playerCount; i++)
-            players.Add(new Player(GameMessages.PlayerName(i)));
+                if (usedNames.Add(playerName))
+                    break;
+
+                ui.ShowCenteredMessage(GameMessages.DuplicatePlayerName);
+            }
+
+            if (i == 1)
+            {
+                if (!results.ContainsKey(playerName) &&
+                    results.Count >= GameMessages.MaximumSavedPlayers)
+                {
+                    ui.ShowCenteredMessage(GameMessages.MaximumSavedPlayersReached);
+                    return null;
+                }
+
+                if (results.TryGetValue(playerName, out PlayerStatistics? stats))
+                    players.Add(new Player(
+                        playerName, stats.Wins, stats.Losses, stats.Pushes));
+                else
+                    players.Add(new Player(playerName));
+            }
+            else
+            {
+                players.Add(new Player(playerName));
+            }
+        }
 
         return players;
     }
@@ -65,8 +90,7 @@ internal sealed class PlayerSessionService
             return null;
         }
 
-        ui.ShowStatistics(results);
-        string? selectedName = ui.SelectSavedPlayer(results);
+        string? selectedName = ui.SelectSavedPlayer(results, DeletePlayer);
         if (selectedName is null)
             return null;
 
@@ -79,17 +103,40 @@ internal sealed class PlayerSessionService
         try
         {
             Player player = players[0];
-            Dictionary<string, PlayerStatistics> results = new()
+            Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
+            if (!results.ContainsKey(player.Name) &&
+                results.Count >= GameMessages.MaximumSavedPlayers)
             {
-                [player.Name] = new PlayerStatistics
-                {
-                    Wins = player.Wins,
-                    Losses = player.Losses,
-                    Pushes = player.Pushes
-                }
+                return false;
+            }
+
+            results[player.Name] = new PlayerStatistics
+            {
+                Wins = player.Wins,
+                Losses = player.Losses,
+                Pushes = player.Pushes
             };
             gameStorage.SaveResults(results);
-            ui.ShowStatistics(gameStorage.LoadResults());
+            return true;
+        }
+        catch (Exception ex) when (
+            ex is IOException ||
+            ex is UnauthorizedAccessException ||
+            ex is JsonException)
+        {
+            return false;
+        }
+    }
+
+    private bool DeletePlayer(string playerName)
+    {
+        try
+        {
+            Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
+            if (!results.Remove(playerName))
+                return false;
+
+            gameStorage.SaveResults(results);
             return true;
         }
         catch (Exception ex) when (

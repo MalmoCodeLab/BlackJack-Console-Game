@@ -111,9 +111,12 @@ public partial class ConsoleUi
             {
                 "DIN TUR" => "bold black on gold1",
                 "TJOCK" => "bold red",
+                "FÖRLORADE" => "bold red",
                 "STANNAT" => "bold white",
                 "BLACKJACK" => "bold gold1",
                 "21 POÄNG" => "bold gold1",
+                "VANN" => "bold green1",
+                "OAVGJORT" => "bold gold1",
                 "KLAR" => "grey",
                 _ => "grey"
             };

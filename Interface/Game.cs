@@ -36,7 +36,6 @@ public class Game
             }
         }
 
-        Console.Clear();
     }
 
     private void StartNewGame()
@@ -56,6 +55,7 @@ public class Game
 
     private void PlayGame(List<Player> players)
     {
+        gameTable.ResetSession();
         Deck deck = new();
         deck.CreateDeck();
         deck.ShuffleDeck();
@@ -77,7 +77,7 @@ public class Game
                     summary = GameMessages.AppendSaveResultsError(summary);
 
                 action = gameTable.ShowRoundEndMenu(
-                    summary, players, playerSessions.SaveGame);
+                    round, summary, playerSessions.SaveGame);
             }
 
             if (action != GameTableAction.StartNewRound)
