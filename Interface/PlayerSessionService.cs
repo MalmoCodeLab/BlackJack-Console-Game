@@ -54,8 +54,7 @@ internal sealed class PlayerSessionService
                 }
 
                 if (results.TryGetValue(playerName, out PlayerStatistics? stats))
-                    players.Add(new Player(
-                        playerName, stats.Wins, stats.Losses, stats.Pushes));
+                    players.Add(CreateSavedPlayer(playerName, stats));
                 else
                     players.Add(new Player(playerName));
             }
@@ -95,7 +94,15 @@ internal sealed class PlayerSessionService
             return null;
 
         PlayerStatistics stats = results[selectedName];
-        return new Player(selectedName, stats.Wins, stats.Losses, stats.Pushes);
+        return CreateSavedPlayer(selectedName, stats);
+    }
+
+    // Creates a player from saved statistics.
+    // A player who ran out of chips last time starts over with the starting amount.
+    private static Player CreateSavedPlayer(string name, PlayerStatistics stats)
+    {
+        int chips = stats.Chips > 0 ? stats.Chips : Player.StartingChips;
+        return new Player(name, stats.Wins, stats.Losses, stats.Pushes, chips);
     }
 
     public bool SaveResults(List<Player> players)
@@ -114,7 +121,8 @@ internal sealed class PlayerSessionService
             {
                 Wins = player.Wins,
                 Losses = player.Losses,
-                Pushes = player.Pushes
+                Pushes = player.Pushes,
+                Chips = player.Chips
             };
             gameStorage.SaveResults(results);
             return true;
