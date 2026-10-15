@@ -235,7 +235,7 @@ public class Game
                     new Layout("MenuSpace").Ratio(1));
                 layout["MenuContent"].Update(
                     BuildGameMenu(menuOptions, selectedMenuOption,
-                        players, sideMenuActive, playerStatuses));
+                        players, sideMenuActive, roundFinished, playerStatuses));
                 layout["MenuSpace"].Update(new Text(""));
                 // Batch the redraw so VS Code does not display partially painted frames.
                 Console.Write("\u001b[?2026h");
@@ -275,27 +275,50 @@ public class Game
                     if (key == ConsoleKey.Escape)
                     {
                         bettingMode = false;
+                        continue;
                     }
-                    else if (key == ConsoleKey.LeftArrow ||
-                             key == ConsoleKey.RightArrow ||
-                             key == ConsoleKey.Enter)
+                    if (key == ConsoleKey.UpArrow || key == ConsoleKey.DownArrow)
                     {
-                        BettingUI.HandleKey(key);
+                        // Leave chip selection and handle the arrow in the game menu.
+                        bettingMode = false;
                     }
-                    continue;
+                    else
+                    {
+                        if (key == ConsoleKey.LeftArrow ||
+                            key == ConsoleKey.RightArrow || key == ConsoleKey.Enter)
+                            BettingUI.HandleKey(key);
+                        continue;
+                    }
+                }
+                // Once the round is over, only the right-hand menu is interactive.
+                if (roundFinished)
+                {
+                    sideMenuActive = true;
+                    bettingMode = false;
                 }
                 switch (key)
                 {
+                    case ConsoleKey.Escape:
+                        // After the round, keep focus on the only available menu.
+                        if (!roundFinished)
+                        {
+                            sideMenuActive = false;
+                            selectedGameOption = 0;
+                        }
+                        break;
                     case ConsoleKey.LeftArrow:
+                        if (roundFinished) break;
                         sideMenuActive = false;
                         selectedGameOption = Math.Max(0, selectedGameOption - 1);
                         break;
                     case ConsoleKey.RightArrow:
+                        if (roundFinished) break;
                         sideMenuActive = false;
                         selectedGameOption = Math.Min(
                             gameOptions.Length - 1, selectedGameOption + 1);
                         break;
                     case ConsoleKey.UpArrow:
+                        if (roundFinished) sideMenuActive = true;
                         if (!sideMenuActive)
                         {
                             sideMenuActive = true;
@@ -309,6 +332,7 @@ public class Game
                         }
                         break;
                     case ConsoleKey.DownArrow:
+                        if (roundFinished) sideMenuActive = true;
                         if (sideMenuActive)
                         {
                             if (selectedMenuOption < menuOptions.Length - 1)
@@ -317,12 +341,17 @@ public class Game
                             }
                             else
                             {
-                                sideMenuActive = false;
-                                selectedGameOption = 0;
+                                if (!roundFinished)
+                                {
+                                    sideMenuActive = false;
+                                    selectedGameOption = 0;
+                                }
+                                else selectedMenuOption = 0;
                             }
                         }
                         break;
                     case ConsoleKey.Enter:
+                        if (roundFinished) sideMenuActive = true;
                         if (sideMenuActive)
                         {
                             if (selectedMenuOption == 0)
@@ -558,7 +587,7 @@ public class Game
             .Expand();
     }
     // Shows the menu, saved statistics, live bet and controls on the right.
-    private Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, string[] playerStatuses)
+    private Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, bool roundFinished, string[] playerStatuses)
     {
         var content = new List<Spectre.Console.Rendering.IRenderable>
         {
@@ -567,7 +596,7 @@ public class Game
         for (int i = 0; i < menuOptions.Length; i++)
         {
             string label = Markup.Escape(menuOptions[i]);
-            content.Add(new Markup(sideMenuActive && i == selectedOption
+            content.Add(new Markup((sideMenuActive || roundFinished) && i == selectedOption
                 ? $"[bold white on #961923] ❯ {label} [/]"
                 : $"[white]   {label}[/]"));
         }
