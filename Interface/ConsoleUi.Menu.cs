@@ -141,7 +141,7 @@ public partial class ConsoleUi
     {
         var actions = new Grid();
         for (int i = 0; i < options.Length; i++)
-            actions.AddColumn(new GridColumn().NoWrap().PadRight(2));
+            actions.AddColumn(new GridColumn().NoWrap().PadRight(5));
         var buttons = new Spectre.Console.Rendering.IRenderable[options.Length];
         for (int i = 0; i < options.Length; i++)
         {
@@ -198,14 +198,41 @@ public partial class ConsoleUi
         content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
         content.Add(new Markup($"[white]Saldo:[/] [green1]{main.Chips} kr[/]"));
         content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{main.CurrentBet} kr[/]"));
-        content.Add(new Rule("[gold1]STYRNING[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup("[grey]← →  Välj handling[/]"));
-        content.Add(new Markup("[grey]↑ ↓  Spelmeny[/]"));
-        content.Add(new Markup("[grey]Enter  Bekräfta[/]"));
-        content.Add(new Markup("[grey]Vid insats: ← → välj mark[/]"));
-        content.Add(new Markup("[grey]Enter satsa, Esc tillbaka[/]"));
         return new Panel(new Rows(content))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+    }
+
+    // Shows controls on a separate screen without changing the current game state.
+    public void ShowGameControls()
+    {
+        AnsiConsole.Clear();
+
+        var rows = new List<IRenderable>
+        {
+            new Align(new Markup("[bold gold1]♠ SPELSTYRNING ♠[/]"), HorizontalAlignment.Center),
+            new Text(""),
+            new Rule("[gold1]MENYN[/]").RuleStyle(Color.Gold1),
+            new Markup("[white]↑ ↓[/]  Navigera mellan menyval"),
+            new Markup("[white]Enter[/]  Bekräfta val"),
+            new Text(""),
+            new Rule("[gold1]UNDER SPELET[/]").RuleStyle(Color.Gold1),
+            new Markup("[white]← →[/]  Välj handling"),
+            new Markup("[white]Enter[/]  Bekräfta handling"),
+            new Text(""),
+            new Rule("[gold1]SATSNING[/]").RuleStyle(Color.Gold1),
+            new Markup("[white]← →[/]  Välj marker"),
+            new Markup("[white]Enter[/]  Lägg till marker"),
+            new Markup("[white]Esc[/]  Bekräfta insats"),
+            new Markup("[white]Backspace[/]  Ta bort marker"),
+            new Text(""),
+            new Align(new Markup("[grey]Tryck Enter för att återgå till spelet.[/]"), HorizontalAlignment.Center)
+        };
+
+        AnsiConsole.Write(CenterMenuPanel(rows));
+        while (Console.ReadKey(true).Key != ConsoleKey.Enter)
+        {
+        }
+        AnsiConsole.Clear();
     }
 
     // Returns null if the player presses Esc.

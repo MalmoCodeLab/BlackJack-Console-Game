@@ -252,6 +252,10 @@ internal sealed class GameTableUI
                                         }
                                         else if (selectedMenuOption == 2)
                                         {
+                                            ShowControlsScreen();
+                                        }
+                                        else if (selectedMenuOption == 3)
+                                        {
                                             saveRequested = true;
                                         }
                                     }
@@ -371,6 +375,10 @@ internal sealed class GameTableUI
                                 }
                                 else if (selectedMenuOption == 2)
                                 {
+                                    ShowControlsScreen();
+                                }
+                                else if (selectedMenuOption == 3)
+                                {
                                     saveRequested = true;
                                 }
                             }
@@ -406,6 +414,16 @@ internal sealed class GameTableUI
         }
 
         return action;
+    }
+
+    // Opens the controls view and returns to the current table without resetting the round.
+    private void ShowControlsScreen()
+    {
+        // The table uses the terminal's alternate screen. Stay on that screen
+        // so returning to the game does not recreate the terminal session.
+        ui.ShowGameControls();
+        Console.Write("\u001b[?25l");
+        Console.Out.Flush();
     }
 
     // Use a fixed screen instead of Spectre.Live, which can move the cursor
@@ -456,7 +474,10 @@ internal sealed class GameTableUI
         bool bettingMode,
         bool cardsFaceDown = false)
     {
-        const int tableHeight = TableHeight - 3;
+        // Reserve enough height for full cards and the betting controls.
+        // The button panel follows the table immediately: no spacer row.
+        const int actionsHeight = 3;
+        const int tableHeight = TableHeight - actionsHeight;
         var layout = new Layout("Root")
             .Size(TableHeight)
             .SplitColumns(
@@ -464,7 +485,7 @@ internal sealed class GameTableUI
                 new Layout("Menu").Ratio(1));
         layout["Table"].SplitRows(
             new Layout("BlackjackTable").Size(tableHeight),
-            new Layout("PlayerActions").Size(3));
+            new Layout("PlayerActions").Size(actionsHeight));
         layout["BlackjackTable"].Update(
             ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses, cardsFaceDown));

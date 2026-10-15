@@ -1,3 +1,4 @@
+
 using System;
 
 internal static class GameMessages
@@ -48,10 +49,14 @@ internal static class GameMessages
         "♦ Satsa"
     };
 
+    // Menu displayed at the Blackjack table.
+    internal const string GameControls = "♥ Spelstyrning";
+
     internal static readonly string[] InGameMenuOptions =
     {
         "♠ Ny runda",
         "♣ Huvudmeny",
+        GameControls,
         "♦ Spara och avsluta"
     };
 
