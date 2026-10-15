@@ -192,8 +192,8 @@ public partial class ConsoleUi
         content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
         content.Add(new Markup($"[white]Rundor: {main.GamesPlayed}[/]"));
         content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup($"[white]Saldo:[/] [green1]{BettingUI.Balance} kr[/]"));
-        content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{BettingUI.CurrentBet} kr[/]"));
+        content.Add(new Markup($"[white]Saldo:[/] [green1]{main.Chips} kr[/]"));
+        content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{main.CurrentBet} kr[/]"));
         content.Add(new Rule("[gold1]STYRNING[/]").RuleStyle(Color.Gold1));
         content.Add(new Markup("[grey]← →  Välj handling[/]"));
         content.Add(new Markup("[grey]↑ ↓  Spelmeny[/]"));

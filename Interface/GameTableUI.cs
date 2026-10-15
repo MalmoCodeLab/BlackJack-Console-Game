@@ -123,7 +123,7 @@ internal sealed class GameTableUI
                                 else if (key == ConsoleKey.LeftArrow ||
                                          key == ConsoleKey.RightArrow ||
                                          key == ConsoleKey.Enter)
-                                    BettingUI.HandleKey(key);
+                                    BettingUI.HandleKey(key, players[currentPlayerIndex]);
 
                                 if (bettingMode)
                                     continue;
