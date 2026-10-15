@@ -30,11 +30,12 @@
     }
     public void CardCounter()
     {
-        if (DeckCards[0].Rank == Rank.Two || DeckCards[0].Rank == Rank.Three || DeckCards[0].Rank == Rank.Four || DeckCards[0].Rank == Rank.Five || DeckCards[0].Rank == Rank.Six)
+        Rank rank = DeckCards[0].Rank;
+        if (rank <= Rank.Six)
         {
             RunningCount++;
         }
-        else if (DeckCards[0].Rank == Rank.Ten || DeckCards[0].Rank == Rank.Jack || DeckCards[0].Rank == Rank.Queen || DeckCards[0].Rank == Rank.King || DeckCards[0].Rank == Rank.Ace)
+        else if (rank >= Rank.Ten)
         {
             RunningCount--;
         }
