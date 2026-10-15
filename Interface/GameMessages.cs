@@ -66,9 +66,6 @@ internal static class GameMessages
     internal const string PushOutcome = "Oavgjort";
     internal const string PlayerOutOfChipsFormat = "{0} har slut på marker och lämnar bordet.";
     internal const string AllPlayersOutOfChips = "Alla spelare har slut på marker. Spelet är slut.";
-
-    internal const string BetCannotBeZero = "INSATSEN FÅR INTE VARA NOLL";
-    internal const string BetTooHigh = "DU HAR INTE SÅ MÅNGA MARKER";
     internal const string SavedPlayerOutOfChipsFormat = "{0} har inga marker kvar och får inte spela.";
 
     internal const string SoloPlayerWin = "DU VANN!";
