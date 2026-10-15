@@ -40,6 +40,16 @@ From the project directory, run:
 dotnet run
 ```
 
+To run the automated game scenarios after a change:
+
+```text
+dotnet run --project Test\ScenarioRunner.csproj
+```
+
+The scenario runner uses deterministic card sequences to check card scoring, dealing,
+player and dealer rules, round outcomes, reshuffling, and statistics persistence. It
+returns a nonzero exit code if any scenario fails.
+
 Player statistics are saved as `player-results.json` and summarized in `player-results.txt` under
 the user's local application-data folder (`%LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack` on Windows).
 The text report contains cumulative totals from previous sessions as well as the latest saved
