@@ -182,6 +182,9 @@ public partial class ConsoleUi
             "[white]Oavgjorda[/]", $"[gold1]{selectedStats.Pushes}[/]",
             "[white]Rundor[/]",
             $"[deepskyblue1]{selectedStats.Wins + selectedStats.Losses + selectedStats.Pushes}[/]");
+        table.AddRow(
+            "[white]Marker[/]", $"[green1]{selectedStats.Chips} kr[/]",
+            "", "");
         rows.Add(new Align(table, HorizontalAlignment.Center));
         rows.Add(new Text(""));
 

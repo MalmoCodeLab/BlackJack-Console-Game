@@ -64,6 +64,9 @@ internal static class GameMessages
     internal const string WinOutcome = "Vinst";
     internal const string LossOutcome = "Förlust";
     internal const string PushOutcome = "Oavgjort";
+    internal const string PlayerOutOfChipsFormat = "{0} har slut på marker och lämnar bordet.";
+    internal const string AllPlayersOutOfChips = "Alla spelare har slut på marker. Spelet är slut.";
+    internal const string SavedPlayerOutOfChipsFormat = "{0} har inga marker kvar och får inte spela.";
 
     internal const string SoloPlayerWin = "DU VANN!";
     internal const string SoloPlayerLoss = "DU FÖRLORADE!";
@@ -95,6 +98,12 @@ internal static class GameMessages
 
     internal static string PlayerName(int number) =>
         string.Format(PlayerNameFormat, number);
+
+    internal static string PlayerOutOfChips(string playerName) =>
+        string.Format(PlayerOutOfChipsFormat, playerName);
+
+    internal static string SavedPlayerOutOfChips(string playerName) =>
+        string.Format(SavedPlayerOutOfChipsFormat, playerName);
 
     internal static string SoloResult(string headline, int playerScore, int dealerScore) =>
         string.Format(ScoreComparisonFormat, headline, playerScore, dealerScore);

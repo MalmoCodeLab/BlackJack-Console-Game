@@ -27,6 +27,9 @@ internal static class RoundResultFormatter
             else
                 messages.Add(GameMessages.NamedResult(
                     player.Name, headline, player.Score, round.Dealer.Score));
+
+            if (player.IsOutOfChips)
+                messages.Add(GameMessages.PlayerOutOfChips(player.Name));
         }
 
         return string.Join(Environment.NewLine, messages);
