@@ -21,9 +21,16 @@ internal static class GameMessages
     internal const string SaveResultsError = "Kunde inte spara resultatet.";
     internal const string SaveStatisticsSuccess = "Spelarstatistiken har sparats!";
     internal const string SaveStatisticsError = "Kunde inte spara spelarstatistiken.";
-    internal const string EnterPlayerNamePrompt = "Skriv in ditt namn: ";
+    internal const string PlayerNamePromptFormat = "Ange namn för spelare {0}: ";
     internal const string DefaultPlayerName = "Spelare 1";
     internal const string PlayerNameFormat = "Spelare {0}";
+    internal const int MaximumSavedPlayers = 3;
+    internal const string DuplicatePlayerName = "Namnet används redan. Välj ett annat namn.";
+    internal const string MaximumSavedPlayersReached =
+        "Du har redan tre sparade spelare. Ta bort en under Ladda spel först.";
+    internal const string DeleteSavedPlayerError = "Kunde inte ta bort den sparade spelaren.";
+    internal const string DeleteSavedPlayerPromptFormat =
+        "Ta bort {0} permanent?";
 
     internal static readonly string[] MainMenuOptions =
     {

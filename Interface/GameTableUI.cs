@@ -1,5 +1,4 @@
 using Spectre.Console;
-using Spectre.Console.Rendering;
 
 internal enum GameTableAction
 {
@@ -10,6 +9,9 @@ internal enum GameTableAction
 
 internal sealed class GameTableUI
 {
+    private const int TableHeight = 27;
+    private const int BlackjackNoticeDurationMs = 2400;
+
     private readonly ConsoleUi ui;
 
     public GameTableUI(ConsoleUi ui)
@@ -17,148 +19,208 @@ internal sealed class GameTableUI
         this.ui = ui;
     }
 
-    public GameTableAction PlayRound(Round round, Func<List<Player>, bool> saveGame)
+    public void ResetSession() => BettingUI.Reset();
+
+    public GameTableAction PlayRound(
+        Round round,
+        Func<List<Player>, bool> saveGame)
     {
         List<Player> players = round.Players;
-        string[] gameOptions = GameMessages.GameOptions;
-        string[] menuOptions = GameMessages.InGameMenuOptions;
+        string[] statuses = Enumerable.Repeat("VÄNTAR", players.Count).ToArray();
+        int currentPlayerIndex = 0;
         int selectedGameOption = 0;
         int selectedMenuOption = 0;
         bool sideMenuActive = false;
         bool bettingMode = false;
-        int currentPlayerIndex = 0;
+        bool pendingBlackjackAdvance = players[0].HasBlackjack;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
+        string? notice = pendingBlackjackAdvance
+            ? NaturalBlackjackNotice(players[0])
+            : null;
+        DateTime noticeUntil = pendingBlackjackAdvance
+            ? DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs)
+            : DateTime.MinValue;
 
+        statuses[0] = pendingBlackjackAdvance ? "BLACKJACK" : "DIN TUR";
+
+        void AdvancePlayer()
+        {
+            currentPlayerIndex++;
+            selectedGameOption = 0;
+
+            while (currentPlayerIndex < players.Count)
+            {
+                Player nextPlayer = players[currentPlayerIndex];
+                if (nextPlayer.HasBlackjack)
+                {
+                    statuses[currentPlayerIndex] = "BLACKJACK";
+                    notice = NaturalBlackjackNotice(nextPlayer);
+                    noticeUntil = DateTime.UtcNow.AddMilliseconds(
+                        BlackjackNoticeDurationMs);
+                    pendingBlackjackAdvance = true;
+                    return;
+                }
+
+                statuses[currentPlayerIndex] = "DIN TUR";
+                return;
+            }
+
+            action = GameTableAction.RoundCompleted;
+            playing = false;
+        }
+
+        ui.CheckWidth(TableHeight);
         AnsiConsole.Clear();
         try
         {
             Console.CursorVisible = false;
             while (playing)
             {
-                Console.SetCursorPosition(0, 0);
-                const int totalHeight = 27;
-                int tableHeight = totalHeight - 3;
-                var layout = new Layout("Root")
-                    .Size(totalHeight)
-                    .SplitColumns(
-                        new Layout("Table").Ratio(4),
-                        new Layout("Menu").Ratio(1));
-                layout["Table"].SplitRows(
-                    new Layout("BlackjackTable").Size(tableHeight),
-                    new Layout("PlayerActions").Size(3));
-                layout["BlackjackTable"].Update(
-                    ui.BuildBlackjackTable(players, round.Dealer, tableHeight));
-                layout["PlayerActions"].Update(
-                    BuildPlayerActions(
-                        gameOptions, selectedGameOption,
-                        sideMenuActive, bettingMode));
+                bool saveRequested = false;
+                AnsiConsole.Live(BuildTable(
+                    round, statuses, notice, selectedGameOption,
+                    selectedMenuOption, sideMenuActive, roundFinished: false,
+                    bettingMode: bettingMode))
+                    .AutoClear(false)
+                    .Start(context =>
+                    {
+                        context.Refresh();
+                        while (playing && !saveRequested)
+                        {
+                            context.UpdateTarget(BuildTable(
+                                round, statuses, notice, selectedGameOption,
+                                selectedMenuOption, sideMenuActive,
+                                roundFinished: false, bettingMode: bettingMode));
+                            context.Refresh();
 
-                int menuHeight = Math.Min(totalHeight - 3, 15 + players.Count);
-                layout["Menu"].SplitRows(
-                    new Layout("MenuContent").Size(menuHeight),
-                    new Layout("MenuSpace").Ratio(1));
-                layout["MenuContent"].Update(
-                    BuildGameMenu(menuOptions, selectedMenuOption,
-                        players, sideMenuActive));
-                layout["MenuSpace"].Update(new Text(""));
-                AnsiConsole.Write(layout);
-                Console.Write("\u001b[J");
+                            int timeout = pendingBlackjackAdvance
+                                ? Math.Max(1, (int)(noticeUntil - DateTime.UtcNow)
+                                    .TotalMilliseconds)
+                                : -1;
+                            ConsoleKey key = ReadTableKey(timeout);
+                            if (pendingBlackjackAdvance)
+                            {
+                                if (DateTime.UtcNow < noticeUntil)
+                                    continue;
 
-                ConsoleKey key = Console.ReadKey(true).Key;
-                if (bettingMode)
-                {
-                    if (key == ConsoleKey.Escape)
-                        bettingMode = false;
-                    else if (key == ConsoleKey.LeftArrow ||
-                             key == ConsoleKey.RightArrow ||
-                             key == ConsoleKey.Enter)
-                        BettingUI.HandleKey(key);
-                    continue;
-                }
+                                notice = null;
+                                pendingBlackjackAdvance = false;
+                                AdvancePlayer();
+                                continue;
+                            }
 
-                switch (key)
-                {
-                    case ConsoleKey.LeftArrow:
-                        sideMenuActive = false;
-                        selectedGameOption = Math.Max(0, selectedGameOption - 1);
-                        break;
-                    case ConsoleKey.RightArrow:
-                        sideMenuActive = false;
-                        selectedGameOption = Math.Min(
-                            gameOptions.Length - 1, selectedGameOption + 1);
-                        break;
-                    case ConsoleKey.UpArrow:
-                        if (!sideMenuActive)
-                        {
-                            sideMenuActive = true;
-                            selectedMenuOption = 0;
-                        }
-                        else
-                        {
-                            selectedMenuOption =
-                                (selectedMenuOption - 1 + menuOptions.Length)
-                                % menuOptions.Length;
-                        }
-                        break;
-                    case ConsoleKey.DownArrow:
-                        if (sideMenuActive)
-                        {
-                            if (selectedMenuOption < menuOptions.Length - 1)
-                                selectedMenuOption++;
-                            else
-                            {
-                                sideMenuActive = false;
-                                selectedGameOption = 0;
-                            }
-                        }
-                        break;
-                    case ConsoleKey.Enter:
-                        if (sideMenuActive)
-                        {
-                            if (selectedMenuOption == 0)
-                            {
-                                action = GameTableAction.StartNewRound;
-                                playing = false;
-                            }
-                            else if (selectedMenuOption == 1)
-                            {
-                                action = GameTableAction.ReturnToMainMenu;
-                                playing = false;
-                            }
-                            else if (selectedMenuOption == 2 && saveGame(players))
-                            {
-                                action = GameTableAction.ReturnToMainMenu;
-                                playing = false;
-                            }
-                        }
-                        else if (selectedGameOption == 2)
-                        {
-                            bettingMode = true;
-                        }
-                        else
-                        {
-                            Player currentPlayer = players[currentPlayerIndex];
-                            if (selectedGameOption == 0)
-                                currentPlayer.ReceiveCard(round.Deck);
+                            if (key == ConsoleKey.NoName)
+                                continue;
 
-                            if (selectedGameOption == 1 ||
-                                currentPlayer.IsBust ||
-                                currentPlayer.Score == Participant.BlackjackValue)
+                            if (bettingMode)
                             {
-                                if (currentPlayerIndex < players.Count - 1)
-                                {
-                                    currentPlayerIndex++;
+                                if (key == ConsoleKey.Escape)
+                                    bettingMode = false;
+                                else if (key == ConsoleKey.UpArrow ||
+                                         key == ConsoleKey.DownArrow)
+                                    bettingMode = false;
+                                else if (key == ConsoleKey.LeftArrow ||
+                                         key == ConsoleKey.RightArrow ||
+                                         key == ConsoleKey.Enter)
+                                    BettingUI.HandleKey(key);
+
+                                if (bettingMode)
+                                    continue;
+                            }
+
+                            switch (key)
+                            {
+                                case ConsoleKey.Escape:
+                                    sideMenuActive = false;
                                     selectedGameOption = 0;
-                                }
-                                else
-                                {
-                                    action = GameTableAction.RoundCompleted;
-                                    playing = false;
-                                }
+                                    break;
+                                case ConsoleKey.LeftArrow:
+                                    sideMenuActive = false;
+                                    selectedGameOption = Math.Max(
+                                        0, selectedGameOption - 1);
+                                    break;
+                                case ConsoleKey.RightArrow:
+                                    sideMenuActive = false;
+                                    selectedGameOption = Math.Min(
+                                        GameMessages.GameOptions.Length - 1,
+                                        selectedGameOption + 1);
+                                    break;
+                                case ConsoleKey.UpArrow:
+                                    if (!sideMenuActive)
+                                    {
+                                        sideMenuActive = true;
+                                        selectedMenuOption = 0;
+                                    }
+                                    else
+                                    {
+                                        selectedMenuOption =
+                                            (selectedMenuOption - 1 +
+                                             GameMessages.InGameMenuOptions.Length) %
+                                            GameMessages.InGameMenuOptions.Length;
+                                    }
+                                    break;
+                                case ConsoleKey.DownArrow:
+                                    if (sideMenuActive)
+                                    {
+                                        if (selectedMenuOption <
+                                            GameMessages.InGameMenuOptions.Length - 1)
+                                        {
+                                            selectedMenuOption++;
+                                        }
+                                        else
+                                        {
+                                            sideMenuActive = false;
+                                            selectedGameOption = 0;
+                                        }
+                                    }
+                                    break;
+                                case ConsoleKey.Enter:
+                                    if (sideMenuActive)
+                                    {
+                                        if (selectedMenuOption == 0)
+                                        {
+                                            action = GameTableAction.StartNewRound;
+                                            playing = false;
+                                        }
+                                        else if (selectedMenuOption == 1)
+                                        {
+                                            action = GameTableAction.ReturnToMainMenu;
+                                            playing = false;
+                                        }
+                                        else if (selectedMenuOption == 2)
+                                        {
+                                            saveRequested = true;
+                                        }
+                                    }
+                                    else if (selectedGameOption == 2)
+                                    {
+                                        bettingMode = true;
+                                    }
+                                    else
+                                    {
+                                        Player player = players[currentPlayerIndex];
+                                        if (selectedGameOption == 0)
+                                            player.ReceiveCard(round.Deck);
+
+                                        if (selectedGameOption == 1 ||
+                                            player.IsBust ||
+                                            player.Score == Participant.BlackjackValue)
+                                        {
+                                            statuses[currentPlayerIndex] =
+                                                GetTurnStatus(player, selectedGameOption);
+                                            AdvancePlayer();
+                                        }
+                                    }
+                                    break;
                             }
                         }
-                        break;
+                    });
+
+                if (saveRequested && saveGame(players))
+                {
+                    action = GameTableAction.ReturnToMainMenu;
+                    playing = false;
                 }
             }
         }
@@ -172,184 +234,187 @@ internal sealed class GameTableUI
     }
 
     public GameTableAction ShowRoundEndMenu(
+        Round round,
         string summary,
-        List<Player> players,
         Func<List<Player>, bool> saveGame)
     {
-        string[] options = GameMessages.RoundEndMenuOptions;
-        int selected = 0;
+        List<Player> players = round.Players;
+        string[] statuses = players
+            .Select(player => OutcomeStatus(round.Outcomes[player]))
+            .ToArray();
+        int selectedMenuOption = 0;
+        GameTableAction action = GameTableAction.ReturnToMainMenu;
+        string? notice = summary.Replace(
+            Environment.NewLine, "  •  ", StringComparison.Ordinal);
+
+        ui.CheckWidth(TableHeight);
+        try
+        {
+            Console.CursorVisible = false;
+            bool finished = false;
+            while (!finished)
+            {
+                bool saveRequested = false;
+                AnsiConsole.Live(BuildTable(
+                    round, statuses, notice, selectedGameOption: 0,
+                    selectedMenuOption: selectedMenuOption,
+                    sideMenuActive: true, roundFinished: true,
+                    bettingMode: false))
+                    .AutoClear(false)
+                    .Start(context =>
+                    {
+                        context.Refresh();
+                        while (!finished && !saveRequested)
+                        {
+                            context.UpdateTarget(BuildTable(
+                                round, statuses, notice, selectedGameOption: 0,
+                                selectedMenuOption: selectedMenuOption,
+                                sideMenuActive: true,
+                                roundFinished: true, bettingMode: false));
+                            context.Refresh();
+
+                            ConsoleKey key = ReadTableKey();
+                            if (key == ConsoleKey.UpArrow)
+                            {
+                                selectedMenuOption =
+                                    (selectedMenuOption - 1 +
+                                     GameMessages.InGameMenuOptions.Length) %
+                                    GameMessages.InGameMenuOptions.Length;
+                            }
+                            else if (key == ConsoleKey.DownArrow)
+                            {
+                                selectedMenuOption =
+                                    (selectedMenuOption + 1) %
+                                    GameMessages.InGameMenuOptions.Length;
+                            }
+                            else if (key == ConsoleKey.Enter)
+                            {
+                                if (selectedMenuOption == 0)
+                                {
+                                    action = GameTableAction.StartNewRound;
+                                    finished = true;
+                                }
+                                else if (selectedMenuOption == 1)
+                                {
+                                    action = GameTableAction.ReturnToMainMenu;
+                                    finished = true;
+                                }
+                                else if (selectedMenuOption == 2)
+                                {
+                                    saveRequested = true;
+                                }
+                            }
+
+                            if (!finished && !saveRequested)
+                            {
+                                context.UpdateTarget(BuildTable(
+                                    round, statuses, notice, selectedGameOption: 0,
+                                    selectedMenuOption: selectedMenuOption,
+                                    sideMenuActive: true,
+                                    roundFinished: true, bettingMode: false));
+                                context.Refresh();
+                            }
+                        }
+                    });
+
+                if (saveRequested && saveGame(players))
+                {
+                    action = GameTableAction.ReturnToMainMenu;
+                    finished = true;
+                }
+            }
+        }
+        finally
+        {
+            Console.CursorVisible = true;
+            AnsiConsole.Clear();
+        }
+
+        return action;
+    }
+
+    private Layout BuildTable(
+        Round round,
+        string[] statuses,
+        string? notice,
+        int selectedGameOption,
+        int selectedMenuOption,
+        bool sideMenuActive,
+        bool roundFinished,
+        bool bettingMode)
+    {
+        const int tableHeight = TableHeight - 3;
+        var layout = new Layout("Root")
+            .Size(TableHeight)
+            .SplitColumns(
+                new Layout("Table").Ratio(4),
+                new Layout("Menu").Ratio(1));
+        layout["Table"].SplitRows(
+            new Layout("BlackjackTable").Size(tableHeight),
+            new Layout("PlayerActions").Size(3));
+        layout["BlackjackTable"].Update(
+            ui.BuildBlackjackTable(
+                round.Players, round.Dealer, tableHeight, notice, statuses));
+        layout["PlayerActions"].Update(ui.BuildPlayerActions(
+            GameMessages.GameOptions, selectedGameOption,
+            sideMenuActive, roundFinished, bettingMode));
+
+        layout["Menu"].SplitRows(
+            new Layout("MenuContent").Size(TableHeight - 3),
+            new Layout("MenuSpace").Ratio(1));
+        layout["MenuContent"].Update(ui.BuildGameMenu(
+            GameMessages.InGameMenuOptions, selectedMenuOption,
+            round.Players, sideMenuActive, roundFinished, statuses));
+        layout["MenuSpace"].Update(new Text(""));
+        return layout;
+    }
+
+    private ConsoleKey ReadTableKey(int timeoutMs = -1)
+    {
+        DateTime until = timeoutMs < 0
+            ? DateTime.MaxValue
+            : DateTime.UtcNow.AddMilliseconds(timeoutMs);
 
         while (true)
         {
-            AnsiConsole.Clear();
-            bool confirmed = false;
-            AnsiConsole.Live(BuildRoundEndPanel(summary, options, selected))
-                .Start(context =>
-                {
-                    context.Refresh();
-                    while (!confirmed)
-                    {
-                        ConsoleKey key = Console.ReadKey(true).Key;
-                        if (key == ConsoleKey.UpArrow)
-                            selected = (selected - 1 + options.Length) % options.Length;
-                        else if (key == ConsoleKey.DownArrow)
-                            selected = (selected + 1) % options.Length;
-                        else if (key == ConsoleKey.Enter)
-                        {
-                            confirmed = true;
-                            break;
-                        }
-                        else
-                            continue;
+            if (Console.WindowWidth < ConsoleUi.MinWidth ||
+                Console.WindowHeight < ConsoleUi.MinHeight)
+            {
+                Console.CursorVisible = true;
+                ui.CheckWidth();
+                ui.HardClear(check: false);
+                Console.CursorVisible = false;
+                return ConsoleKey.NoName;
+            }
 
-                        context.UpdateTarget(
-                            BuildRoundEndPanel(summary, options, selected));
-                        context.Refresh();
-                    }
-                });
+            if (Console.KeyAvailable)
+                return Console.ReadKey(true).Key;
+            if (DateTime.UtcNow >= until)
+                return ConsoleKey.NoName;
 
-            if (selected == 0)
-                return GameTableAction.StartNewRound;
-            if (selected == 1)
-                return GameTableAction.ReturnToMainMenu;
-            if (saveGame(players))
-                return GameTableAction.ReturnToMainMenu;
+            Thread.Sleep(35);
         }
     }
 
-    private static IRenderable BuildRoundEndPanel(
-        string summary, string[] options, int selected)
+    private static string GetTurnStatus(Player player, int selectedGameOption)
     {
-        var rows = new List<IRenderable>
-        {
-            new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
-            new Rule(GameMessages.ResultTitleMarkup).RuleStyle(Color.Gold1),
-            new Text("")
-        };
-        foreach (string result in summary.Split('\n'))
-        {
-            string color = GameMessages.IsLossOutcome(result) ? "red" :
-                           GameMessages.IsWinOutcome(result) ? "green1" : "gold1";
-            rows.Add(new Align(
-                new Markup($"[{color}]{Markup.Escape(result)}[/]"),
-                HorizontalAlignment.Center));
-        }
-
-        rows.Add(new Text(""));
-        rows.Add(new Align(
-            new Markup($"[bold gold1]{GameMessages.NewRoundPrompt}[/]"),
-            HorizontalAlignment.Center));
-        rows.Add(new Text(""));
-        for (int i = 0; i < options.Length; i++)
-        {
-            string label = Markup.Escape(options[i]);
-            string line = i == selected
-                ? $"[bold white on #961923] ❯ {label} [/]"
-                : $"[white]   {label} [/]";
-            rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
-            rows.Add(new Text(""));
-        }
-
-        rows.Add(new Rule().RuleStyle(Color.Gold1));
-        rows.Add(new Align(
-            new Markup(GameMessages.RoundEndNavigationMarkup),
-            HorizontalAlignment.Center));
-        var panel = new Panel(new Rows(rows))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1)
-            .Expand();
-        int terminalWidth = Math.Max(1, Console.WindowWidth);
-        int panelWidth = Math.Min(68, terminalWidth);
-        int left = (terminalWidth - panelWidth) / 2;
-        return new Padder(panel)
-            .PadLeft(left)
-            .PadRight(terminalWidth - panelWidth - left);
+        if (player.IsBust)
+            return "TJOCK";
+        if (player.HasBlackjack)
+            return "BLACKJACK";
+        if (player.Score == Participant.BlackjackValue)
+            return "21 POÄNG";
+        return selectedGameOption == 1 ? "STANNAT" : "KLAR";
     }
 
-    private static Panel BuildPlayerActions(
-        string[] options,
-        int selectedOption,
-        bool sideMenuActive,
-        bool bettingMode)
+    private static string OutcomeStatus(Outcome outcome) => outcome switch
     {
-        var actions = new Grid();
-        for (int i = 0; i < options.Length; i++)
-            actions.AddColumn(new GridColumn().NoWrap().PadRight(2));
+        Outcome.Blackjack or Outcome.Win => "VANN",
+        Outcome.Lose => "FÖRLORADE",
+        Outcome.Push => "OAVGJORT",
+        _ => "KLAR"
+    };
 
-        var buttons = new IRenderable[options.Length];
-        for (int i = 0; i < options.Length; i++)
-        {
-            string label = Markup.Escape(options[i]);
-            bool selected = !sideMenuActive && i == selectedOption;
-            string highlight = bettingMode && i == 2
-                ? "[bold black on gold1]"
-                : "[bold white on #961923]";
-            buttons[i] = new Markup(selected
-                ? $"{highlight} ❯ {label} [/]"
-                : $"[white]   {label}[/]");
-        }
-
-        actions.AddRow(buttons);
-        return new Panel(new Align(actions, HorizontalAlignment.Center))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1)
-            .Expand();
-    }
-
-    private static Panel BuildGameMenu(
-        string[] menuOptions,
-        int selectedOption,
-        List<Player> players,
-        bool sideMenuActive)
-    {
-        List<IRenderable> content = new()
-        {
-            new Align(
-                new Markup(GameMessages.GameMenuTitleMarkup),
-                HorizontalAlignment.Center),
-            new Text("")
-        };
-
-        string[] shortOptions = GameMessages.InGameMenuOptions;
-        for (int i = 0; i < menuOptions.Length; i++)
-        {
-            string label = Markup.Escape(
-                i < shortOptions.Length ? shortOptions[i] : menuOptions[i]);
-            content.Add(new Markup(sideMenuActive && i == selectedOption
-                ? $"[bold white on #961923] ❯ {label} [/]"
-                : $"[white]   {label}[/]"));
-            content.Add(new Text(""));
-        }
-
-        content.Add(new Rule(GameMessages.PointsTitleMarkup).RuleStyle(Color.Gold1));
-        var scoreTable = new Table().NoBorder().HideHeaders().Expand();
-        scoreTable.AddColumn(new TableColumn("").LeftAligned());
-        scoreTable.AddColumn(new TableColumn("").RightAligned());
-        foreach (Player player in players)
-        {
-            scoreTable.AddRow(
-                GameMessages.ScoreMarkup(Markup.Escape(player.Name)),
-                GameMessages.PlayerScoreMarkup(player.Score));
-        }
-
-        content.Add(scoreTable);
-        content.Add(new Text(""));
-        content.Add(new Rule(GameMessages.ChipsTitleMarkup).RuleStyle(Color.Gold1));
-        var moneyTable = new Table().NoBorder().HideHeaders().Expand();
-        moneyTable.AddColumn(new TableColumn("").LeftAligned());
-        moneyTable.AddColumn(new TableColumn("").RightAligned());
-        moneyTable.AddRow(
-            GameMessages.BalanceMarkup,
-            GameMessages.Balance(BettingUI.Balance));
-        moneyTable.AddRow(
-            GameMessages.CurrentBetMarkup,
-            GameMessages.CurrentBet(BettingUI.CurrentBet));
-        content.Add(moneyTable);
-
-        return new Panel(new Rows(content))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1)
-            .Expand();
-    }
+    private static string NaturalBlackjackNotice(Player player) =>
+        $"{player.Name.ToUpperInvariant()} – NATURAL BLACKJACK!";
 }

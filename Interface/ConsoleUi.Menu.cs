@@ -207,7 +207,8 @@ public partial class ConsoleUi
     public string AskPlayerNameCentered(int playerNumber)
     {
         AnsiConsole.Clear();
-        string prompt = $"Ange namn för spelare {playerNumber}: ";
+        string prompt = string.Format(
+            GameMessages.PlayerNamePromptFormat, playerNumber);
         int width = Math.Max(1, Console.WindowWidth);
         int height = Math.Max(1, Console.WindowHeight);
         int left = Math.Max(0, (width - prompt.Length - 16) / 2);
@@ -226,57 +227,4 @@ public partial class ConsoleUi
         return (Console.ReadLine() ?? "").Trim();
     }
 
-    public Spectre.Console.Rendering.IRenderable BuildSavedPlayersMenu(
-        List<string> names, Dictionary<string, PlayerStatistics> results,
-        int selected, bool confirmingDelete)
-    {
-        var rows = new List<Spectre.Console.Rendering.IRenderable>
-        {
-            new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
-            new Text(""),
-            new Rule("[bold gold1]♠ LADDA SPEL ♠[/]").RuleStyle(Color.Gold1),
-            new Align(new Markup($"[grey]SPARADE SPELARE  ({names.Count}/3)[/]"), HorizontalAlignment.Center),
-            new Text("")
-        };
-        for (int i = 0; i < names.Count; i++)
-        {
-            string label = Markup.Escape(names[i]);
-            string line = i == selected
-                ? $"[bold white on #961923] ❯  {label}  [/]"
-                : $"[white]    {label}[/]";
-            rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
-        }
-        for (int i = names.Count; i < 3; i++)
-            rows.Add(new Align(new Markup("[grey]    — Tom plats —[/]"), HorizontalAlignment.Center));
-        PlayerStatistics stats = results[names[selected]];
-        rows.Add(new Text(""));
-        rows.Add(new Rule("[gold1]SPELARSTATISTIK[/]").RuleStyle(Color.Gold1));
-        var table = new Table().NoBorder().HideHeaders();
-        table.AddColumn(new TableColumn("").RightAligned());
-        table.AddColumn(new TableColumn("").LeftAligned());
-        table.AddColumn(new TableColumn("").RightAligned());
-        table.AddColumn(new TableColumn("").LeftAligned());
-        table.AddRow("[white]Vinster[/]", $"[green1]{stats.Wins}[/]", "[white]Förluster[/]", $"[red]{stats.Losses}[/]");
-        table.AddRow("[white]Oavgjorda[/]", $"[gold1]{stats.Pushes}[/]", "[white]Rundor[/]", $"[deepskyblue1]{stats.Wins + stats.Losses + stats.Pushes}[/]");
-        rows.Add(new Align(table, HorizontalAlignment.Center));
-        rows.Add(new Text(""));
-        if (confirmingDelete)
-        {
-            rows.Add(new Align(new Markup($"[bold red]Ta bort {Markup.Escape(names[selected])} permanent?[/]"), HorizontalAlignment.Center));
-            rows.Add(new Align(new Markup("[white]Enter: Ja     Esc: Nej[/]"), HorizontalAlignment.Center));
-        }
-        else
-        {
-            rows.Add(new Align(new Markup("[green1]Enter[/] [grey]Ladda spel[/]   [red]Delete[/] [grey]Ta bort[/]"), HorizontalAlignment.Center));
-            rows.Add(new Align(new Markup("[grey]↑ / ↓: Välj spelare     Esc: Tillbaka[/]"), HorizontalAlignment.Center));
-        }
-        rows.Add(new Rule().RuleStyle(Color.Gold1));
-        var panel = new Panel(new Rows(rows)).Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1).Expand();
-        int terminalWidth = Math.Max(1, Console.WindowWidth);
-        int panelWidth = Math.Min(72, terminalWidth);
-        int left = (terminalWidth - panelWidth) / 2;
-        return new Padder(panel).PadLeft(left).PadRight(terminalWidth - panelWidth - left);
-    }
 }
