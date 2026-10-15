@@ -46,7 +46,7 @@ public partial class ConsoleUi
                     }
 
                     // Handles chip selection and betting.
-                    bool updated = BettingUI.HandleKey(key);
+                    bool updated = BettingUI.HandleKey(key, players[0]);
 
                     if (updated)
                     {

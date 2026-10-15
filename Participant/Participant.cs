@@ -17,6 +17,7 @@ abstract class Participant
 
     public void ReceiveCard(Deck deck)
     {
+        ArgumentNullException.ThrowIfNull(deck);
         Hand.ReceiveCard(deck);
     }
 
@@ -32,12 +33,13 @@ abstract class Participant
 
     public virtual void NewRound(Deck deck)
     {
+        ArgumentNullException.ThrowIfNull(deck);
         List<Card> discarded = Hand.DiscardCards();
         deck.DiscardedCards.AddRange(discarded);
     }
 
     public void NewRound()
     {
-    Hand.DiscardCards();
+        Hand.DiscardCards();
     }
 }

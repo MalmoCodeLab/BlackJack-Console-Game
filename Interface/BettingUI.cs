@@ -79,8 +79,8 @@ public static class BettingUI
             .BorderColor(Color.Gold1);
     }
 
-    // Handles chip selection and temporary betting.
-    public static bool HandleKey(ConsoleKey key)
+     // Handles chip selection and places the bet on the given player.
+    internal static bool HandleKey(ConsoleKey key, Player player)
     {
         switch (key)
         {
@@ -94,16 +94,9 @@ public static class BettingUI
                     SelectedChip + 1);
                 return true;
 
-            case ConsoleKey.Enter:
-                int value = chipValues[SelectedChip];
-
-                // Prevents betting more than the balance.
-                if (value <= Balance)
-                {
-                    Balance -= value;
-                    CurrentBet += value;
-                }
-
+           case ConsoleKey.Enter:
+                // The player checks that the bet is allowed (not zero, not more than the chips).
+                player.TryPlaceBet(chipValues[SelectedChip]);
                 return true;
 
             default:

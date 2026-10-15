@@ -177,7 +177,7 @@ public class Game
                              key == ConsoleKey.RightArrow ||
                              key == ConsoleKey.Enter)
                     {
-                        BettingUI.HandleKey(key);
+                         BettingUI.HandleKey(key, players[currentPlayerIndex]);
                     }
                     continue;
                 }
@@ -484,10 +484,10 @@ public class Game
         moneyTable.AddColumn(new TableColumn("").RightAligned());
         moneyTable.AddRow(
             GameMessages.BalanceMarkup,
-            GameMessages.Balance(BettingUI.Balance));
+            GameMessages.Balance(players[0].Chips));
         moneyTable.AddRow(
             GameMessages.CurrentBetMarkup,
-            GameMessages.CurrentBet(BettingUI.CurrentBet));
+            GameMessages.CurrentBet(players[0].CurrentBet));
         content.Add(moneyTable);
         return new Panel(new Rows(content))
             .Border(BoxBorder.Rounded)
