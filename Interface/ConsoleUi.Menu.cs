@@ -8,13 +8,13 @@ public partial class ConsoleUi
     private readonly string[] menuOptions = GameMessages.MainMenuOptions;
 
     // Main menu with arrow-key navigation.
-    public string ShowMenu()
+    public string ShowMenu(string? notice = null)
     {
         int selectedOption = 0;
         string choice = "";
         AnsiConsole.Clear();
         Console.Write("\u001b[?25l");
-        AnsiConsole.Live(CreateMenu(selectedOption)).Start(context =>
+        AnsiConsole.Live(CreateMenu(selectedOption, notice)).Start(context =>
         {
             context.Refresh();
             while (true)
@@ -31,7 +31,7 @@ public partial class ConsoleUi
                 }
                 else continue;
 
-                context.UpdateTarget(CreateMenu(selectedOption));
+                context.UpdateTarget(CreateMenu(selectedOption, notice));
                 context.Refresh();
             }
         });
@@ -95,7 +95,7 @@ public partial class ConsoleUi
         return CenterMenuPanel(rows);
     }
 
-    private IRenderable CreateMenu(int selectedOption)
+    private IRenderable CreateMenu(int selectedOption, string? notice)
     {
         List<IRenderable> rows = new()
         {
@@ -105,6 +105,14 @@ public partial class ConsoleUi
             new Rule(GameMessages.MainMenuTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
+        if (notice is not null)
+        {
+            rows.Add(new Align(
+                new Markup($"[bold yellow]{Markup.Escape(notice)}[/]"),
+                HorizontalAlignment.Center));
+            rows.Add(new Text(""));
+        }
+
         for (int i = 0; i < menuOptions.Length; i++)
         {
             string option = Markup.Escape(menuOptions[i]);
@@ -141,7 +149,7 @@ public partial class ConsoleUi
     {
         var actions = new Grid();
         for (int i = 0; i < options.Length; i++)
-            actions.AddColumn(new GridColumn().NoWrap().PadRight(2));
+            actions.AddColumn(new GridColumn().NoWrap().PadRight(5));
         var buttons = new Spectre.Console.Rendering.IRenderable[options.Length];
         for (int i = 0; i < options.Length; i++)
         {
@@ -198,14 +206,41 @@ public partial class ConsoleUi
         content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
         content.Add(new Markup($"[white]Saldo:[/] [green1]{main.Chips} kr[/]"));
         content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{main.CurrentBet} kr[/]"));
-        content.Add(new Rule("[gold1]STYRNING[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup("[grey]← →  Välj handling[/]"));
-        content.Add(new Markup("[grey]↑ ↓  Spelmeny[/]"));
-        content.Add(new Markup("[grey]Enter  Bekräfta[/]"));
-        content.Add(new Markup("[grey]Vid insats: ← → välj mark[/]"));
-        content.Add(new Markup("[grey]Enter satsa, Esc tillbaka[/]"));
         return new Panel(new Rows(content))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+    }
+
+    // Shows controls on a separate screen without changing the current game state.
+    public void ShowGameControls()
+    {
+        AnsiConsole.Clear();
+
+        var rows = new List<IRenderable>
+        {
+            new Align(new Markup("[bold gold1]♠ SPELSTYRNING ♠[/]"), HorizontalAlignment.Center),
+            new Text(""),
+            new Rule("[gold1]MENYN[/]").RuleStyle(Color.Gold1),
+            new Markup("[white]↑ ↓[/]  Navigera mellan menyval"),
+            new Markup("[white]Enter[/]  Bekräfta val"),
+            new Text(""),
+            new Rule("[gold1]UNDER SPELET[/]").RuleStyle(Color.Gold1),
+            new Markup("[white]← →[/]  Välj handling"),
+            new Markup("[white]Enter[/]  Bekräfta handling"),
+            new Text(""),
+            new Rule("[gold1]SATSNING[/]").RuleStyle(Color.Gold1),
+            new Markup("[white]← →[/]  Välj marker"),
+            new Markup("[white]Enter[/]  Lägg till marker"),
+            new Markup("[white]Esc[/]  Bekräfta insats"),
+            new Markup("[white]Backspace[/]  Ta bort marker"),
+            new Text(""),
+            new Align(new Markup("[grey]Tryck Enter för att återgå till spelet.[/]"), HorizontalAlignment.Center)
+        };
+
+        AnsiConsole.Write(CenterMenuPanel(rows));
+        while (Console.ReadKey(true).Key != ConsoleKey.Enter)
+        {
+        }
+        AnsiConsole.Clear();
     }
 
     // Returns null if the player presses Esc.
