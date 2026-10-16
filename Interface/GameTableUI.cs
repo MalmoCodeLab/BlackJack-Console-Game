@@ -498,30 +498,39 @@ internal sealed class GameTableUI
         lastWidth = Console.WindowWidth;
         lastHeight = Console.WindowHeight;
 
-        // Lock the table to the bottom of the window.
-        int top = Math.Max(1, Console.WindowHeight - TableHeight + 1);
+        // Draw the table into text lines first. If the window is lower than the
+        // table, only the top part is shown, so some of the game is always visible.
+        string[] lines = RenderLines(layout, Console.WindowWidth, TableHeight);
+        int visibleRows = Math.Min(lines.Length, Math.Max(1, Console.WindowHeight));
 
         // Synchronize the frame where supported; do not clear between frames.
-        Console.Write($"\u001b[?2026h\u001b[{top};1H\u001b[?25l");
+        Console.Write("\u001b[?2026h\u001b[H\u001b[?25l");
         try
         {
-            // Draw exactly TableHeight rows; a Layout otherwise fills the whole window.
-            int windowHeight = AnsiConsole.Profile.Height;
-            AnsiConsole.Profile.Height = TableHeight;
-            try
-            {
-                AnsiConsole.Write(layout);
-            }
-            finally
-            {
-                AnsiConsole.Profile.Height = windowHeight;
-            }
+            Console.Write(string.Join("\r\n", lines.Take(visibleRows)));
         }
         finally
         {
             Console.Write("\u001b[?2026l\u001b[?25l");
             Console.Out.Flush();
         }
+    }
+
+    // Renders the table to text with colors, exactly width x height cells.
+    private static string[] RenderLines(Layout layout, int width, int height)
+    {
+        var writer = new StringWriter();
+        var console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = AnsiSupport.Yes,
+            ColorSystem = (ColorSystemSupport)AnsiConsole.Profile.Capabilities.ColorSystem,
+            Out = new AnsiConsoleOutput(writer)
+        });
+        console.Profile.Width = width;
+        console.Profile.Height = height;
+        console.Profile.Capabilities.Unicode = AnsiConsole.Profile.Capabilities.Unicode;
+        console.Write(layout);
+        return writer.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
     }
 
     private Layout BuildTable(
@@ -586,14 +595,6 @@ internal sealed class GameTableUI
 
         while (true)
         {
-            if (Console.WindowWidth < ConsoleUi.MinWidth ||
-                Console.WindowHeight < ConsoleUi.MinHeight)
-            {
-                lastWidth = 0; // The warning cleared the screen, so redraw the table.
-                Console.Write("\u001b[?25l");
-                return ConsoleKey.NoName;
-            }
-
             // Rebuild the table in the new size when the window changes size.
             if (rebuildLastTable is not null &&
                 (Console.WindowWidth != lastWidth || Console.WindowHeight != lastHeight))

@@ -82,7 +82,9 @@ public partial class ConsoleUi
             }
         }
 
-        Console.Write("\u001b[?1049h\u001b[?25l");
+        // Stay on the same screen as the other menus; switching screens made
+        // the terminal flash black between the menus.
+        Console.Write("\u001b[?25l");
         try
         {
             while (true)
@@ -109,7 +111,6 @@ public partial class ConsoleUi
         }
         finally
         {
-            Console.Write("\u001b[?1049l");
             Console.Out.Flush();
         }
     }
