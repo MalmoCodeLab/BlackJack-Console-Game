@@ -40,6 +40,8 @@ internal sealed class GameTableUI
         lowestCardsRemaining = int.MaxValue;
     }
    
+    public Action? OpenSettings { get; set; }
+
     public GameTableAction PlayRound(
         Round round,
         Func<List<Player>, bool> saveGame)
@@ -162,10 +164,15 @@ internal sealed class GameTableUI
                             if (!betsComplete)
                             {
                                 Player bettingPlayer = players[currentPlayerIndex];
-                                if (key == ConsoleKey.LeftArrow ||
-                                    key == ConsoleKey.RightArrow ||
-                                    key == ConsoleKey.Enter ||
-                                    key == ConsoleKey.Backspace)
+                                if (key == ConsoleKey.I)
+                                {
+                                    OpenSettings?.Invoke();
+                                    Console.Write("\u001b[?25l");
+                                }
+                                else if (key == ConsoleKey.LeftArrow ||
+                                         key == ConsoleKey.RightArrow ||
+                                         key == ConsoleKey.Enter ||
+                                         key == ConsoleKey.Backspace)
                                 {
                                     BettingUI.HandleKey(key, bettingPlayer);
                                 }
@@ -283,6 +290,11 @@ internal sealed class GameTableUI
                                             ShowControlsScreen();
                                         }
                                         else if (selectedMenuOption == 3)
+                                        {
+                                            OpenSettings?.Invoke();
+                                            Console.Write("\u001b[?25l");
+                                        }
+                                        else if (selectedMenuOption == 4)
                                         {
                                             saveRequested = true;
                                         }
@@ -405,6 +417,11 @@ internal sealed class GameTableUI
                                     ShowControlsScreen();
                                 }
                                 else if (selectedMenuOption == 3)
+                                {
+                                    OpenSettings?.Invoke();
+                                    Console.Write("\u001b[?25l");
+                                }
+                                else if (selectedMenuOption == 4)
                                 {
                                     saveRequested = true;
                                 }

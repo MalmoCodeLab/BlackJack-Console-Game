@@ -5,7 +5,11 @@ using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
-    public string? SelectSavedPlayer(
+    public const int MaxLoadedPlayers = 5;
+
+    // Space marks players (up to MaxLoadedPlayers); Enter loads the marked
+    // players, or the highlighted one when none are marked.
+    public List<string>? SelectSavedPlayers(
         IReadOnlyDictionary<string, PlayerStatistics> savedResults,
         Func<string, bool> deletePlayer)
     {
@@ -20,7 +24,8 @@ public partial class ConsoleUi
         int selected = 0;
         bool confirmingDelete = false;
         string? error = null;
-        string? selectedName = null;
+        HashSet<string> marked = new(StringComparer.OrdinalIgnoreCase);
+        List<string>? selectedNames = null;
         bool finished = false;
 
         // Draw on the alternate terminal screen without Spectre.Console.Live.
@@ -41,7 +46,7 @@ public partial class ConsoleUi
                 try
                 {
                     AnsiConsole.Write(BuildSavedPlayersMenu(
-                        names, results, selected, confirmingDelete, error));
+                        names, results, marked, selected, confirmingDelete, error));
                 }
                 finally
                 {
@@ -64,6 +69,7 @@ public partial class ConsoleUi
                         if (deletePlayer(name))
                         {
                             results.Remove(name);
+                            marked.Remove(name);
                             names.RemoveAt(selected);
                             if (names.Count == 0)
                             {
@@ -109,9 +115,25 @@ public partial class ConsoleUi
                         finished = true;
                         break;
                     }
+                    else if (key == ConsoleKey.Spacebar)
+                    {
+                        string name = names[selected];
+                        if (marked.Remove(name))
+                            error = null;
+                        else if (marked.Count >= MaxLoadedPlayers)
+                            error = GameMessages.TooManySavedPlayersSelected;
+                        else
+                        {
+                            marked.Add(name);
+                            error = null;
+                        }
+                        changed = true;
+                    }
                     else if (key == ConsoleKey.Enter)
                     {
-                        selectedName = names[selected];
+                        if (marked.Count == 0)
+                            marked.Add(names[selected]);
+                        selectedNames = names.Where(marked.Contains).ToList();
                         finished = true;
                         break;
                     }
@@ -127,12 +149,13 @@ public partial class ConsoleUi
                 Console.Write("\u001b[?25h\u001b[?1049l");
         }
 
-        return selectedName;
+        return selectedNames;
     }
 
     private static IRenderable BuildSavedPlayersMenu(
         List<string> names,
         IReadOnlyDictionary<string, PlayerStatistics> results,
+        HashSet<string> marked,
         int selected,
         bool confirmingDelete,
         string? error)
@@ -152,7 +175,8 @@ public partial class ConsoleUi
             PlayerStatistics stats = results[name];
             string label = GameMessages.SavedPlayerStatistics(
                 name, stats.Wins, stats.Losses, stats.Pushes);
-            string escaped = Markup.Escape(label);
+            string escaped = Markup.Escape(
+                (marked.Contains(name) ? "[x] " : "[ ] ") + label);
             string line = i == selected
                 ? $"[bold white on #961923] ❯  {escaped}  [/]"
                 : $"[white]    {escaped}[/]";
@@ -194,12 +218,16 @@ public partial class ConsoleUi
         else
         {
             rows.Add(new Align(
-                new Markup("[green1]Enter[/] [grey]Ladda spel[/]   [red]Delete[/] [grey]Ta bort[/]"),
+                new Markup("[green1]Enter[/] [grey]Ladda spel[/]   [gold1]Mellanslag[/] [grey]Markera[/]   [red]Delete[/] [grey]Ta bort[/]"),
                 HorizontalAlignment.Center));
             rows.Add(new Align(
                 new Markup("[grey]↑ / ↓: Välj spelare     Esc: Tillbaka[/]"),
                 HorizontalAlignment.Center));
         }
+
+        rows.Add(new Align(
+            new Markup($"[grey]{GameMessages.SavedByRoundHint}[/]"),
+            HorizontalAlignment.Center));
 
         // Reserve a line for errors, so the panel height does not change.
         rows.Add(new Align(

@@ -13,6 +13,7 @@ internal static class GameMessages
     internal const string NewGame = "♠ Nytt spel";
     internal const string LoadGame = "♦ Ladda spel";
     internal const string ShowRules = "♥ Spelregler";
+    internal const string Settings = "♦ Inställningar";
     internal const string ShowCredits = "♣ Medverkande";
     internal const string Exit = "♠ Avsluta";
 
@@ -35,6 +36,7 @@ internal static class GameMessages
         NewGame,
         LoadGame,
         ShowRules,
+        Settings,
         ShowCredits,
         Exit
     };
@@ -54,6 +56,7 @@ internal static class GameMessages
         "♠ Ny runda",
         "♣ Huvudmeny",
         GameControls,
+        Settings,
         "♦ Spara och avsluta"
     };
 
@@ -149,6 +152,16 @@ internal static class GameMessages
     internal static bool IsWinOutcome(string result) =>
         result.Contains(OutcomeWinPrefix, StringComparison.Ordinal) ||
         result.Contains(WinHeadline, StringComparison.Ordinal);
+
+    internal const string TooManySavedPlayersSelected =
+        "Du kan ladda högst 5 spelare samtidigt.";
+    internal const string SavedByRoundHint =
+        "Resultat sparas automatiskt efter varje avslutad runda.";
+
+    internal static string AppendSaveResultsSuccess(
+        string summary, IEnumerable<string> names) =>
+        $"{summary}{Environment.NewLine}Sparat i databasen: {string.Join(", ", names)}. " +
+        "Pågående runda sparas inte om du lämnar.";
 
     internal static string AppendSaveResultsError(string summary) =>
         $"{summary}{Environment.NewLine}{SaveResultsError}";

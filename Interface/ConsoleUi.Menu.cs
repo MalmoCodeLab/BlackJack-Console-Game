@@ -30,7 +30,7 @@ public partial class ConsoleUi
         return choice;
     }
 
-    // Player count selection, 1–5 players.
+    // Player count selection, 1–5 players. Returns 0 when the player chose Inställningar.
     public int AskPlayerCountCentered()
     {
         int selectedOption = 0;
@@ -40,12 +40,12 @@ public partial class ConsoleUi
             key =>
             {
                 if (key == ConsoleKey.UpArrow)
-                    selectedOption = (selectedOption + 4) % 5;
+                    selectedOption = (selectedOption + 5) % 6;
                 else if (key == ConsoleKey.DownArrow)
-                    selectedOption = (selectedOption + 1) % 5;
+                    selectedOption = (selectedOption + 1) % 6;
                 else if (key == ConsoleKey.Enter)
                 {
-                    playerCount = selectedOption + 1;
+                    playerCount = selectedOption == 5 ? 0 : selectedOption + 1;
                     return true;
                 }
                 return false;
@@ -125,9 +125,12 @@ public partial class ConsoleUi
             new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
         {
-            string label = string.Format(GameMessages.PlayerCountFormat, i + 1).PadRight(17);
+            string text = i == 5
+                ? GameMessages.Settings
+                : string.Format(GameMessages.PlayerCountFormat, i + 1);
+            string label = text.PadRight(17);
             string line = i == selectedOption
                 ? $"[bold white on #961923] ❯ {label} [/]"
                 : $"[white]   {label} [/]";
@@ -276,6 +279,7 @@ public partial class ConsoleUi
             new Markup("[white]Enter[/]  Lägg till marker"),
             new Markup("[white]Esc[/]  Bekräfta insats"),
             new Markup("[white]Backspace[/]  Ta bort marker"),
+            new Markup("[white]I[/]  Öppna inställningar"),
             new Text(""),
             new Align(new Markup("[grey]Tryck Enter för att återgå till spelet.[/]"), HorizontalAlignment.Center)
         };
