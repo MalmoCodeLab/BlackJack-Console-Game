@@ -39,13 +39,37 @@ public partial class ConsoleUi
             tableContent.Add(new Align(new Markup("[gold1]╭──────── MARKERSTÄLL ────────╮[/]"), HorizontalAlignment.Center));
             tableContent.Add(new Align(new Markup("[white]● ●[/]  [red]● ●[/]  [green]● ●[/]  [blue]● ●[/]  [yellow]● ●[/]"), HorizontalAlignment.Center));
         }
+        // Reserve extra vertical space only when it fits inside the table.
+        // This prevents the bottom action buttons from being pushed off screen.
+        int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
+        const int coreRows = 19; // Givare (1), cards (7), players (9), chips (2).
+        int headerRows = notice is not null || !(runningCount.HasValue && trueCount.HasValue) ? 2 : 0;
+        int extraRows = Math.Max(0, innerHeight - coreRows - headerRows);
+
+        // The largest gap belongs between the dealer's cards and the players.
+        int playerGap = Math.Min(2, extraRows);
+        extraRows -= playerGap;
+        int topGap = Math.Min(1, extraRows);
+        extraRows -= topGap;
+        int dealerCardGap = Math.Min(1, extraRows);
+
+        for (int i = 0; i < topGap; i++)
+            tableContent.Add(new Text(" "));
+
         tableContent.Add(new Rule("[gold1]GIVARE[/]").RuleStyle(TableGold));
+
+        for (int i = 0; i < dealerCardGap; i++)
+            tableContent.Add(new Text(" "));
+
         AddRenderedCards(tableContent, dealer.Hand.CardsOnHand, !dealer.HoleCardVisible, cardsFaceDown);
-        // Fixed-width seat layout: the center never shrinks when other players join.
-        // 10 + 10 + 35 + 10 + 10 = 75 terminal cells; fits beside the menu.
+
+        for (int i = 0; i < playerGap; i++)
+            tableContent.Add(new Text(" "));
+
+        // Both the dealer and current player's large cards use one shared
+        // 75-cell seating center, no matter how many players join.
         tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown, activePlayerIndex));
         tableContent.Add(BettingUI.Create());
-        int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
         var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
         return new Panel(greenTable)
             .Header("[gold1] ♠ BLACKJACK ♠ [/]")
@@ -68,6 +92,7 @@ public partial class ConsoleUi
     }
     private const int SideSeatWidth = 10;
     private const int CenterSeatWidth = 35;
+    private const int SeatingWidth = 4 * SideSeatWidth + CenterSeatWidth;
     private IRenderable BuildPlayerRow(List<Player> players, string[]? playerStatuses, bool cardsFaceDown, int activePlayerIndex)
     {
         // In solo mode, center each card line in the same table width as the dealer.
@@ -169,9 +194,8 @@ public partial class ConsoleUi
     }
     private IRenderable BuildSoloPlayerRow(Player player, string[]? playerStatuses, bool cardsFaceDown)
     {
-        // Use the same 75-cell reference width as the dealer's card row.
-        // This keeps both card edges aligned in solo mode.
-        const int seatingWidth = 2 * SideSeatWidth + CenterSeatWidth + 2 * SideSeatWidth;
+        // Both the dealer and the focused player are centered in SeatingWidth.
+        // This stays aligned in solo mode and with up to five players.
 
         string name = player.Name.ToUpperInvariant();
         string handType = cardsFaceDown ? "" : GetHandType(player);
@@ -179,12 +203,12 @@ public partial class ConsoleUi
 
         List<IRenderable> rows = new()
         {
-            new Markup(CenterText(Markup.Escape(label), label.Length, seatingWidth, "bold gold1"))
+            new Markup(CenterText(Markup.Escape(label), label.Length, SeatingWidth, "bold gold1"))
         };
 
         int cardWidth = GetFanWidth(player.Hand.CardsOnHand.Count);
         foreach (string line in BuildFanCardLines(player.Hand.CardsOnHand, cardsFaceDown))
-            rows.Add(new Markup(CenterMarkup(line, cardWidth, seatingWidth)));
+            rows.Add(new Markup(CenterMarkup(line, cardWidth, SeatingWidth)));
 
         string status = playerStatuses is { Length: > 0 } ? playerStatuses[0] : "";
         string style = status switch
@@ -196,7 +220,7 @@ public partial class ConsoleUi
             "STANNAT" => "bold white",
             _ => "grey"
         };
-        rows.Add(new Markup(CenterText(Markup.Escape(status), status.Length, seatingWidth, style)));
+        rows.Add(new Markup(CenterText(Markup.Escape(status), status.Length, SeatingWidth, style)));
         return new Align(new Rows(rows), HorizontalAlignment.Center);
     }
 
@@ -334,14 +358,13 @@ public partial class ConsoleUi
                 ? renderer.RenderHiddenCard()
                 : renderer.RenderCard(cards[i]));
         // Match the fixed 75-cell player seating grid so the dealer's
-        // first and second cards line up with player 1's cards.
-        const int seatingWidth = 2 * SideSeatWidth + CenterSeatWidth + 2 * SideSeatWidth;
+        // first and second cards line up with the focused player's cards.
         int cardsWidth = renderedCards.Count * 11 + Math.Max(0, renderedCards.Count - 1) * 2;
         List<IRenderable> alignedRows = new();
         for (int row = 0; row < 7; row++)
         {
             string cardLine = string.Join("  ", renderedCards.Select(card => card[row]));
-            alignedRows.Add(new Markup(CenterMarkup(cardLine, cardsWidth, seatingWidth)));
+            alignedRows.Add(new Markup(CenterMarkup(cardLine, cardsWidth, SeatingWidth)));
         }
         content.Add(new Align(new Rows(alignedRows), HorizontalAlignment.Center));
     }
