@@ -1,4 +1,3 @@
-
 using System;
 
 internal static class GameMessages
