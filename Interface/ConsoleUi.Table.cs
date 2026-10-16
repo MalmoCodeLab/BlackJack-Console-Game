@@ -6,13 +6,29 @@ public partial class ConsoleUi
 {
     private static readonly Color TableGreen = new Color(7, 80, 46);
     private static readonly Color TableGold = Color.Gold1;
-    internal Panel BuildBlackjackTable(List<Player> players, Dealer dealer, int tableHeight = 0, string? notice = null, string[]? playerStatuses = null, bool cardsFaceDown = false)
+    internal Panel BuildBlackjackTable(List<Player> players, Dealer dealer, int tableHeight = 0, string? notice = null, string[]? playerStatuses = null, bool cardsFaceDown = false, int? runningCount = null, double? trueCount = null)
     {
         List<IRenderable> tableContent = new();
         if (notice != null)
         {
             tableContent.Add(new Align(new Markup($"[bold black on gold1]  ★ {Markup.Escape(notice)} ★  [/]"), HorizontalAlignment.Center));
             tableContent.Add(new Align(new Markup("[gold1]╰──── ♠ BLACKJACK 21 ♠ ────╯[/]"), HorizontalAlignment.Center));
+        }
+        else if (runningCount.HasValue && trueCount.HasValue)
+        {
+            // Use the same two lines that previously displayed the marker stand.
+            // This keeps the overall table height and card positions unchanged.
+            string running = runningCount.Value.ToString("+0;-0;0");
+            string actual = trueCount.Value.ToString("+0.0;-0.0;0.0", System.Globalization.CultureInfo.GetCultureInfo("sv-SE"));
+            string label = trueCount.Value >= 1 ? "Gynnsamt" :
+                trueCount.Value <= -1 ? "Ogynnsamt" : "Neutralt";
+            string labelColor = trueCount.Value >= 1 ? "green1" :
+                trueCount.Value <= -1 ? "red" : "gold1";
+
+            tableContent.Add(new Align(new Markup("[gold1]♣ KORTRÄKNING ♣[/]"), HorizontalAlignment.Center));
+            tableContent.Add(new Align(new Markup(
+                $"[white]Löpande: {running}  |  Sann: {actual}  |  [/]" +
+                $"[{labelColor}]{label}[/]"), HorizontalAlignment.Center));
         }
         else
         {

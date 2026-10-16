@@ -14,6 +14,11 @@ internal sealed class GameTableUI
 
     private readonly ConsoleUi ui;
     private bool tableScreenActive;
+    private readonly VisibleCardCounter visibleCardCounter = new();
+    // Read-only observation: detect a refilled shoe without modifying Deck.
+    private Deck? observedDeck;
+    private int lowestCardsRemaining = int.MaxValue;
+
 
     public GameTableUI(ConsoleUi ui)
     {
@@ -24,6 +29,9 @@ internal sealed class GameTableUI
     {
         CloseTableScreen();
         BettingUI.Reset();
+        visibleCardCounter.Reset();
+        observedDeck = null;
+        lowestCardsRemaining = int.MaxValue;
     }
 
     public GameTableAction PlayRound(
@@ -96,6 +104,21 @@ internal sealed class GameTableUI
         OpenTableScreen();
         try
         {
+            // An increase in the remaining-card count indicates that cards
+            // were returned to the shoe between rounds. This is not a complete
+            // shuffle event; shuffling without returning cards is undetectable.
+            bool shoeRefilled = DetectRefilledShoe(round.Deck);
+            if (shoeRefilled)
+            {
+                visibleCardCounter.Reset();
+                DrawTable(BuildTable(
+                    round, statuses, "KORTLEKEN HAR BLANDATS OM INFÖR DEN NYA RUNDAN!",
+                    selectedGameOption, selectedMenuOption, sideMenuActive,
+                    roundFinished: false, bettingMode: bettingMode,
+                    cardsFaceDown: !betsComplete));
+                Thread.Sleep(1600);
+            }
+
             while (playing)
             {
                 bool saveRequested = false;
@@ -416,6 +439,23 @@ internal sealed class GameTableUI
         return action;
     }
 
+    // Read-only detection of a shoe refill; never calls ShuffleDeck().
+    private bool DetectRefilledShoe(Deck deck)
+    {
+        int remaining = deck.DeckCards.Count;
+        if (!ReferenceEquals(observedDeck, deck))
+        {
+            observedDeck = deck;
+            lowestCardsRemaining = remaining;
+            visibleCardCounter.Reset();
+            return false; // Initial shoe is not a reshuffle.
+        }
+
+        bool refilled = remaining > lowestCardsRemaining;
+        lowestCardsRemaining = remaining;
+        return refilled;
+    }
+
     // Opens the controls view and returns to the current table without resetting the round.
     private void ShowControlsScreen()
     {
@@ -486,9 +526,18 @@ internal sealed class GameTableUI
         layout["Table"].SplitRows(
             new Layout("BlackjackTable").Size(tableHeight),
             new Layout("PlayerActions").Size(actionsHeight));
+        // Track the lowest observed card count, including cards dealt mid-round.
+        if (ReferenceEquals(observedDeck, round.Deck))
+            lowestCardsRemaining = Math.Min(lowestCardsRemaining, round.Deck.DeckCards.Count);
+
+        // Observe only cards currently visible to the human player.
+        // This updates a display-only counter, not the Blackjack rules.
+        visibleCardCounter.Observe(round.Deck, round.Players, round.Dealer, cardsFaceDown);
         layout["BlackjackTable"].Update(
             ui.BuildBlackjackTable(
-                round.Players, round.Dealer, tableHeight, notice, statuses, cardsFaceDown));
+                round.Players, round.Dealer, tableHeight, notice, statuses,
+                cardsFaceDown, visibleCardCounter.RunningCount,
+                visibleCardCounter.TrueCount));
         layout["PlayerActions"].Update(ui.BuildPlayerActions(
             GameMessages.GameOptions, selectedGameOption,
             sideMenuActive, roundFinished, bettingMode));
@@ -549,4 +598,67 @@ internal sealed class GameTableUI
 
     private static string NaturalBlackjackNotice(Player player) =>
         $"{player.Name.ToUpperInvariant()} – NATURAL BLACKJACK!";
+}
+
+// Read-only observer for the UI. It does not draw or change cards,
+// decide moves, change bets, or determine outcomes.
+internal sealed class VisibleCardCounter
+{
+    private readonly HashSet<Card> seenCards = new(ReferenceEqualityComparer.Instance);
+    private Deck? currentDeck;
+
+
+    public int RunningCount { get; private set; }
+    public double TrueCount { get; private set; }
+
+    public void Reset()
+    {
+        seenCards.Clear();
+        currentDeck = null;
+        RunningCount = 0;
+        TrueCount = 0;
+    }
+
+    public void Observe(Deck deck, List<Player> players, Dealer dealer, bool cardsFaceDown)
+    {
+        // The parent UI resets the counter on a detected shoe refill.
+        // A different Deck instance also starts a fresh count.
+        if (!ReferenceEquals(currentDeck, deck))
+        {
+            Reset();
+            currentDeck = deck;
+        }
+
+        if (!cardsFaceDown)
+        {
+            foreach (Player player in players)
+                foreach (Card card in player.Hand.CardsOnHand)
+                    CountIfFirstSeen(card);
+
+            // Never include the dealer's hidden hole card.
+            for (int i = 0; i < dealer.Hand.CardsOnHand.Count; i++)
+            {
+                if (i != 1 || dealer.HoleCardVisible)
+                    CountIfFirstSeen(dealer.Hand.CardsOnHand[i]);
+            }
+        }
+
+        // Recalculate even when no new card appears, since the remaining
+        // number of cards may have changed after the last render.
+        double remainingDecks = deck.DeckCards.Count / 52.0;
+        TrueCount = remainingDecks > 0
+            ? Math.Round(RunningCount / remainingDecks, 1, MidpointRounding.AwayFromZero)
+            : 0;
+    }
+
+    private void CountIfFirstSeen(Card card)
+    {
+        if (!seenCards.Add(card))
+            return;
+
+        if (card.Rank >= Rank.Two && card.Rank <= Rank.Six)
+            RunningCount++;
+        else if (card.Rank >= Rank.Ten)
+            RunningCount--;
+    }
 }
