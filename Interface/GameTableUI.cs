@@ -106,7 +106,6 @@ internal sealed class GameTableUI
             playing = false;
         }
 
-        ui.CheckWidth(MinTableHeight);
         OpenTableScreen();
         try
         {
@@ -359,7 +358,6 @@ internal sealed class GameTableUI
         string? notice = summary.Replace(
             Environment.NewLine, "  •  ", StringComparison.Ordinal);
 
-        ui.CheckWidth(MinTableHeight);
         OpenTableScreen();
         try
         {
@@ -591,7 +589,6 @@ internal sealed class GameTableUI
             if (Console.WindowWidth < ConsoleUi.MinWidth ||
                 Console.WindowHeight < ConsoleUi.MinHeight)
             {
-                ui.CheckWidth();
                 lastWidth = 0; // The warning cleared the screen, so redraw the table.
                 Console.Write("\u001b[?25l");
                 return ConsoleKey.NoName;
