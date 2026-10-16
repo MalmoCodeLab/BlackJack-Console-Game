@@ -9,11 +9,17 @@ internal enum GameTableAction
 
 internal sealed class GameTableUI
 {
-    private const int TableHeight = 27;
+    private const int MinTableHeight = 27;
+
+    // The game always fills the whole window, but is never smaller than 27 rows.
+    private static int TableHeight => Math.Max(MinTableHeight, Console.WindowHeight);
     private const int BlackjackNoticeDurationMs = 2400;
 
     private readonly ConsoleUi ui;
     private bool tableScreenActive;
+    private Func<Layout>? rebuildLastTable;
+    private int lastWidth;
+    private int lastHeight;
     private readonly VisibleCardCounter visibleCardCounter = new();
     // Read-only observation: detect a refilled shoe without modifying Deck.
     private Deck? observedDeck;
@@ -100,7 +106,6 @@ internal sealed class GameTableUI
             playing = false;
         }
 
-        ui.CheckWidth(TableHeight);
         OpenTableScreen();
         try
         {
@@ -353,7 +358,6 @@ internal sealed class GameTableUI
         string? notice = summary.Replace(
             Environment.NewLine, "  •  ", StringComparison.Ordinal);
 
-        ui.CheckWidth(TableHeight);
         OpenTableScreen();
         try
         {
@@ -488,13 +492,30 @@ internal sealed class GameTableUI
         tableScreenActive = false;
     }
 
-    private static void DrawTable(Layout layout)
+    private void DrawTable(Layout layout)
     {
+        // Remember the size so the table can be rebuilt when the window is resized.
+        lastWidth = Console.WindowWidth;
+        lastHeight = Console.WindowHeight;
+
+        // Lock the table to the bottom of the window.
+        int top = Math.Max(1, Console.WindowHeight - TableHeight + 1);
+
         // Synchronize the frame where supported; do not clear between frames.
-        Console.Write("\u001b[?2026h\u001b[H\u001b[?25l");
+        Console.Write($"\u001b[?2026h\u001b[{top};1H\u001b[?25l");
         try
         {
-            AnsiConsole.Write(layout);
+            // Draw exactly TableHeight rows; a Layout otherwise fills the whole window.
+            int windowHeight = AnsiConsole.Profile.Height;
+            AnsiConsole.Profile.Height = TableHeight;
+            try
+            {
+                AnsiConsole.Write(layout);
+            }
+            finally
+            {
+                AnsiConsole.Profile.Height = windowHeight;
+            }
         }
         finally
         {
@@ -516,8 +537,13 @@ internal sealed class GameTableUI
     {
         // Reserve enough height for full cards and the betting controls.
         // The button panel follows the table immediately: no spacer row.
+        // Remember how to build this frame again if the window is resized.
+        rebuildLastTable = () => BuildTable(
+            round, statuses, notice, selectedGameOption, selectedMenuOption,
+            sideMenuActive, roundFinished, bettingMode, cardsFaceDown);
+
         const int actionsHeight = 3;
-        const int tableHeight = TableHeight - actionsHeight;
+        int tableHeight = TableHeight - actionsHeight;
         var layout = new Layout("Root")
             .Size(TableHeight)
             .SplitColumns(
@@ -563,9 +589,17 @@ internal sealed class GameTableUI
             if (Console.WindowWidth < ConsoleUi.MinWidth ||
                 Console.WindowHeight < ConsoleUi.MinHeight)
             {
-                ui.CheckWidth();
+                lastWidth = 0; // The warning cleared the screen, so redraw the table.
                 Console.Write("\u001b[?25l");
                 return ConsoleKey.NoName;
+            }
+
+            // Rebuild the table in the new size when the window changes size.
+            if (rebuildLastTable is not null &&
+                (Console.WindowWidth != lastWidth || Console.WindowHeight != lastHeight))
+            {
+                Console.Write("\u001b[2J");
+                DrawTable(rebuildLastTable());
             }
 
             if (Console.KeyAvailable)
