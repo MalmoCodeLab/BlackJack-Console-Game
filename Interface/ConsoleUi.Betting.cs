@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using Spectre.Console;
@@ -12,7 +11,6 @@ public partial class ConsoleUi
         Dealer dealer,
         int tableHeight = 0)
     {
-        // Builds the table and betting information.
         IRenderable BuildScreen()
         {
             var table = BuildBlackjackTable(
@@ -21,13 +19,11 @@ public partial class ConsoleUi
                 tableHeight);
 
             var information = BettingUI.CreateInfoPanel();
-
             return new Columns(table, information);
         }
 
         AnsiConsole.Clear();
 
-        // Updates the screen when a chip is selected.
         AnsiConsole.Live(BuildScreen())
             .AutoClear(true)
             .Start(context =>
@@ -38,10 +34,13 @@ public partial class ConsoleUi
                 {
                     ConsoleKey key = Console.ReadKey(true).Key;
 
-                    // Escape returns to the normal game menu.
-                    if (key == ConsoleKey.Escape)
+                    // Space confirms a non-zero bet and returns to the table.
+                    // Enter still adds chips, so multiple chips can be selected.
+                    if (key == ConsoleKey.Spacebar)
                     {
-                        isBetting = false;
+                        if (players.Count > 0 && players[0].CurrentBet > 0)
+                            isBetting = false;
+
                         continue;
                     }
 
@@ -50,7 +49,6 @@ public partial class ConsoleUi
 
                     if (updated)
                     {
-                        // Redraws the table and balance.
                         context.UpdateTarget(BuildScreen());
                         context.Refresh();
                     }

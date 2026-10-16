@@ -202,7 +202,21 @@ public partial class ConsoleUi
         {
             string label = Markup.Escape(options[i]);
             bool selected = !sideMenuActive &&
-                            !roundFinished && i == selectedOption;
+                            !roundFinished && i == selectedOption &&
+                            !(bettingMode && i == 0);
+
+            // Only Hit changes color: yellow during betting, green afterwards.
+            if (i == 0 && !roundFinished)
+            {
+                string hitStyle = bettingMode
+                    ? "bold white on black"
+                    : "bold white on green3";
+                buttons[i] = new Markup(
+                    $"[{hitStyle}] {(selected ? "❯" : " ")} {label} [/]");
+                continue;
+            }
+
+            // All other button colors remain unchanged.
             string highlight = bettingMode && i == 2
                 ? "[bold black on gold1]"
                 : "[bold white on #961923]";
@@ -277,7 +291,7 @@ public partial class ConsoleUi
             new Rule("[gold1]SATSNING[/]").RuleStyle(Color.Gold1),
             new Markup("[white]← →[/]  Välj marker"),
             new Markup("[white]Enter[/]  Lägg till marker"),
-            new Markup("[white]Esc[/]  Bekräfta insats"),
+            new Markup("[white]Mellanslag[/]  Bekräfta insats"),
             new Markup("[white]Backspace[/]  Ta bort marker"),
             new Markup("[white]I[/]  Öppna inställningar"),
             new Text(""),

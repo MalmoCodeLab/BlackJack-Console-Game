@@ -9,10 +9,8 @@ internal enum GameTableAction
 
 internal sealed class GameTableUI
 {
-    private const int MinTableHeight = 27;
-
-    // The game always fills the whole window, but is never smaller than 27 rows.
-    private static int TableHeight => Math.Max(MinTableHeight, Console.WindowHeight);
+    // Fit the table and the action buttons within the available terminal height.
+    private static int TableHeight => Math.Max(4, Console.WindowHeight);
     private const int BlackjackNoticeDurationMs = 2400;
 
     private readonly ConsoleUi ui;
@@ -57,7 +55,7 @@ internal sealed class GameTableUI
         bool pendingBlackjackAdvance = false;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
-        string? notice = $"{players[0].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, ESC BEKRÄFTAR";
+        string? notice = $"{players[0].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
         DateTime noticeUntil = DateTime.MinValue;
         statuses[0] = "SATSAR";
 
@@ -122,7 +120,8 @@ internal sealed class GameTableUI
                     round, statuses, "KORTLEKEN HAR BLANDATS OM INFÖR DEN NYA RUNDAN!",
                     selectedGameOption, selectedMenuOption, sideMenuActive,
                     roundFinished: false, bettingMode: bettingMode,
-                    cardsFaceDown: !betsComplete));
+                    cardsFaceDown: !betsComplete,
+                    activePlayerIndex: currentPlayerIndex));
                 Thread.Sleep(1600);
             }
 
@@ -133,7 +132,8 @@ internal sealed class GameTableUI
                         DrawTable(BuildTable(
                             round, statuses, notice, selectedGameOption,
                             selectedMenuOption, sideMenuActive,
-                            roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
+                            roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
+                            activePlayerIndex: currentPlayerIndex));
                         while (playing && !saveRequested)
                         {
 
@@ -154,7 +154,8 @@ internal sealed class GameTableUI
                                     DrawTable(BuildTable(
                                         round, statuses, notice, selectedGameOption,
                                         selectedMenuOption, sideMenuActive,
-                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
+                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
+                                        activePlayerIndex: currentPlayerIndex));
                                 continue;
                             }
 
@@ -176,9 +177,7 @@ internal sealed class GameTableUI
                                 {
                                     BettingUI.HandleKey(key, bettingPlayer);
                                 }
-                                else if (key == ConsoleKey.Escape ||
-                                         key == ConsoleKey.UpArrow ||
-                                         key == ConsoleKey.DownArrow)
+                                else if (key == ConsoleKey.Spacebar)
                                 {
                                     // Confirm the current player's bet before proceeding.
                                     if (bettingPlayer.CurrentBet > 0)
@@ -190,7 +189,7 @@ internal sealed class GameTableUI
                                         else
                                         {
                                             statuses[currentPlayerIndex] = "SATSAR";
-                                            notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, ESC BEKRÄFTAR";
+                                            notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
                                         }
                                     }
                                     else
@@ -200,13 +199,14 @@ internal sealed class GameTableUI
                                 DrawTable(BuildTable(
                                     round, statuses, notice, selectedGameOption,
                                     selectedMenuOption, sideMenuActive,
-                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
+                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
+                                    activePlayerIndex: currentPlayerIndex));
                                 continue;
                             }
 
                             if (bettingMode)
                             {
-                                if (key == ConsoleKey.Escape ||
+                                if (key == ConsoleKey.Spacebar ||
                                     key == ConsoleKey.UpArrow ||
                                     key == ConsoleKey.DownArrow)
                                     bettingMode = false;
@@ -221,14 +221,15 @@ internal sealed class GameTableUI
                                     DrawTable(BuildTable(
                                         round, statuses, notice, selectedGameOption,
                                         selectedMenuOption, sideMenuActive,
-                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
+                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
+                                        activePlayerIndex: currentPlayerIndex));
                                     continue;
                                 }
                             }
 
                             switch (key)
                             {
-                                case ConsoleKey.Escape:
+                                case ConsoleKey.Spacebar:
                                     sideMenuActive = false;
                                     selectedGameOption = 0;
                                     break;
@@ -330,7 +331,8 @@ internal sealed class GameTableUI
                                 DrawTable(BuildTable(
                                     round, statuses, notice, selectedGameOption,
                                     selectedMenuOption, sideMenuActive,
-                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete));
+                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
+                                    activePlayerIndex: currentPlayerIndex));
                         }
                     }
 
@@ -559,14 +561,15 @@ internal sealed class GameTableUI
         bool sideMenuActive,
         bool roundFinished,
         bool bettingMode,
-        bool cardsFaceDown = false)
+        bool cardsFaceDown = false,
+        int activePlayerIndex = 0)
     {
         // Reserve enough height for full cards and the betting controls.
         // The button panel follows the table immediately: no spacer row.
         // Remember how to build this frame again if the window is resized.
         rebuildLastTable = () => BuildTable(
             round, statuses, notice, selectedGameOption, selectedMenuOption,
-            sideMenuActive, roundFinished, bettingMode, cardsFaceDown);
+            sideMenuActive, roundFinished, bettingMode, cardsFaceDown, activePlayerIndex);
 
         const int actionsHeight = 3;
         int tableHeight = TableHeight - actionsHeight;
@@ -589,7 +592,7 @@ internal sealed class GameTableUI
             ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses,
                 cardsFaceDown, visibleCardCounter.RunningCount,
-                visibleCardCounter.TrueCount));
+                visibleCardCounter.TrueCount, activePlayerIndex));
         layout["PlayerActions"].Update(ui.BuildPlayerActions(
             GameMessages.GameOptions, selectedGameOption,
             sideMenuActive, roundFinished, bettingMode));
