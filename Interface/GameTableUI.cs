@@ -10,6 +10,8 @@ internal enum GameTableAction
 internal sealed class GameTableUI
 {
     private const int TableHeight = 27;
+    // Fixed width: the player rows and controls text need ~28 columns.
+    private const int MenuWidth = 30;
     private const int BlackjackNoticeDurationMs = 2400;
 
     private readonly ConsoleUi ui;
@@ -460,8 +462,8 @@ internal sealed class GameTableUI
         var layout = new Layout("Root")
             .Size(TableHeight)
             .SplitColumns(
-                new Layout("Table").Ratio(4),
-                new Layout("Menu").Ratio(1));
+                new Layout("Table").Ratio(1),
+                new Layout("Menu").Size(MenuWidth));
         layout["Table"].SplitRows(
             new Layout("BlackjackTable").Size(tableHeight),
             new Layout("PlayerActions").Size(3));
@@ -472,13 +474,10 @@ internal sealed class GameTableUI
             GameMessages.GameOptions, selectedGameOption,
             sideMenuActive, roundFinished, bettingMode));
 
-        layout["Menu"].SplitRows(
-            new Layout("MenuContent").Size(TableHeight - 3),
-            new Layout("MenuSpace").Ratio(1));
-        layout["MenuContent"].Update(ui.BuildGameMenu(
+        // The menu uses the full height so all sections fit with up to five players.
+        layout["Menu"].Update(ui.BuildGameMenu(
             GameMessages.InGameMenuOptions, selectedMenuOption,
             round.Players, sideMenuActive, roundFinished, statuses));
-        layout["MenuSpace"].Update(new Text(""));
         return layout;
     }
 

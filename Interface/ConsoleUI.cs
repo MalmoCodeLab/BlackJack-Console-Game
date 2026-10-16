@@ -6,7 +6,7 @@ using Spectre.Console.Rendering;
 public partial class ConsoleUi
 {
     // Minimum space for the full Blackjack table and its side menu.
-    public const int MinWidth = 100;
+    public const int MinWidth = 110;
     public const int MinHeight = 30;
 
     // Clears the screen and scrollback in terminals that support ANSI escapes.
