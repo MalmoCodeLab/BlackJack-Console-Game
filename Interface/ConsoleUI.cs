@@ -161,6 +161,19 @@ public partial class ConsoleUi
         Console.ReadKey(true);
     }
 
+    // Displays the Blackjack rules from the game's RuleSet configuration.
+    public void ShowRules(RuleSet rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+
+        ShowRules(
+            rules.DealerHitsSoft17,
+            rules.DeckCount,
+            rules.ReshuffleThreshold,
+            rules.NaturalBlackjackBeatsThreeCard21
+        );
+    }
+
     // Displays a compact and neatly aligned overview of the game rules.
     // Optional values can be provided by the RuleSet integration later.
     public void ShowRules(
