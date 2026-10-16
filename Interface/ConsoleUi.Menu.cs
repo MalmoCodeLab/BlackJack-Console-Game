@@ -8,13 +8,13 @@ public partial class ConsoleUi
     private readonly string[] menuOptions = GameMessages.MainMenuOptions;
 
     // Main menu with arrow-key navigation.
-    public string ShowMenu()
+    public string ShowMenu(string? notice = null)
     {
         int selectedOption = 0;
         string choice = "";
         AnsiConsole.Clear();
         Console.Write("\u001b[?25l");
-        AnsiConsole.Live(CreateMenu(selectedOption)).Start(context =>
+        AnsiConsole.Live(CreateMenu(selectedOption, notice)).Start(context =>
         {
             context.Refresh();
             while (true)
@@ -31,7 +31,7 @@ public partial class ConsoleUi
                 }
                 else continue;
 
-                context.UpdateTarget(CreateMenu(selectedOption));
+                context.UpdateTarget(CreateMenu(selectedOption, notice));
                 context.Refresh();
             }
         });
@@ -95,7 +95,7 @@ public partial class ConsoleUi
         return CenterMenuPanel(rows);
     }
 
-    private IRenderable CreateMenu(int selectedOption)
+    private IRenderable CreateMenu(int selectedOption, string? notice)
     {
         List<IRenderable> rows = new()
         {
@@ -105,6 +105,14 @@ public partial class ConsoleUi
             new Rule(GameMessages.MainMenuTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
+        if (notice is not null)
+        {
+            rows.Add(new Align(
+                new Markup($"[bold yellow]{Markup.Escape(notice)}[/]"),
+                HorizontalAlignment.Center));
+            rows.Add(new Text(""));
+        }
+
         for (int i = 0; i < menuOptions.Length; i++)
         {
             string option = Markup.Escape(menuOptions[i]);
