@@ -33,7 +33,7 @@ internal sealed class GameTableUI
         observedDeck = null;
         lowestCardsRemaining = int.MaxValue;
     }
-
+   
     public GameTableAction PlayRound(
         Round round,
         Func<List<Player>, bool> saveGame)

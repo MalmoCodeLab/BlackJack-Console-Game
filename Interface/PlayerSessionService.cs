@@ -50,12 +50,6 @@ internal sealed class PlayerSessionService
 
             if (i == 1)
             {
-                if (!results.ContainsKey(playerName) &&
-                    results.Count >= GameMessages.MaximumSavedPlayers)
-                {
-                    ui.ShowCenteredMessage(GameMessages.MaximumSavedPlayersReached);
-                    return null;
-                }
 
                 if (results.TryGetValue(playerName, out PlayerStatistics? stats))
                 {
@@ -128,12 +122,6 @@ internal sealed class PlayerSessionService
         {
             Player player = players[0];
             Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
-            if (!results.ContainsKey(player.Name) &&
-                results.Count >= GameMessages.MaximumSavedPlayers)
-            {
-                return false;
-            }
-
             results[player.Name] = new PlayerStatistics
             {
                 Wins = player.Wins,

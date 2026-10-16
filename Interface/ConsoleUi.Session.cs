@@ -143,9 +143,6 @@ public partial class ConsoleUi
             new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
             new Text(""),
             new Rule(GameMessages.SavedPlayersTitleMarkup).RuleStyle(Color.Gold1),
-            new Align(
-                new Markup($"[grey]SPARADE SPELARE  ({names.Count}/{GameMessages.MaximumSavedPlayers})[/]"),
-                HorizontalAlignment.Center),
             new Text("")
         };
 
@@ -161,8 +158,6 @@ public partial class ConsoleUi
                 : $"[white]    {escaped}[/]";
             rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
         }
-
-        for (int i = names.Count; i < GameMessages.MaximumSavedPlayers; i++)
             rows.Add(new Align(
                 new Markup("[grey]    — Tom plats —[/]"),
                 HorizontalAlignment.Center));
