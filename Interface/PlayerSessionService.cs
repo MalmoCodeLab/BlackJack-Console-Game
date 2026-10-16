@@ -65,7 +65,7 @@ internal sealed class PlayerSessionService
         return players;
     }
 
-    public Player? LoadPlayer()
+    public List<Player>? LoadPlayers()
     {
         Dictionary<string, PlayerStatistics> results;
         try
@@ -87,19 +87,24 @@ internal sealed class PlayerSessionService
             return null;
         }
 
-        string? selectedName = ui.SelectSavedPlayer(results, DeletePlayer);
-        if (selectedName is null)
+        List<string>? selectedNames = ui.SelectSavedPlayers(results, DeletePlayer);
+        if (selectedNames is null || selectedNames.Count == 0)
             return null;
 
-        PlayerStatistics stats = results[selectedName];
-
-        // A saved player without chips is not allowed to play.
-        if (stats.Chips <= 0)
+        List<Player> players = new();
+        foreach (string selectedName in selectedNames)
         {
-            ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(selectedName));
-            return null;
+            PlayerStatistics stats = results[selectedName];
+
+            // A saved player without chips is not allowed to play.
+            if (stats.Chips <= 0)
+            {
+                ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(selectedName));
+                return null;
+            }
+            players.Add(CreateSavedPlayer(selectedName, stats));
         }
-        return CreateSavedPlayer(selectedName, stats);
+        return players;
     }
 
     // Creates a player from saved statistics, with the saved chips.

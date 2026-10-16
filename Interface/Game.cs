@@ -3,7 +3,7 @@ public class Game
     private readonly ConsoleUi ui = new();
     private readonly PlayerSessionService playerSessions;
     private readonly GameTableUI gameTable;
-    private readonly RuleSet rules;
+    private RuleSet rules;
     private readonly string? ruleConfigurationNotice;
 
     public Game()
@@ -12,7 +12,10 @@ public class Game
         rules = RuleSet.LoadFromDefaultLocation(message => notice = message);
         ruleConfigurationNotice = notice;
         playerSessions = new PlayerSessionService(new GameStorage(), ui);
-        gameTable = new GameTableUI(ui);
+        gameTable = new GameTableUI(ui)
+        {
+            OpenSettings = () => rules = ui.EditRules(rules)
+        };
     }
 
     public void Run()
@@ -35,6 +38,9 @@ public class Game
                 case GameMessages.ShowRules:
                     ui.ShowRules(rules);
                     break;
+                case GameMessages.Settings:
+                    rules = ui.EditRules(rules);
+                    break;
                 case GameMessages.ShowCredits:
                     ui.ShowCredits();
                     break;
@@ -48,6 +54,11 @@ public class Game
     private void StartNewGame()
     {
         int playerCount = ui.AskPlayerCountCentered();
+        while (playerCount == 0)
+        {
+            rules = ui.EditRules(rules);
+            playerCount = ui.AskPlayerCountCentered();
+        }
         List<Player>? players = playerSessions.CreateNewPlayers(playerCount);
         if (players is not null)
             PlayGame(players);
@@ -55,9 +66,9 @@ public class Game
 
     private void LoadGame()
     {
-        Player? player = playerSessions.LoadPlayer();
-        if (player is not null)
-            PlayGame(new List<Player> { player });
+        List<Player>? players = playerSessions.LoadPlayers();
+        if (players is not null)
+            PlayGame(players);
     }
 
     private void PlayGame(List<Player> players)
@@ -86,8 +97,10 @@ public class Game
             {
                 round.EndRound();
                 string summary = RoundResultFormatter.Format(round);
-                if (!playerSessions.SaveResults(players))
-                    summary = GameMessages.AppendSaveResultsError(summary);
+                summary = playerSessions.SaveResults(players)
+                    ? GameMessages.AppendSaveResultsSuccess(
+                        summary, players.Select(player => player.Name))
+                    : GameMessages.AppendSaveResultsError(summary);
 
                 action = gameTable.ShowRoundEndMenu(
                     round, summary, playerSessions.SaveGame);
