@@ -48,26 +48,18 @@ internal sealed class PlayerSessionService
                 ui.ShowCenteredMessage(GameMessages.DuplicatePlayerName);
             }
 
-            if (i == 1)
+            if (results.TryGetValue(playerName, out PlayerStatistics? stats))
             {
-
-                if (results.TryGetValue(playerName, out PlayerStatistics? stats))
+                // A saved player without chips is not allowed to play.
+                if (stats.Chips <= 0)
                 {
-                    // A saved player without chips is not allowed to play.
-                    if (stats.Chips <= 0)
-                    {
-                        ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(playerName));
-                        return null;
-                    }
-                    players.Add(CreateSavedPlayer(playerName, stats));
+                    ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(playerName));
+                    return null;
                 }
-                else
-                    players.Add(new Player(playerName));
+                players.Add(CreateSavedPlayer(playerName, stats));
             }
             else
-            {
                 players.Add(new Player(playerName));
-            }
         }
 
         return players;
@@ -120,15 +112,17 @@ internal sealed class PlayerSessionService
     {
         try
         {
-            Player player = players[0];
             Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
-            results[player.Name] = new PlayerStatistics
+            foreach (Player player in players)
             {
-                Wins = player.Wins,
-                Losses = player.Losses,
-                Pushes = player.Pushes,
-                Chips = player.Chips
-            };
+                results[player.Name] = new PlayerStatistics
+                {
+                    Wins = player.Wins,
+                    Losses = player.Losses,
+                    Pushes = player.Pushes,
+                    Chips = player.Chips
+                };
+            }
             gameStorage.SaveResults(results);
             return true;
         }

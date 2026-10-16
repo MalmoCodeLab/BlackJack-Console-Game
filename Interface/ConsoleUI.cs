@@ -25,17 +25,26 @@ public partial class ConsoleUi
             return;
 
         bool warningShown = false;
+        int shownWidth = -1;
+        int shownHeight = -1;
         while (Console.WindowWidth < MinWidth || Console.WindowHeight < requiredHeight)
         {
-            warningShown = true;
-            HardClear(false);
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("TERMINALEN ÄR FÖR LITEN!");
-            Console.ResetColor();
-            Console.WriteLine($"Nuvarande storlek: {Console.WindowWidth} kolumner x {Console.WindowHeight} rader");
-            Console.WriteLine($"Minsta storlek: {MinWidth} kolumner x {requiredHeight} rader");
-            Console.WriteLine("Förstora terminalen och tryck sedan Enter för att fortsätta...");
-            Console.ReadLine();
+            // Redraw the warning only when the size changes, so it never disappears.
+            if (Console.WindowWidth != shownWidth || Console.WindowHeight != shownHeight)
+            {
+                shownWidth = Console.WindowWidth;
+                shownHeight = Console.WindowHeight;
+                warningShown = true;
+                HardClear(false);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("TERMINALEN ÄR FÖR LITEN!");
+                Console.ResetColor();
+                Console.WriteLine($"Nuvarande storlek: {shownWidth} kolumner x {shownHeight} rader");
+                Console.WriteLine($"Minsta storlek: {MinWidth} kolumner x {requiredHeight} rader");
+                Console.WriteLine("Förstora terminalen så fortsätter spelet automatiskt.");
+            }
+
+            Thread.Sleep(100);
         }
 
         if (warningShown)

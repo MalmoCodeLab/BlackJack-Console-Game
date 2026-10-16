@@ -12,14 +12,10 @@ public partial class ConsoleUi
     {
         int selectedOption = 0;
         string choice = "";
-        AnsiConsole.Clear();
-        Console.Write("\u001b[?25l");
-        AnsiConsole.Live(CreateMenu(selectedOption, notice)).Start(context =>
-        {
-            context.Refresh();
-            while (true)
+        RunScreen(
+            () => CreateMenu(selectedOption, notice),
+            key =>
             {
-                ConsoleKey key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
                     selectedOption = (selectedOption - 1 + menuOptions.Length) % menuOptions.Length;
                 else if (key == ConsoleKey.DownArrow)
@@ -27,14 +23,10 @@ public partial class ConsoleUi
                 else if (key == ConsoleKey.Enter)
                 {
                     choice = menuOptions[selectedOption];
-                    break;
+                    return true;
                 }
-                else continue;
-
-                context.UpdateTarget(CreateMenu(selectedOption, notice));
-                context.Refresh();
-            }
-        });
+                return false;
+            });
         return choice;
     }
 
@@ -43,14 +35,10 @@ public partial class ConsoleUi
     {
         int selectedOption = 0;
         int playerCount = 1;
-        AnsiConsole.Clear();
-        Console.Write("\u001b[?25l");
-        AnsiConsole.Live(CreatePlayerCountMenu(selectedOption)).Start(context =>
-        {
-            context.Refresh();
-            while (true)
+        RunScreen(
+            () => CreatePlayerCountMenu(selectedOption),
+            key =>
             {
-                ConsoleKey key = Console.ReadKey(true).Key;
                 if (key == ConsoleKey.UpArrow)
                     selectedOption = (selectedOption + 4) % 5;
                 else if (key == ConsoleKey.DownArrow)
@@ -58,17 +46,72 @@ public partial class ConsoleUi
                 else if (key == ConsoleKey.Enter)
                 {
                     playerCount = selectedOption + 1;
-                    break;
+                    return true;
                 }
-                else continue;
-
-                context.UpdateTarget(CreatePlayerCountMenu(selectedOption));
-                context.Refresh();
-            }
-        });
+                return false;
+            });
         // Hide the cursor before entering the first name prompt.
         Console.Write("\u001b[?25l");
         return playerCount;
+    }
+
+    // Shows a menu screen in the middle of the window and redraws it when the
+    // window changes size. handleKey returns true when the menu should close.
+    private void RunScreen(Func<IRenderable> build, Func<ConsoleKey, bool> handleKey)
+    {
+        int shownWidth = -1;
+        int shownHeight = -1;
+
+        void Draw()
+        {
+            // Fill the whole window so nothing old is left on the screen.
+            int height = Math.Max(1, Console.WindowHeight);
+            var screen = new Align(build(), HorizontalAlignment.Center, VerticalAlignment.Middle)
+                .Height(height);
+            Console.Write("\u001b[H\u001b[?25l");
+            int windowHeight = AnsiConsole.Profile.Height;
+            AnsiConsole.Profile.Height = height;
+            try
+            {
+                AnsiConsole.Write(screen);
+            }
+            finally
+            {
+                AnsiConsole.Profile.Height = windowHeight;
+                Console.Out.Flush();
+            }
+        }
+
+        Console.Write("\u001b[?1049h\u001b[?25l");
+        try
+        {
+            while (true)
+            {
+                // Redraw from scratch when the window is resized.
+                if (Console.WindowWidth != shownWidth || Console.WindowHeight != shownHeight)
+                {
+                    shownWidth = Console.WindowWidth;
+                    shownHeight = Console.WindowHeight;
+                    Console.Write("\u001b[2J");
+                    Draw();
+                }
+
+                if (!Console.KeyAvailable)
+                {
+                    Thread.Sleep(35);
+                    continue;
+                }
+
+                if (handleKey(Console.ReadKey(true).Key))
+                    return;
+                Draw();
+            }
+        }
+        finally
+        {
+            Console.Write("\u001b[?1049l");
+            Console.Out.Flush();
+        }
     }
 
     private IRenderable CreatePlayerCountMenu(int selectedOption)
