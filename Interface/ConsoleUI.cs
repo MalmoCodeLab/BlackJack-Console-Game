@@ -161,42 +161,86 @@ public partial class ConsoleUi
         Console.ReadKey(true);
     }
 
-    // Displays the Blackjack rules.
-    public void ShowRules(RuleSet? ruleSet = null)
+    // Displays the Blackjack rules from the game's RuleSet configuration.
+    public void ShowRules(RuleSet rules)
     {
-        RuleSet rules = ruleSet ?? RuleSet.Default;
-        string softSeventeenRule = rules.DealerHitsSoft17
-            ? "Givaren köper på mjuk 17."
-            : "Givaren stannar på mjuk 17.";
-        string naturalVersusThreeCardRule = rules.NaturalBlackjackBeatsThreeCard21
-            ? "Naturlig 21 slår 21 med tre kort."
-            : "Naturlig 21 ger oavgjort mot 21 med tre kort.";
+        ArgumentNullException.ThrowIfNull(rules);
 
+        ShowRules(
+            rules.DealerHitsSoft17,
+            rules.DeckCount,
+            rules.ReshuffleThreshold,
+            rules.NaturalBlackjackBeatsThreeCard21
+        );
+    }
+
+    // Displays a compact and neatly aligned overview of the game rules.
+    // Optional values can be provided by the RuleSet integration later.
+    public void ShowRules(
+        bool? dealerHitsSoft17 = null,
+        int? numberOfDecks = null,
+        int? reshuffleBelowCards = null,
+        bool? naturalBlackjackBeats21 = null)
+    {
         AnsiConsole.Clear();
         Console.Write("\u001b[?25l");
-        var rulesPanel = new Panel(new Rows(
+
+        // Fallback values from the existing game. Not read from a file yet.
+        string soft17 = dealerHitsSoft17.HasValue
+            ? (dealerHitsSoft17.Value ? "Tar kort" : "Stannar")
+            : "Stannar";
+        string decks = (numberOfDecks ?? 6).ToString();
+        string reshuffle = $"Under {reshuffleBelowCards ?? 15} kort kvar";
+        string natural21 = naturalBlackjackBeats21.HasValue
+            ? (naturalBlackjackBeats21.Value ? "Slår vanlig 21" : "Samma värde som vanlig 21")
+            : "Slår vanlig 21";
+
+        bool valuesProvided = dealerHitsSoft17.HasValue &&
+            numberOfDecks.HasValue &&
+            reshuffleBelowCards.HasValue &&
+            naturalBlackjackBeats21.HasValue;
+
+        // Two columns keep rule names and values aligned.
+        var houseRules = new Grid();
+        houseRules.AddColumn(new GridColumn().NoWrap().PadRight(4));
+        houseRules.AddColumn(new GridColumn().NoWrap());
+        houseRules.AddRow(
+            new Markup("[white]Givare vid mjuk 17[/]"),
+            new Markup($"[bold green1]{soft17}[/]"));
+        houseRules.AddRow(
+            new Markup("[white]Antal kortlekar[/]"),
+            new Markup($"[bold green1]{decks}[/]"));
+        houseRules.AddRow(
+            new Markup("[white]Omblandning[/]"),
+            new Markup($"[bold green1]{reshuffle}[/]"));
+        houseRules.AddRow(
+            new Markup("[white]Naturlig Blackjack[/]"),
+            new Markup($"[bold green1]{natural21}[/]"));
+
+        var rules = new Panel(new Rows(
             new Align(new Markup("[bold gold1]♠ BLACKJACK 21 ♠[/]"), HorizontalAlignment.Center),
             new Align(new Markup("[italic green3]Tur kan inte kompileras.[/]"), HorizontalAlignment.Center),
-            new Rule("[gold1]♥ SPELREGLER ♥[/]").RuleStyle(Color.Gold1),
-            new Markup(
-                "[bold gold1]MÅL[/]\n" +
-                "[white]Kom så nära 21 som möjligt utan att gå över.\nDin hand ska vara högre än givarens.[/]\n\n" +
-                "[bold gold1]KORTENS VÄRDE[/]\n" +
-                "[white]2–10 = Kortets värde\nJ, Q, K = 10 poäng\nEss = 1 eller 11 poäng[/]\n\n" +
-                "[bold gold1]SPELETS GÅNG[/]\n" +
-                "[white]Varje spelare får två öppna kort.\nGivaren får ett öppet och ett dolt kort.\nEss + tiokort på de två första korten är naturlig tjugoett.[/]\n\n" +
-                "[bold gold1]DIN TUR[/]\n" +
-                "[white]♠ Köpa – Ta ett nytt kort.\n♥ Stanna – Avsluta din tur.\n♦ Satsa – Välj och placera marker.\nÖver 21 innebär att du spräcker och förlorar.[/]\n\n" +
-                "[bold gold1]GIVARENS TUR[/]\n" +
-                $"[white]Givaren visar sitt dolda kort.\nGivaren köper på 16 eller lägre.\nGivaren stannar på hård 17 eller högre.\n{softSeventeenRule}[/]\n\n" +
-                "[bold gold1]VINST OCH FÖRLUST[/]\n" +
-                $"[white]Givaren spräcker = spelaren vinner, om spelaren inte redan har spräckt.\nAnnars vinner högsta handen.\nLika poäng innebär oavgjort.\n{naturalVersusThreeCardRule}\nTvå naturliga 21 ger oavgjort.[/]\n\n" +
-                "[bold gold1]HUSREGLER[/]\n" +
-                $"[white]Antal lekar: {rules.DeckCount}.\nBlanda om när färre än {rules.ReshuffleThreshold} kort återstår.[/]"),
             new Text(""),
+            new Rule("[gold1]♥ SPELREGLER ♥[/]").RuleStyle(Color.Gold1),
+            new Text(""),
+            new Markup("[bold gold1]MÅL[/]"),
+            new Markup("[white]Kom så nära 21 som möjligt utan att gå över.\nDin hand ska vara högre än givarens.[/]"),
+            new Text(""),
+            new Rule("[gold1]♦ AKTIVA HUSREGLER ♦[/]").RuleStyle(Color.Gold1),
+            new Text(""),
+            houseRules,
+            new Text(""),
+            new Rule().RuleStyle(Color.Gold1),
+            new Align(new Markup(valuesProvided
+                ? "[grey]Regler från spelets inställningar.[/]"
+                : "[grey]Exempelvärden – ännu inte kopplade till konfigurationsfilen.[/]"),
+                HorizontalAlignment.Center),
             new Align(new Markup("[grey]Tryck på valfri tangent för att återgå.[/]"), HorizontalAlignment.Center)))
-            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
-        AnsiConsole.Write(CenterPanel(rulesPanel));
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Expand();
+
+        AnsiConsole.Write(CenterPanel(rules));
         Console.Write("\u001b[?25l");
         Console.ReadKey(true);
         Console.Write("\u001b[?25l");
