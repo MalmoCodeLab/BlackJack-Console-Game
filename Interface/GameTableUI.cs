@@ -18,6 +18,8 @@ internal sealed class GameTableUI
     private Func<Layout>? rebuildLastTable;
     private int lastWidth;
     private int lastHeight;
+    private int builtWidth;
+    private int builtHeight;
     private readonly VisibleCardCounter visibleCardCounter = new();
     // Read-only observation: detect a refilled shoe without modifying Deck.
     private Deck? observedDeck;
@@ -57,6 +59,8 @@ internal sealed class GameTableUI
         GameTableAction action = GameTableAction.ReturnToMainMenu;
         string? notice = $"{players[0].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
         DateTime noticeUntil = DateTime.MinValue;
+        // Guard against keyboard auto-repeat confirming consecutive bets.
+        DateTime lastBetConfirmation = DateTime.MinValue;
         statuses[0] = "SATSAR";
 
         void FinishBetting()
@@ -162,6 +166,83 @@ internal sealed class GameTableUI
                             if (key == ConsoleKey.NoName)
                                 continue;
 
+                            // The game menu must be accessible during betting too.
+                            // Esc opens it with Huvudmeny already selected.
+                            if (key == ConsoleKey.Escape)
+                            {
+                                sideMenuActive = !sideMenuActive;
+                                if (sideMenuActive)
+                                    selectedMenuOption = 1;
+
+                                DrawTable(BuildTable(
+                                    round, statuses, notice, selectedGameOption,
+                                    selectedMenuOption, sideMenuActive,
+                                    roundFinished: false, bettingMode: bettingMode,
+                                    cardsFaceDown: !betsComplete,
+                                    activePlayerIndex: currentPlayerIndex));
+                                continue;
+                            }
+
+                            // Up also opens the game menu, as before.
+                            if (!sideMenuActive && key == ConsoleKey.UpArrow)
+                            {
+                                sideMenuActive = true;
+                                selectedMenuOption = 0;
+                                DrawTable(BuildTable(
+                                    round, statuses, notice, selectedGameOption,
+                                    selectedMenuOption, sideMenuActive,
+                                    roundFinished: false, bettingMode: bettingMode,
+                                    cardsFaceDown: !betsComplete,
+                                    activePlayerIndex: currentPlayerIndex));
+                                continue;
+                            }
+
+                            // Process menu keys BEFORE the betting block.
+                            // The existing Settings option is index 3, Save and Quit is 4.
+                            if (sideMenuActive)
+                            {
+                                if (key == ConsoleKey.UpArrow)
+                                    selectedMenuOption = (selectedMenuOption - 1 +
+                                        GameMessages.InGameMenuOptions.Length) %
+                                        GameMessages.InGameMenuOptions.Length;
+                                else if (key == ConsoleKey.DownArrow)
+                                    selectedMenuOption = (selectedMenuOption + 1) %
+                                        GameMessages.InGameMenuOptions.Length;
+                                else if (key == ConsoleKey.Enter)
+                                {
+                                    switch (selectedMenuOption)
+                                    {
+                                        case 0:
+                                            action = GameTableAction.StartNewRound;
+                                            playing = false;
+                                            break;
+                                        case 1:
+                                            action = GameTableAction.ReturnToMainMenu;
+                                            playing = false;
+                                            break;
+                                        case 2:
+                                            ShowControlsScreen();
+                                            break;
+                                        case 3:
+                                            OpenSettings?.Invoke();
+                                            Console.Write("\u001b[?25l");
+                                            break;
+                                        case 4:
+                                            saveRequested = true;
+                                            break;
+                                    }
+                                }
+
+                                if (playing && !saveRequested)
+                                    DrawTable(BuildTable(
+                                        round, statuses, notice, selectedGameOption,
+                                        selectedMenuOption, sideMenuActive,
+                                        roundFinished: false, bettingMode: bettingMode,
+                                        cardsFaceDown: !betsComplete,
+                                        activePlayerIndex: currentPlayerIndex));
+                                continue;
+                            }
+
                             if (!betsComplete)
                             {
                                 Player bettingPlayer = players[currentPlayerIndex];
@@ -179,9 +260,13 @@ internal sealed class GameTableUI
                                 }
                                 else if (key == ConsoleKey.Spacebar)
                                 {
-                                    // Confirm the current player's bet before proceeding.
-                                    if (bettingPlayer.CurrentBet > 0)
+                                    // Key repeat can send several Spacebar events. Ignore
+                                    // extra events immediately after confirming a bet.
+                                    bool isRepeat = (DateTime.UtcNow - lastBetConfirmation)
+                                        .TotalMilliseconds < 400;
+                                    if (!isRepeat && bettingPlayer.CurrentBet > 0)
                                     {
+                                        lastBetConfirmation = DateTime.UtcNow;
                                         statuses[currentPlayerIndex] = "SATSAT";
                                         currentPlayerIndex++;
                                         if (currentPlayerIndex == players.Count)
@@ -192,8 +277,10 @@ internal sealed class GameTableUI
                                             notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
                                         }
                                     }
-                                    else
+                                    else if (!isRepeat)
+                                    {
                                         notice = "DU MÅSTE SATSA MINST EN MARKER FÖRST!";
+                                    }
                                 }
 
                                 DrawTable(BuildTable(
@@ -227,80 +314,23 @@ internal sealed class GameTableUI
                                 }
                             }
 
+                            // Main table actions. The side menu has already
+                            // been handled above, so it cannot steal betting keys.
                             switch (key)
                             {
                                 case ConsoleKey.Spacebar:
-                                    sideMenuActive = false;
                                     selectedGameOption = 0;
                                     break;
                                 case ConsoleKey.LeftArrow:
-                                    sideMenuActive = false;
-                                    selectedGameOption = Math.Max(
-                                        0, selectedGameOption - 1);
+                                    selectedGameOption = Math.Max(0, selectedGameOption - 1);
                                     break;
                                 case ConsoleKey.RightArrow:
-                                    sideMenuActive = false;
                                     selectedGameOption = Math.Min(
                                         GameMessages.GameOptions.Length - 1,
                                         selectedGameOption + 1);
                                     break;
-                                case ConsoleKey.UpArrow:
-                                    if (!sideMenuActive)
-                                    {
-                                        sideMenuActive = true;
-                                        selectedMenuOption = 0;
-                                    }
-                                    else
-                                    {
-                                        selectedMenuOption =
-                                            (selectedMenuOption - 1 +
-                                             GameMessages.InGameMenuOptions.Length) %
-                                            GameMessages.InGameMenuOptions.Length;
-                                    }
-                                    break;
-                                case ConsoleKey.DownArrow:
-                                    if (sideMenuActive)
-                                    {
-                                        if (selectedMenuOption <
-                                            GameMessages.InGameMenuOptions.Length - 1)
-                                        {
-                                            selectedMenuOption++;
-                                        }
-                                        else
-                                        {
-                                            sideMenuActive = false;
-                                            selectedGameOption = 0;
-                                        }
-                                    }
-                                    break;
                                 case ConsoleKey.Enter:
-                                    if (sideMenuActive)
-                                    {
-                                        if (selectedMenuOption == 0)
-                                        {
-                                            action = GameTableAction.StartNewRound;
-                                            playing = false;
-                                        }
-                                        else if (selectedMenuOption == 1)
-                                        {
-                                            action = GameTableAction.ReturnToMainMenu;
-                                            playing = false;
-                                        }
-                                        else if (selectedMenuOption == 2)
-                                        {
-                                            ShowControlsScreen();
-                                        }
-                                        else if (selectedMenuOption == 3)
-                                        {
-                                            OpenSettings?.Invoke();
-                                            Console.Write("\u001b[?25l");
-                                        }
-                                        else if (selectedMenuOption == 4)
-                                        {
-                                            saveRequested = true;
-                                        }
-                                    }
-                                    else if (selectedGameOption == 2)
+                                    if (selectedGameOption == 2)
                                     {
                                         notice = "INSATSEN ÄR REDAN BEKRÄFTAD FÖR DENNA RUNDA.";
                                     }
@@ -511,28 +541,61 @@ internal sealed class GameTableUI
         tableScreenActive = false;
     }
 
+    // Paint a complete frame without clearing the whole terminal between frames.
+    // A window resize may happen in the middle of rendering, so try again
+    // with a new layout instead of displaying a frame built for an old size.
     private void DrawTable(Layout layout)
     {
-        // Remember the size so the table can be rebuilt when the window is resized.
-        lastWidth = Console.WindowWidth;
-        lastHeight = Console.WindowHeight;
-
-        // Draw the table into text lines first. If the window is lower than the
-        // table, only the top part is shown, so some of the game is always visible.
-        string[] lines = RenderLines(layout, Console.WindowWidth, TableHeight);
-        int visibleRows = Math.Min(lines.Length, Math.Max(1, Console.WindowHeight));
-
-        // Synchronize the frame where supported; do not clear between frames.
-        Console.Write("\u001b[?2026h\u001b[H\u001b[?25l");
-        try
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            Console.Write(string.Join("\r\n", lines.Take(visibleRows)));
-        }
-        finally
-        {
-            Console.Write("\u001b[?2026l\u001b[?25l");
+            int width = Math.Max(1, Console.WindowWidth);
+            int height = Math.Max(1, Console.WindowHeight);
+
+            if ((width != builtWidth || height != builtHeight) &&
+                rebuildLastTable is not null)
+            {
+                layout = rebuildLastTable();
+                width = Math.Max(1, Console.WindowWidth);
+                height = Math.Max(1, Console.WindowHeight);
+            }
+
+            string[] lines = RenderLines(layout, width, height);
+
+            // Never paint a half-old, half-new frame when VS Code is resizing.
+            if (width != Console.WindowWidth || height != Console.WindowHeight)
+            {
+                if (rebuildLastTable is not null)
+                    layout = rebuildLastTable();
+                continue;
+            }
+
+            var frame = new System.Text.StringBuilder();
+            frame.Append("\u001b[?2026h\u001b[?25l\u001b[H");
+
+            int visibleRows = Math.Min(lines.Length, height);
+            for (int row = 0; row < visibleRows; row++)
+            {
+                if (row > 0)
+                    frame.Append("\r\n");
+
+                frame.Append(lines[row]);
+                // Clear the remainder of this row, including remnants of an
+                // earlier frame with longer text. Reset styles first.
+                frame.Append("\u001b[0m\u001b[K");
+            }
+
+            // Clear any old rows below the new frame. This avoids ghost menus
+            // without flashing the screen with ESC[2J on every redraw.
+            frame.Append("\u001b[0m\u001b[J\u001b[?2026l\u001b[?25l");
+
+            Console.Write(frame.ToString());
             Console.Out.Flush();
+            lastWidth = width;
+            lastHeight = height;
+            return;
         }
+        // If the terminal changes size repeatedly, ReadTableKey will retry
+        // when the size settles. The game state is left untouched.
     }
 
     // Renders the table to text with colors, exactly width x height cells.
@@ -552,6 +615,16 @@ internal sealed class GameTableUI
         return writer.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
     }
 
+    // Card rows have a fixed width. Below this size, showing the full table
+    // would cut off cards or the action buttons.
+    private const int MinimumTableWidth = 80;
+    private const int MinimumTerminalHeight = 26;
+    private const int ActionPanelHeight = 3;
+
+    private static bool TerminalTooSmall =>
+        Console.WindowWidth < MinimumTableWidth ||
+        Console.WindowHeight < MinimumTerminalHeight;
+
     private Layout BuildTable(
         Round round,
         string[] statuses,
@@ -564,46 +637,88 @@ internal sealed class GameTableUI
         bool cardsFaceDown = false,
         int activePlayerIndex = 0)
     {
-        // Reserve enough height for full cards and the betting controls.
-        // The button panel follows the table immediately: no spacer row.
-        // Remember how to build this frame again if the window is resized.
+        // The same game state is rendered again when the VS Code terminal
+        // changes size. This does not reset bets, cards, or menu selection.
         rebuildLastTable = () => BuildTable(
             round, statuses, notice, selectedGameOption, selectedMenuOption,
-            sideMenuActive, roundFinished, bettingMode, cardsFaceDown, activePlayerIndex);
+            sideMenuActive, roundFinished, bettingMode, cardsFaceDown,
+            activePlayerIndex);
 
-        const int actionsHeight = 3;
-        int tableHeight = TableHeight - actionsHeight;
-        var layout = new Layout("Root")
-            .Size(TableHeight)
-            .SplitColumns(
-                new Layout("Table").Ratio(4),
-                new Layout("Menu").Ratio(1));
-        layout["Table"].SplitRows(
+        int width = Math.Max(1, Console.WindowWidth);
+        int height = Math.Max(1, Console.WindowHeight);
+        builtWidth = width;
+        builtHeight = height;
+        var layout = new Layout("Root").Size(height);
+
+        // Keep the size guard without displaying an error message.
+        // A blank frame clears old content and protects the fixed-size cards.
+        // ReadTableKey pauses input until the terminal is large enough again.
+        if (TerminalTooSmall)
+        {
+            layout.Update(new Text(string.Empty));
+            return layout;
+        }
+
+        // Preserve the full-size card artwork on narrower terminals.
+        // When there is not room for both columns, Esc/Up shows the same
+        // in-game menu as a full-width view instead of squeezing the cards.
+        int menuWidth = Math.Clamp(width / 5, 33, 38);
+        bool showSideMenu = width - menuWidth >= MinimumTableWidth;
+
+        if (showSideMenu)
+        {
+            layout.SplitColumns(
+                new Layout("Table"),
+                new Layout("Menu").Size(menuWidth));
+        }
+        else if (sideMenuActive || roundFinished)
+        {
+            layout.Update(ui.BuildGameMenu(
+                GameMessages.InGameMenuOptions, selectedMenuOption,
+                round.Players, sideMenuActive, roundFinished, statuses,
+                activePlayerIndex));
+            return layout;
+        }
+
+        Layout tableArea = showSideMenu ? layout["Table"] : layout;
+        int tableHeight = height - ActionPanelHeight;
+
+        // Keep these as TWO named layouts. Replacing them with one Rows()
+        // renderable caused the action buttons to disappear previously.
+        tableArea.SplitRows(
             new Layout("BlackjackTable").Size(tableHeight),
-            new Layout("PlayerActions").Size(actionsHeight));
-        // Track the lowest observed card count, including cards dealt mid-round.
-        if (ReferenceEquals(observedDeck, round.Deck))
-            lowestCardsRemaining = Math.Min(lowestCardsRemaining, round.Deck.DeckCards.Count);
+            new Layout("PlayerActions").Size(ActionPanelHeight));
 
-        // Observe only cards currently visible to the human player.
-        // This updates a display-only counter, not the Blackjack rules.
-        visibleCardCounter.Observe(round.Deck, round.Players, round.Dealer, cardsFaceDown);
-        layout["BlackjackTable"].Update(
+        if (ReferenceEquals(observedDeck, round.Deck))
+            lowestCardsRemaining = Math.Min(
+                lowestCardsRemaining, round.Deck.DeckCards.Count);
+
+        visibleCardCounter.Observe(
+            round.Deck, round.Players, round.Dealer, cardsFaceDown);
+
+        tableArea["BlackjackTable"].Update(
             ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses,
                 cardsFaceDown, visibleCardCounter.RunningCount,
                 visibleCardCounter.TrueCount, activePlayerIndex));
-        layout["PlayerActions"].Update(ui.BuildPlayerActions(
-            GameMessages.GameOptions, selectedGameOption,
-            sideMenuActive, roundFinished, bettingMode));
 
-        layout["Menu"].SplitRows(
-            new Layout("MenuContent").Size(TableHeight - 3),
-            new Layout("MenuSpace").Ratio(1));
-        layout["MenuContent"].Update(ui.BuildGameMenu(
-            GameMessages.InGameMenuOptions, selectedMenuOption,
-            round.Players, sideMenuActive, roundFinished, statuses));
-        layout["MenuSpace"].Update(new Text(""));
+        tableArea["PlayerActions"].Update(
+            ui.BuildPlayerActions(
+                GameMessages.GameOptions, selectedGameOption,
+                sideMenuActive, roundFinished, bettingMode));
+
+        if (showSideMenu)
+        {
+            layout["Menu"].SplitRows(
+                new Layout("MenuContent").Size(height - 3),
+                new Layout("MenuSpace").Ratio(1));
+            layout["MenuContent"].Update(ui.BuildGameMenu(
+                GameMessages.InGameMenuOptions, selectedMenuOption,
+                round.Players, sideMenuActive, roundFinished, statuses,
+                activePlayerIndex));
+            layout["MenuSpace"].Update(new Text(""));
+        }
+
         return layout;
     }
 
@@ -613,14 +728,49 @@ internal sealed class GameTableUI
             ? DateTime.MaxValue
             : DateTime.UtcNow.AddMilliseconds(timeoutMs);
 
+        int pendingWidth = -1;
+        int pendingHeight = -1;
+        DateTime lastSizeChange = DateTime.MinValue;
+        const int ResizeSettleMs = 120;
+
         while (true)
         {
-            // Rebuild the table in the new size when the window changes size.
+            int width = Math.Max(1, Console.WindowWidth);
+            int height = Math.Max(1, Console.WindowHeight);
+
             if (rebuildLastTable is not null &&
-                (Console.WindowWidth != lastWidth || Console.WindowHeight != lastHeight))
+                (width != lastWidth || height != lastHeight))
             {
-                Console.Write("\u001b[2J");
-                DrawTable(rebuildLastTable());
+                // Dragging the VS Code panel sends many rapid size changes.
+                // Repaint only after its dimensions have been stable briefly.
+                if (pendingWidth != width || pendingHeight != height)
+                {
+                    pendingWidth = width;
+                    pendingHeight = height;
+                    lastSizeChange = DateTime.UtcNow;
+                }
+
+                if ((DateTime.UtcNow - lastSizeChange).TotalMilliseconds >= ResizeSettleMs)
+                    DrawTable(rebuildLastTable());
+
+                // Ignore keys that arrived while controls might be hidden.
+                // Never accidentally place a bet after the panel expands.
+                while (Console.KeyAvailable)
+                    Console.ReadKey(true);
+
+                Thread.Sleep(35);
+                continue;
+            }
+
+            pendingWidth = -1;
+            pendingHeight = -1;
+
+            if (TerminalTooSmall)
+            {
+                while (Console.KeyAvailable)
+                    Console.ReadKey(true);
+                Thread.Sleep(35);
+                continue;
             }
 
             if (Console.KeyAvailable)

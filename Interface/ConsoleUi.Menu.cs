@@ -205,14 +205,14 @@ public partial class ConsoleUi
                             !roundFinished && i == selectedOption &&
                             !(bettingMode && i == 0);
 
-            // Only Hit changes color: yellow during betting, green afterwards.
+            // Hit cannot be used during betting, so keep it unhighlighted.
             if (i == 0 && !roundFinished)
             {
-                string hitStyle = bettingMode
-                    ? "bold white on black"
-                    : "bold white on green3";
-                buttons[i] = new Markup(
-                    $"[{hitStyle}] {(selected ? "❯" : " ")} {label} [/]");
+                buttons[i] = bettingMode
+                    ? new Markup($"[grey]   {label}[/]")
+                    : new Markup(selected
+                        ? $"[bold white on green3] ❯ {label} [/]"
+                        : $"[white]   {label}[/]");
                 continue;
             }
 
@@ -232,7 +232,7 @@ public partial class ConsoleUi
     }
 
     // Shows the menu, saved statistics, live bet and controls on the right.
-    internal Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, bool roundFinished, string[] playerStatuses)
+    internal Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, bool roundFinished, string[] playerStatuses, int activePlayerIndex = 0)
     {
         var content = new List<Spectre.Console.Rendering.IRenderable>
         {
@@ -264,9 +264,21 @@ public partial class ConsoleUi
         content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
         content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
         content.Add(new Markup($"[white]Rundor: {main.GamesPlayed}[/]"));
+        // Each player has their own balance and current bet. Highlight the
+        // current player rather than always showing player one's markers.
+        int focusedIndex = Math.Clamp(activePlayerIndex, 0, players.Count - 1);
         content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup($"[white]Saldo:[/] [green1]{main.Chips} kr[/]"));
-        content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{main.CurrentBet} kr[/]"));
+        content.Add(new Markup("[grey]SPELARE   SALDO / INSATS[/]"));
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player player = players[i];
+            string name = player.Name.Length > 8 ? player.Name[..7] + "…" : player.Name;
+            string selected = i == focusedIndex ? "[bold gold1]❯[/]" : " ";
+            string textStyle = i == focusedIndex ? "bold white" : "grey";
+            content.Add(new Markup(
+                $"{selected}[{textStyle}]{Markup.Escape(name.PadRight(8))}[/] " +
+                $"[green1]{player.Chips}[/] / [gold1]{player.CurrentBet}[/]"));
+        }
         return new Panel(new Rows(content))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
     }
@@ -292,6 +304,7 @@ public partial class ConsoleUi
             new Markup("[white]← →[/]  Välj marker"),
             new Markup("[white]Enter[/]  Lägg till marker"),
             new Markup("[white]Mellanslag[/]  Bekräfta insats"),
+            new Markup("[white]Esc[/]  Öppna spelmenyn"),
             new Markup("[white]Backspace[/]  Ta bort marker"),
             new Markup("[white]I[/]  Öppna inställningar"),
             new Text(""),
