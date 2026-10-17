@@ -1,9 +1,8 @@
-
-using Spectre.Console;
-
+// Builds the shape of playing cards without choosing their colors.
+// ConsoleUi.Table.cs is responsible for color and layout.
 class CardRenderer
 {
-    // Converts the rank to a short text.
+    // Converts the rank to short text.
     public string GetRank(Rank rank)
     {
         return rank switch
@@ -13,7 +12,15 @@ class CardRenderer
             Rank.Queen => "Q",
             Rank.Jack => "J",
             Rank.Ten => "10",
-            _ => ((int)rank + 2).ToString()
+            Rank.Nine => "9",
+            Rank.Eight => "8",
+            Rank.Seven => "7",
+            Rank.Six => "6",
+            Rank.Five => "5",
+            Rank.Four => "4",
+            Rank.Three => "3",
+            Rank.Two => "2",
+            _ => "?"
         };
     }
 
@@ -30,17 +37,11 @@ class CardRenderer
         };
     }
 
-    // Creates a standard playing card.
+    // Returns seven unstyled rows. ConsoleUi places and colors the card.
     public string[] RenderCard(Card card)
     {
         string rank = GetRank(card.Rank);
         string suit = GetSuit(card.Suit);
-
-        string color =
-            card.Suit == Suit.Hearts ||
-            card.Suit == Suit.Diamonds
-                ? "red"
-                : "black";
 
         string center = card.Rank switch
         {
@@ -52,28 +53,28 @@ class CardRenderer
 
         return new string[]
         {
-            "[white on white]╭─────────╮[/]",
-            $"[white on white]│[/][{color} on white]{rank.PadRight(9)}[/][white on white]│[/]",
-            $"[white on white]│[/][{color} on white]{suit.PadRight(9)}[/][white on white]│[/]",
-            $"[white on white]│[/][{color} on white]    {center}    [/][white on white]│[/]",
-            $"[white on white]│[/][{color} on white]{suit.PadLeft(9)}[/][white on white]│[/]",
-            $"[white on white]│[/][{color} on white]{rank.PadLeft(9)}[/][white on white]│[/]",
-            "[white on white]╰─────────╯[/]"
+            "╭─────────╮",
+            $"│{rank.PadRight(9)}│",
+            $"│{suit.PadRight(9)}│",
+            $"│    {center}    │",
+            $"│{suit.PadLeft(9)}│",
+            $"│{rank.PadLeft(9)}│",
+            "╰─────────╯"
         };
     }
 
-    // Creates the back of a hidden card.
+    // Returns the seven unstyled rows of a face-down card.
     public string[] RenderHiddenCard()
     {
         return new string[]
         {
-            "[gold1 on #172A60]╭─────────╮[/]",
-            "[gold1 on #172A60]│◇ ♠ ◇ ♠ ◇│[/]",
-            "[gold1 on #172A60]│♠ ◇ ♠ ◇ ♠│[/]",
-            "[gold1 on #172A60]│◇ ♠ ◇ ♠ ◇│[/]",
-            "[gold1 on #172A60]│♠ ◇ ♠ ◇ ♠│[/]",
-            "[gold1 on #172A60]│◇ ♠ ◇ ♠ ◇│[/]",
-            "[gold1 on #172A60]╰─────────╯[/]"
+            "╭─────────╮",
+            "│◇ ♠ ◇ ♠ ◇│",
+            "│♠ ◇ ♠ ◇ ♠│",
+            "│◇ ♠ ◇ ♠ ◇│",
+            "│♠ ◇ ♠ ◇ ♠│",
+            "│◇ ♠ ◇ ♠ ◇│",
+            "╰─────────╯"
         };
     }
 }

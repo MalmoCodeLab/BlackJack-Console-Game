@@ -69,11 +69,7 @@ public partial class ConsoleUi
         // Both the dealer and current player's large cards use one shared
         // 75-cell seating center, no matter how many players join.
         tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown, activePlayerIndex));
-        // The chip selector and balance belong to the focused player.
-        Player? focusedPlayer = players.Count > 0
-            ? players[Math.Clamp(activePlayerIndex, 0, players.Count - 1)]
-            : null;
-        tableContent.Add(BettingUI.Create(focusedPlayer));
+        tableContent.Add(BettingUI.Create());
         var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
         return new Panel(greenTable)
             .Header("[gold1] ♠ BLACKJACK ♠ [/]")
@@ -307,15 +303,20 @@ public partial class ConsoleUi
             rendered.Add(cardsFaceDown ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));
         for (int row = 0; row < 7; row++)
         {
-            string line = rendered[0][row];
+            // Build each visual row from left to right. Colors are added here,
+            // not inside CardRenderer, so changing the card art does not affect rules.
+            string line = StyleCardRow(rendered[0][row], cards[start], cardsFaceDown, row);
             if (rendered.Count == 2)
-                line += "  " + rendered[1][row];
+            {
+                line += "  " + StyleCardRow(rendered[1][row], cards[start + 1], cardsFaceDown, row);
+            }
             else if (rendered.Count > 2)
             {
                 line += "  ";
                 for (int i = 1; i < rendered.Count - 1; i++)
                     line += cardsFaceDown ? "[gold1 on #172A60]│◇ [/]" : BuildCardEdge(cards[start + i], row);
-                line += rendered[rendered.Count - 1][row];
+                int last = rendered.Count - 1;
+                line += StyleCardRow(rendered[last][row], cards[start + last], cardsFaceDown, row);
             }
             result.Add(line);
         }
@@ -357,20 +358,89 @@ public partial class ConsoleUi
         }
         CardRenderer renderer = new();
         List<string[]> renderedCards = new();
+        List<bool> hiddenCards = new();
         for (int i = 0; i < cards.Count; i++)
-            renderedCards.Add(hideAllCards || (hideSecondCard && i == 1)
-                ? renderer.RenderHiddenCard()
-                : renderer.RenderCard(cards[i]));
-        // Match the fixed 75-cell player seating grid so the dealer's
-        // first and second cards line up with the focused player's cards.
-        int cardsWidth = renderedCards.Count * 11 + Math.Max(0, renderedCards.Count - 1) * 2;
+        {
+            bool hidden = hideAllCards || (hideSecondCard && i == 1);
+            hiddenCards.Add(hidden);
+            renderedCards.Add(hidden ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));
+        }
+
+        // Cards always remain 11 by 7 characters. The dealer's typical hand
+        // uses full cards and never gets resized when the terminal changes.
+        // Six cards fit with one space; very large hands use the fixed fan.
+        if (cards.Count >= 7)
+        {
+            List<string> fanRows = BuildDealerFanCardLines(cards, hiddenCards);
+            int fanWidth = GetFanWidth(cards.Count);
+            var fanRenderables = new List<IRenderable>();
+            foreach (string line in fanRows)
+                fanRenderables.Add(new Markup(CenterMarkup(line, fanWidth, SeatingWidth)));
+            content.Add(new Align(new Rows(fanRenderables), HorizontalAlignment.Center));
+            return;
+        }
+
+        int gap = cards.Count == 6 ? 1 : 2;
+        int cardsWidth = renderedCards.Count * 11 + Math.Max(0, renderedCards.Count - 1) * gap;
         List<IRenderable> alignedRows = new();
         for (int row = 0; row < 7; row++)
         {
-            string cardLine = string.Join("  ", renderedCards.Select(card => card[row]));
+            List<string> pieces = new();
+            for (int i = 0; i < renderedCards.Count; i++)
+                pieces.Add(StyleCardRow(renderedCards[i][row], cards[i], hiddenCards[i], row));
+
+            string cardLine = string.Join(new string(' ', gap), pieces);
             alignedRows.Add(new Markup(CenterMarkup(cardLine, cardsWidth, SeatingWidth)));
         }
         content.Add(new Align(new Rows(alignedRows), HorizontalAlignment.Center));
+    }
+
+    // Extra-large dealer hands keep the original 11x7 card art. Middle cards
+    // are represented by narrow edges instead of deforming the card graphics.
+    private List<string> BuildDealerFanCardLines(List<Card> cards, List<bool> hidden)
+    {
+        CardRenderer renderer = new();
+        int start = Math.Max(0, cards.Count - 5);
+        List<string[]> shapes = new();
+        for (int i = start; i < cards.Count; i++)
+            shapes.Add(hidden[i] ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));
+
+        List<string> rows = new();
+        for (int row = 0; row < 7; row++)
+        {
+            string line = StyleCardRow(shapes[0][row], cards[start], hidden[start], row);
+            line += "  ";
+            for (int i = 1; i < shapes.Count - 1; i++)
+            {
+                int originalIndex = start + i;
+                line += hidden[originalIndex]
+                    ? "[gold1 on #172A60]│◇ [/]"
+                    : BuildCardEdge(cards[originalIndex], row);
+            }
+            int last = shapes.Count - 1;
+            line += StyleCardRow(shapes[last][row], cards[start + last], hidden[start + last], row);
+            rows.Add(line);
+        }
+        return rows;
+    }
+
+    // Own the colors in ConsoleUi: the renderer supplies only plain card rows.
+    // All styles keep the same 11 visible cells as the original card design.
+    private string StyleCardRow(string rawRow, Card card, bool hidden, int rowIndex)
+    {
+        if (hidden)
+            return $"[gold1 on #172A60]{Markup.Escape(rawRow)}[/]";
+
+        if (rowIndex == 0 || rowIndex == 6)
+            return $"[grey on white]{Markup.Escape(rawRow)}[/]";
+
+        string color = GetCardColor(card);
+        string leftBorder = Markup.Escape(rawRow[..1]);
+        string middle = Markup.Escape(rawRow[1..^1]);
+        string rightBorder = Markup.Escape(rawRow[^1..]);
+        return $"[grey on white]{leftBorder}[/]" +
+               $"[{color} on white]{middle}[/]" +
+               $"[grey on white]{rightBorder}[/]";
     }
     private string GetRankLabel(Card card) => card.Rank switch
     {
