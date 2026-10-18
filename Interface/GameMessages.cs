@@ -55,7 +55,6 @@ internal static class GameMessages
         "♠ Ny runda",
         "♣ Huvudmeny",
         GameControls,
-        Settings,
         "♦ Spara och avsluta"
     };
 

@@ -31,9 +31,12 @@ public sealed record RuleSet
         return LoadFromFile(currentDirectoryPath, notify);
     }
 
-    public static RuleSet LoadFromFile(string filePath, Action<string>? notify = null)
+    public static RuleSet LoadFromFile(
+     string filePath,
+     Action<string>? notify = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
         if (!File.Exists(filePath))
         {
             notify?.Invoke(
@@ -41,7 +44,34 @@ public sealed record RuleSet
             return Default;
         }
 
-        return Load(filePath);
+        try
+        {
+            return Load(filePath);
+        }
+        catch (JsonException ex)
+        {
+            notify?.Invoke(
+                $"Rules file contains invalid JSON: {ex.Message} Using default rules.");
+            return Default;
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            notify?.Invoke(
+                $"Rules file contains invalid values: {ex.Message} Using default rules.");
+            return Default;
+        }
+        catch (IOException ex)
+        {
+            notify?.Invoke(
+                $"Rules file could not be read: {ex.Message} Using default rules.");
+            return Default;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            notify?.Invoke(
+                $"Access to rules file was denied: {ex.Message} Using default rules.");
+            return Default;
+        }
     }
 
     public static RuleSet Load(string filePath)
