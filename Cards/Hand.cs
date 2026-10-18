@@ -3,9 +3,9 @@ class Hand
     public const int BlackjackValue = 21;
     public List<Card> CardsOnHand { get; } = [];
 
-    public void ReceiveCard(Deck deck)
+    public void ReceiveCard(Deck deck, bool faceUp = true)
     {
-        Card recievedCard = deck.DealCard();
+        Card recievedCard = deck.DealCard(faceUp);
         CardsOnHand.Add(recievedCard);
     }
     public List<Card> DiscardCards()

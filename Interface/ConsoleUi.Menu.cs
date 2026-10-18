@@ -268,16 +268,20 @@ public partial class ConsoleUi
         // current player rather than always showing player one's markers.
         int focusedIndex = Math.Clamp(activePlayerIndex, 0, players.Count - 1);
         content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup("[grey]SPELARE   SALDO / INSATS[/]"));
+        // Show each player's balance and bet, with the active player highlighted.
+        content.Add(new Markup("[grey]SPELARE      SALDO INSATS[/]"));
         for (int i = 0; i < players.Count; i++)
         {
             Player player = players[i];
-            string name = player.Name.Length > 8 ? player.Name[..7] + "…" : player.Name;
+            string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
             string selected = i == focusedIndex ? "[bold gold1]❯[/]" : " ";
             string textStyle = i == focusedIndex ? "bold white" : "grey";
+
             content.Add(new Markup(
-                $"{selected}[{textStyle}]{Markup.Escape(name.PadRight(8))}[/] " +
-                $"[green1]{player.Chips}[/] / [gold1]{player.CurrentBet}[/]"));
+                $"{selected}[{textStyle}]{Markup.Escape(name.PadRight(10))}[/] " +
+                $"[green1]{player.Chips.ToString().PadLeft(5)}[/] " +
+                $"[gold1]{player.CurrentBet.ToString().PadLeft(6)}[/]"));
+
         }
         return new Panel(new Rows(content))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
@@ -306,7 +310,7 @@ public partial class ConsoleUi
             new Markup("[white]Mellanslag[/]  Bekräfta insats"),
             new Markup("[white]Esc[/]  Öppna spelmenyn"),
             new Markup("[white]Backspace[/]  Ta bort marker"),
-            new Markup("[white]I[/]  Öppna inställningar"),
+            new Markup("[grey]Inställningar ändras i huvudmenyn[/]"),
             new Text(""),
             new Align(new Markup("[grey]Tryck Enter för att återgå till spelet.[/]"), HorizontalAlignment.Center)
         };

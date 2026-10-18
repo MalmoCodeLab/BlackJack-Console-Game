@@ -39,8 +39,6 @@ internal sealed class GameTableUI
         observedDeck = null;
         lowestCardsRemaining = int.MaxValue;
     }
-   
-    public Action? OpenSettings { get; set; }
 
     public GameTableAction PlayRound(
         Round round,
@@ -57,11 +55,30 @@ internal sealed class GameTableUI
         bool pendingBlackjackAdvance = false;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
-        string? notice = $"{players[0].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
+
+        static string BetTurnNotice(Player player) =>
+            $"{player.Name.ToUpperInvariant()} – DIN TUR ATT SATSA: ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
+        static string PlayTurnNotice(Player player) =>
+            $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
+
+        string? notice = BetTurnNotice(players[0]);
         DateTime noticeUntil = DateTime.MinValue;
-        // Guard against keyboard auto-repeat confirming consecutive bets.
         DateTime lastBetConfirmation = DateTime.MinValue;
         statuses[0] = "SATSAR";
+
+        // Always redraw with the current round, selection and terminal size.
+        void RedrawCurrentRound()
+        {
+            if (!playing)
+                return;
+
+            DrawTable(BuildTable(
+                round, statuses, notice, selectedGameOption,
+                selectedMenuOption, sideMenuActive,
+                roundFinished: false, bettingMode: bettingMode,
+                cardsFaceDown: !betsComplete,
+                activePlayerIndex: currentPlayerIndex));
+        }
 
         void FinishBetting()
         {
@@ -69,9 +86,9 @@ internal sealed class GameTableUI
             bettingMode = false;
             currentPlayerIndex = 0;
             selectedGameOption = 0;
-            notice = null;
+            notice = PlayTurnNotice(players[0]);
 
-            // Cards were dealt already; revealing them is handled by BuildTable.
+            // Cards have already been dealt; the UI reveals them after betting.
             for (int i = 0; i < players.Count; i++)
                 statuses[i] = "VÄNTAR";
 
@@ -96,13 +113,13 @@ internal sealed class GameTableUI
                 {
                     statuses[currentPlayerIndex] = "BLACKJACK";
                     notice = NaturalBlackjackNotice(nextPlayer);
-                    noticeUntil = DateTime.UtcNow.AddMilliseconds(
-                        BlackjackNoticeDurationMs);
+                    noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                     pendingBlackjackAdvance = true;
                     return;
                 }
 
                 statuses[currentPlayerIndex] = "DIN TUR";
+                notice = PlayTurnNotice(nextPlayer);
                 return;
             }
 
@@ -113,9 +130,7 @@ internal sealed class GameTableUI
         OpenTableScreen();
         try
         {
-            // An increase in the remaining-card count indicates that cards
-            // were returned to the shoe between rounds. This is not a complete
-            // shuffle event; shuffling without returning cards is undetectable.
+            // The UI only observes a refill; Deck/Round own the shuffle rules.
             bool shoeRefilled = DetectRefilledShoe(round.Deck);
             if (shoeRefilled)
             {
@@ -132,239 +147,168 @@ internal sealed class GameTableUI
             while (playing)
             {
                 bool saveRequested = false;
+                RedrawCurrentRound();
+
+                while (playing && !saveRequested)
                 {
-                        DrawTable(BuildTable(
-                            round, statuses, notice, selectedGameOption,
-                            selectedMenuOption, sideMenuActive,
-                            roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
-                            activePlayerIndex: currentPlayerIndex));
-                        while (playing && !saveRequested)
-                        {
+                    // The Blackjack notice may expire, but Esc still opens the menu.
+                    int timeout = pendingBlackjackAdvance && !sideMenuActive
+                        ? Math.Max(1, (int)(noticeUntil - DateTime.UtcNow).TotalMilliseconds)
+                        : -1;
+                    ConsoleKey key = ReadTableKey(timeout);
 
-                            int timeout = pendingBlackjackAdvance
-                                ? Math.Max(1, (int)(noticeUntil - DateTime.UtcNow)
-                                    .TotalMilliseconds)
-                                : -1;
-                            ConsoleKey key = ReadTableKey(timeout);
-                            if (pendingBlackjackAdvance)
-                            {
-                                if (DateTime.UtcNow < noticeUntil)
-                                    continue;
-
-                                notice = null;
-                                pendingBlackjackAdvance = false;
-                                AdvancePlayer();
-                                if (playing)
-                                    DrawTable(BuildTable(
-                                        round, statuses, notice, selectedGameOption,
-                                        selectedMenuOption, sideMenuActive,
-                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
-                                        activePlayerIndex: currentPlayerIndex));
-                                continue;
-                            }
-
-                            if (key == ConsoleKey.NoName)
-                                continue;
-
-                            // The game menu must be accessible during betting too.
-                            // Esc opens it with Huvudmeny already selected.
-                            if (key == ConsoleKey.Escape)
-                            {
-                                sideMenuActive = !sideMenuActive;
-                                if (sideMenuActive)
-                                    selectedMenuOption = 1;
-
-                                DrawTable(BuildTable(
-                                    round, statuses, notice, selectedGameOption,
-                                    selectedMenuOption, sideMenuActive,
-                                    roundFinished: false, bettingMode: bettingMode,
-                                    cardsFaceDown: !betsComplete,
-                                    activePlayerIndex: currentPlayerIndex));
-                                continue;
-                            }
-
-                            // Up also opens the game menu, as before.
-                            if (!sideMenuActive && key == ConsoleKey.UpArrow)
-                            {
-                                sideMenuActive = true;
-                                selectedMenuOption = 0;
-                                DrawTable(BuildTable(
-                                    round, statuses, notice, selectedGameOption,
-                                    selectedMenuOption, sideMenuActive,
-                                    roundFinished: false, bettingMode: bettingMode,
-                                    cardsFaceDown: !betsComplete,
-                                    activePlayerIndex: currentPlayerIndex));
-                                continue;
-                            }
-
-                            // Process menu keys BEFORE the betting block.
-                            // The existing Settings option is index 3, Save and Quit is 4.
-                            if (sideMenuActive)
-                            {
-                                if (key == ConsoleKey.UpArrow)
-                                    selectedMenuOption = (selectedMenuOption - 1 +
-                                        GameMessages.InGameMenuOptions.Length) %
-                                        GameMessages.InGameMenuOptions.Length;
-                                else if (key == ConsoleKey.DownArrow)
-                                    selectedMenuOption = (selectedMenuOption + 1) %
-                                        GameMessages.InGameMenuOptions.Length;
-                                else if (key == ConsoleKey.Enter)
-                                {
-                                    switch (selectedMenuOption)
-                                    {
-                                        case 0:
-                                            action = GameTableAction.StartNewRound;
-                                            playing = false;
-                                            break;
-                                        case 1:
-                                            action = GameTableAction.ReturnToMainMenu;
-                                            playing = false;
-                                            break;
-                                        case 2:
-                                            ShowControlsScreen();
-                                            break;
-                                        case 3:
-                                            OpenSettings?.Invoke();
-                                            Console.Write("\u001b[?25l");
-                                            break;
-                                        case 4:
-                                            saveRequested = true;
-                                            break;
-                                    }
-                                }
-
-                                if (playing && !saveRequested)
-                                    DrawTable(BuildTable(
-                                        round, statuses, notice, selectedGameOption,
-                                        selectedMenuOption, sideMenuActive,
-                                        roundFinished: false, bettingMode: bettingMode,
-                                        cardsFaceDown: !betsComplete,
-                                        activePlayerIndex: currentPlayerIndex));
-                                continue;
-                            }
-
-                            if (!betsComplete)
-                            {
-                                Player bettingPlayer = players[currentPlayerIndex];
-                                if (key == ConsoleKey.I)
-                                {
-                                    OpenSettings?.Invoke();
-                                    Console.Write("\u001b[?25l");
-                                }
-                                else if (key == ConsoleKey.LeftArrow ||
-                                         key == ConsoleKey.RightArrow ||
-                                         key == ConsoleKey.Enter ||
-                                         key == ConsoleKey.Backspace)
-                                {
-                                    BettingUI.HandleKey(key, bettingPlayer);
-                                }
-                                else if (key == ConsoleKey.Spacebar)
-                                {
-                                    // Key repeat can send several Spacebar events. Ignore
-                                    // extra events immediately after confirming a bet.
-                                    bool isRepeat = (DateTime.UtcNow - lastBetConfirmation)
-                                        .TotalMilliseconds < 400;
-                                    if (!isRepeat && bettingPlayer.CurrentBet > 0)
-                                    {
-                                        lastBetConfirmation = DateTime.UtcNow;
-                                        statuses[currentPlayerIndex] = "SATSAT";
-                                        currentPlayerIndex++;
-                                        if (currentPlayerIndex == players.Count)
-                                            FinishBetting();
-                                        else
-                                        {
-                                            statuses[currentPlayerIndex] = "SATSAR";
-                                            notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
-                                        }
-                                    }
-                                    else if (!isRepeat)
-                                    {
-                                        notice = "DU MÅSTE SATSA MINST EN MARKER FÖRST!";
-                                    }
-                                }
-
-                                DrawTable(BuildTable(
-                                    round, statuses, notice, selectedGameOption,
-                                    selectedMenuOption, sideMenuActive,
-                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
-                                    activePlayerIndex: currentPlayerIndex));
-                                continue;
-                            }
-
-                            if (bettingMode)
-                            {
-                                if (key == ConsoleKey.Spacebar ||
-                                    key == ConsoleKey.UpArrow ||
-                                    key == ConsoleKey.DownArrow)
-                                    bettingMode = false;
-                                else if (key == ConsoleKey.LeftArrow ||
-                                         key == ConsoleKey.RightArrow ||
-                                         key == ConsoleKey.Enter ||
-                                         key == ConsoleKey.Backspace)
-                                    BettingUI.HandleKey(key, players[currentPlayerIndex]);
-
-                                if (bettingMode)
-                                {
-                                    DrawTable(BuildTable(
-                                        round, statuses, notice, selectedGameOption,
-                                        selectedMenuOption, sideMenuActive,
-                                        roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
-                                        activePlayerIndex: currentPlayerIndex));
-                                    continue;
-                                }
-                            }
-
-                            // Main table actions. The side menu has already
-                            // been handled above, so it cannot steal betting keys.
-                            switch (key)
-                            {
-                                case ConsoleKey.Spacebar:
-                                    selectedGameOption = 0;
-                                    break;
-                                case ConsoleKey.LeftArrow:
-                                    selectedGameOption = Math.Max(0, selectedGameOption - 1);
-                                    break;
-                                case ConsoleKey.RightArrow:
-                                    selectedGameOption = Math.Min(
-                                        GameMessages.GameOptions.Length - 1,
-                                        selectedGameOption + 1);
-                                    break;
-                                case ConsoleKey.Enter:
-                                    if (selectedGameOption == 2)
-                                    {
-                                        notice = "INSATSEN ÄR REDAN BEKRÄFTAD FÖR DENNA RUNDA.";
-                                    }
-                                    else
-                                    {
-                                        Player player = players[currentPlayerIndex];
-                                        if (player.CurrentBet <= 0)
-                                        {
-                                            notice = "DU MÅSTE SATSA INNAN DU KAN SPELA!";
-                                            break;
-                                        }
-                                        if (selectedGameOption == 0)
-                                            player.ReceiveCard(round.Deck);
-
-                                        if (selectedGameOption == 1 ||
-                                            player.IsBust ||
-                                            player.Score == Participant.BlackjackValue)
-                                        {
-                                            statuses[currentPlayerIndex] =
-                                                GetTurnStatus(player, selectedGameOption);
-                                            AdvancePlayer();
-                                        }
-                                    }
-                                    break;
-                            }
-
-                            if (playing && !saveRequested)
-                                DrawTable(BuildTable(
-                                    round, statuses, notice, selectedGameOption,
-                                    selectedMenuOption, sideMenuActive,
-                                    roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
-                                    activePlayerIndex: currentPlayerIndex));
-                        }
+                    // Only Esc opens or closes the in-game menu.
+                    if (key == ConsoleKey.Escape)
+                    {
+                        sideMenuActive = !sideMenuActive;
+                        if (sideMenuActive)
+                            selectedMenuOption = 1; // Huvudmeny
+                        RedrawCurrentRound();
+                        continue;
                     }
+
+                    // Handle the menu before betting or player actions.
+                    if (sideMenuActive)
+                    {
+                        if (key == ConsoleKey.UpArrow)
+                        {
+                            selectedMenuOption = (selectedMenuOption - 1 +
+                                GameMessages.InGameMenuOptions.Length) %
+                                GameMessages.InGameMenuOptions.Length;
+                        }
+                        else if (key == ConsoleKey.DownArrow)
+                        {
+                            selectedMenuOption = (selectedMenuOption + 1) %
+                                GameMessages.InGameMenuOptions.Length;
+                        }
+                        else if (key == ConsoleKey.Enter)
+                        {
+                            // Settings are available from the main menu only.
+                            switch (selectedMenuOption)
+                            {
+                                case 0: // Ny runda
+                                    action = GameTableAction.StartNewRound;
+                                    playing = false;
+                                    break;
+                                case 1: // Huvudmeny
+                                    action = GameTableAction.ReturnToMainMenu;
+                                    playing = false;
+                                    break;
+                                case 2: // Spelstyrning
+                                    ShowControlsScreen();
+                                    break;
+                                case 3: // Spara och avsluta
+                                    saveRequested = true;
+                                    break;
+                            }
+                        }
+
+                        RedrawCurrentRound();
+                        continue;
+                    }
+
+                    // Give the natural-Blackjack message time to be displayed.
+                    if (pendingBlackjackAdvance)
+                    {
+                        if (DateTime.UtcNow < noticeUntil)
+                            continue;
+
+                        notice = null;
+                        pendingBlackjackAdvance = false;
+                        AdvancePlayer();
+                        RedrawCurrentRound();
+                        continue;
+                    }
+
+                    if (key == ConsoleKey.NoName)
+                        continue;
+
+                    if (!betsComplete)
+                    {
+                        Player bettingPlayer = players[currentPlayerIndex];
+                        if (key == ConsoleKey.LeftArrow ||
+                            key == ConsoleKey.RightArrow ||
+                            key == ConsoleKey.Enter ||
+                            key == ConsoleKey.Backspace)
+                        {
+                            BettingUI.HandleKey(key, bettingPlayer);
+                        }
+                        else if (key == ConsoleKey.Spacebar)
+                        {
+                            // Prevent key-repeat from confirming the next player's bet.
+                            bool isRepeat = (DateTime.UtcNow - lastBetConfirmation)
+                                .TotalMilliseconds < 400;
+                            if (!isRepeat && bettingPlayer.CurrentBet > 0)
+                            {
+                                lastBetConfirmation = DateTime.UtcNow;
+                                statuses[currentPlayerIndex] = "SATSAT";
+                                currentPlayerIndex++;
+
+                                if (currentPlayerIndex == players.Count)
+                                {
+                                    FinishBetting();
+                                }
+                                else
+                                {
+                                    statuses[currentPlayerIndex] = "SATSAR";
+                                    notice = BetTurnNotice(players[currentPlayerIndex]);
+                                }
+                            }
+                            else if (!isRepeat)
+                            {
+                                notice = "DU MÅSTE SATSA MINST EN MARKER FÖRST!";
+                            }
+                        }
+
+                        RedrawCurrentRound();
+                        continue;
+                    }
+
+                    // Human player's turn. Card and betting logic stay in their
+                    // existing classes; the UI only routes the chosen action.
+                    switch (key)
+                    {
+                        case ConsoleKey.Spacebar:
+                            selectedGameOption = 0;
+                            break;
+                        case ConsoleKey.LeftArrow:
+                            selectedGameOption = Math.Max(0, selectedGameOption - 1);
+                            break;
+                        case ConsoleKey.RightArrow:
+                            selectedGameOption = Math.Min(
+                                GameMessages.GameOptions.Length - 1,
+                                selectedGameOption + 1);
+                            break;
+                        case ConsoleKey.Enter:
+                            if (selectedGameOption == 2)
+                            {
+                                notice = "INSATSEN ÄR REDAN BEKRÄFTAD FÖR DENNA RUNDA.";
+                                break;
+                            }
+
+                            Player player = players[currentPlayerIndex];
+                            if (player.CurrentBet <= 0)
+                            {
+                                notice = "DU MÅSTE SATSA INNAN DU KAN SPELA!";
+                                break;
+                            }
+
+                            if (selectedGameOption == 0)
+                                player.ReceiveCard(round.Deck);
+
+                            if (selectedGameOption == 1 ||
+                                player.IsBust ||
+                                player.Score == Participant.BlackjackValue)
+                            {
+                                statuses[currentPlayerIndex] =
+                                    GetTurnStatus(player, selectedGameOption);
+                                AdvancePlayer();
+                            }
+                            break;
+                    }
+
+                    RedrawCurrentRound();
+                }
 
                 if (saveRequested && saveGame(players))
                 {
@@ -380,7 +324,7 @@ internal sealed class GameTableUI
         }
         finally
         {
-            // Keep the same terminal screen for the result and the next round.
+            // Avoid flicker between the end of the round and the result view.
             if (action == GameTableAction.ReturnToMainMenu)
                 CloseTableScreen();
         }
@@ -410,65 +354,60 @@ internal sealed class GameTableUI
             {
                 bool saveRequested = false;
                 {
-                        DrawTable(BuildTable(
-                            round, statuses, notice, selectedGameOption: 0,
-                            selectedMenuOption: selectedMenuOption,
-                            sideMenuActive: true,
-                            roundFinished: true, bettingMode: false));
-                        while (!finished && !saveRequested)
+                    DrawTable(BuildTable(
+                        round, statuses, notice, selectedGameOption: 0,
+                        selectedMenuOption: selectedMenuOption,
+                        sideMenuActive: true,
+                        roundFinished: true, bettingMode: false));
+                    while (!finished && !saveRequested)
+                    {
+
+                        ConsoleKey key = ReadTableKey();
+                        if (key == ConsoleKey.UpArrow)
                         {
-
-                            ConsoleKey key = ReadTableKey();
-                            if (key == ConsoleKey.UpArrow)
+                            selectedMenuOption =
+                                (selectedMenuOption - 1 +
+                                 GameMessages.InGameMenuOptions.Length) %
+                                GameMessages.InGameMenuOptions.Length;
+                        }
+                        else if (key == ConsoleKey.DownArrow)
+                        {
+                            selectedMenuOption =
+                                (selectedMenuOption + 1) %
+                                GameMessages.InGameMenuOptions.Length;
+                        }
+                        else if (key == ConsoleKey.Enter)
+                        {
+                            if (selectedMenuOption == 0)
                             {
-                                selectedMenuOption =
-                                    (selectedMenuOption - 1 +
-                                     GameMessages.InGameMenuOptions.Length) %
-                                    GameMessages.InGameMenuOptions.Length;
+                                action = GameTableAction.StartNewRound;
+                                finished = true;
                             }
-                            else if (key == ConsoleKey.DownArrow)
+                            else if (selectedMenuOption == 1)
                             {
-                                selectedMenuOption =
-                                    (selectedMenuOption + 1) %
-                                    GameMessages.InGameMenuOptions.Length;
+                                action = GameTableAction.ReturnToMainMenu;
+                                finished = true;
                             }
-                            else if (key == ConsoleKey.Enter)
+                            else if (selectedMenuOption == 2)
                             {
-                                if (selectedMenuOption == 0)
-                                {
-                                    action = GameTableAction.StartNewRound;
-                                    finished = true;
-                                }
-                                else if (selectedMenuOption == 1)
-                                {
-                                    action = GameTableAction.ReturnToMainMenu;
-                                    finished = true;
-                                }
-                                else if (selectedMenuOption == 2)
-                                {
-                                    ShowControlsScreen();
-                                }
-                                else if (selectedMenuOption == 3)
-                                {
-                                    OpenSettings?.Invoke();
-                                    Console.Write("\u001b[?25l");
-                                }
-                                else if (selectedMenuOption == 4)
-                                {
-                                    saveRequested = true;
-                                }
+                                ShowControlsScreen();
                             }
-
-                            if (!finished && !saveRequested)
+                            else if (selectedMenuOption == 3)
                             {
-                                DrawTable(BuildTable(
-                                    round, statuses, notice, selectedGameOption: 0,
-                                    selectedMenuOption: selectedMenuOption,
-                                    sideMenuActive: true,
-                                    roundFinished: true, bettingMode: false));
+                                saveRequested = true;
                             }
                         }
+
+                        if (!finished && !saveRequested)
+                        {
+                            DrawTable(BuildTable(
+                                round, statuses, notice, selectedGameOption: 0,
+                                selectedMenuOption: selectedMenuOption,
+                                sideMenuActive: true,
+                                roundFinished: true, bettingMode: false));
+                        }
                     }
+                }
 
                 if (saveRequested && saveGame(players))
                 {
@@ -660,10 +599,11 @@ internal sealed class GameTableUI
         }
 
         // Preserve the full-size card artwork on narrower terminals.
-        // When there is not room for both columns, Esc/Up shows the same
+        // When there is not room for both columns, Esc shows the same
         // in-game menu as a full-width view instead of squeezing the cards.
         int menuWidth = Math.Clamp(width / 5, 33, 38);
-        bool showSideMenu = width - menuWidth >= MinimumTableWidth;
+        bool showSideMenu = (sideMenuActive || roundFinished) &&
+                            width - menuWidth >= MinimumTableWidth;
 
         if (showSideMenu)
         {
@@ -796,7 +736,7 @@ internal sealed class GameTableUI
     private static string OutcomeStatus(Outcome outcome) => outcome switch
     {
         Outcome.Blackjack or Outcome.Win => "VANN",
-        Outcome.Lose => "FÖRLORADE",
+        Outcome.Loss => "FÖRLORADE",
         Outcome.Push => "OAVGJORT",
         _ => "KLAR"
     };

@@ -35,32 +35,42 @@ classDiagram
         +int Wins
         +int Losses
         +int Pushes
+        +int Chips
     }
     class Participant {
         <<abstract>>
+        +int BlackjackValue$
         +string Name
         +Hand Hand
         +int Score
         +bool IsBust
         +bool HasBlackjack
         +ReceiveCard(deck)
+        +NewRound(deck)
         +NewRound()
     }
     class Player {
+        +int StartingChips$
         +int Wins
         +int Losses
         +int Pushes
-        +RecordWin()
-        +RecordLoss()
-        +RecordPush()
-        +StatsText() string
+        +int Chips
+        +int CurrentBet
+        +bool IsOutOfChips
+        +int GamesPlayed
+        +bool CanHit
+        +RecordResult(outcome)
+        +TryPlaceBet(amount) bool
+        +CancelBet()
+        +SettleBet(outcome)
     }
     class Dealer {
-        +Card UpCard
+        +RuleSet Rules
         +bool HoleCardVisible
-        +ShouldHit() bool
+        +bool ShowsAce
         +ShowHoleCard()
-        +NewRound()
+        +ShouldHit() bool
+        +NewRound(deck)
     }
     class Deck {
         +CreateDeck()
@@ -112,6 +122,7 @@ classDiagram
         Win
         Loss
         Push
+        Blackjack
     }
 
     Program ..> ConsoleUI : creates

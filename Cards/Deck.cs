@@ -1,11 +1,13 @@
- class Deck
+class Deck
 {
-     public RuleSet Rules { get; }
-     public List<Card> DeckCards { get; } = [];
+    public RuleSet Rules { get; }
+    public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
     public List<Hand> ListOfHands { get; } = [];
-    public int RunningCount;
-    public double TrueCount;
+    public int CutCardPosition { get; private set; }
+    public bool CutCardReached { get; private set; }
+    public int RunningCount {get; private set;}
+    public double TrueCount {get; private set;}
 
     public Deck(RuleSet? rules = null)
     {
@@ -33,16 +35,22 @@
                 }
             }
         }
-
     }
-    public void CardCounter()
+    private void PlaceCutCard()
     {
-        Rank rank = DeckCards[0].Rank;
-        if (rank <= Rank.Six)
+        int lastQuarter = DeckCards.Count / 4;
+        int min = Math.Min(Rules.ReshuffleThreshold, DeckCards.Count);
+        int max = Math.Max(min, lastQuarter);
+        CutCardPosition = Random.Shared.Next(min, max + 1);
+        CutCardReached = false;
+    }
+    public void CardCounter(Card card)
+    {
+        if (card.Rank <= Rank.Six)
         {
             RunningCount++;
         }
-        else if (rank >= Rank.Ten)
+        else if (card.Rank >= Rank.Ten)
         {
             RunningCount--;
         }
@@ -69,6 +77,7 @@
             DeckCards[number] = DeckCards[i];
             DeckCards[i] = TempCard;
         }
+        PlaceCutCard();
         RunningCount = 0;
         TrueCount = 0;
 
@@ -78,16 +87,23 @@
         if (cardsNeeded < 0)
             throw new ArgumentOutOfRangeException(nameof(cardsNeeded));
 
-        if (DeckCards.Count < Math.Max(Rules.ReshuffleThreshold, cardsNeeded))
+        if (CutCardReached || DeckCards.Count < cardsNeeded)
         {
             ShuffleDeck();
         }
     }
-    public Card DealCard()
+    public Card DealCard(bool faceUp = true)
     {
-        CardCounter();
+        if (DeckCards.Count == 0)
+            throw new InvalidOperationException("Leken är tom.");
         Card dealCard = DeckCards[0];
         DeckCards.RemoveAt(0);
+        if (DeckCards.Count <= CutCardPosition)
+            CutCardReached = true;
+        if (faceUp)
+        {
+            CardCounter(dealCard);
+        }
         return dealCard;
     }
     public void ForceRetriveAllCards()

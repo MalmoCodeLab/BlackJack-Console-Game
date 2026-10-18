@@ -55,7 +55,7 @@ class Round
         {
             foreach (Player player in Players)
                 player.ReceiveCard(Deck);
-            Dealer.ReceiveCard(Deck);
+            Dealer.ReceiveCard(Deck, faceUp: cardNumber == 0);
         }
 
         started = true;
@@ -69,6 +69,7 @@ class Round
             throw new InvalidOperationException("This round has already ended.");
 
         Dealer.ShowHoleCard();
+        Deck.CardCounter(Dealer.Hand.CardsOnHand[1]);
         bool anyPlayerStillIn = Players.Exists(player => !player.IsBust);
         if (anyPlayerStillIn)
         {
@@ -95,17 +96,17 @@ class Round
                 Dealer.Score == Hand.BlackjackValue;
 
             if (player.IsBust)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else if ((playerHasNatural && dealerHasThreeCard21) ||
                      (dealerHasNatural && playerHasThreeCard21))
             {
                 if (Rules.NaturalBlackjackBeatsThreeCard21)
-                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Lose;
+                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Loss;
                 else
                     outcome = Outcome.Push;
             }
             else if (dealerHasNatural && !playerHasNatural)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             // A natural blackjack is checked before a dealer bust so it always pays 3:2.
             else if (playerHasNatural && !dealerHasNatural)
                 outcome = Outcome.Blackjack;
@@ -114,7 +115,7 @@ class Round
             else if (player.Score > Dealer.Score)
                 outcome = Outcome.Win;
             else if (player.Score < Dealer.Score)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else
                 outcome = Outcome.Push;
 
