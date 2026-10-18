@@ -219,13 +219,15 @@ public partial class ConsoleUi
                 "KLAR" => "grey",
                 _ => "grey"
             };
-            // One row only: the table height stays unchanged.
+            // Show only the current bet below the active player's cards.
+            // Keep the same row so the table height stays unchanged.
             if (index == activeIndex && index >= 0 && index < players.Count)
             {
                 Player current = players[index];
+                string bet = $"INSATS: {current.CurrentBet}";
                 status = string.IsNullOrEmpty(status)
-                    ? $"{current.Chips} MARKER KVAR"
-                    : $"{status} · {current.Chips} MARKER KVAR";
+                    ? bet
+                    : $"{status} · {bet}";
                 style = "bold gold1";
             }
             if (status.Length > width) status = status[..width];
@@ -277,8 +279,8 @@ public partial class ConsoleUi
             "STANNAT" => "bold white",
             _ => "grey"
         };
-        // Preserve the existing status while showing the live remaining balance.
-        string chipsLine = $"{status}   KVAR: {player.Chips} MARKER   INSATS: {player.CurrentBet}".Trim();
+        // Show the current bet, not the remaining balance.
+        string chipsLine = $"{status}   INSATS: {player.CurrentBet}".Trim();
         rows.Add(new Markup(CenterText(Markup.Escape(chipsLine),
             chipsLine.Length, SeatingWidth, "bold gold1")));
         return new Align(new Rows(rows), HorizontalAlignment.Center);
