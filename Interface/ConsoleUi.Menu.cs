@@ -232,7 +232,14 @@ public partial class ConsoleUi
     }
 
     // Shows the menu, saved statistics, live bet and controls on the right.
-    internal Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, bool roundFinished, string[] playerStatuses)
+    internal Panel BuildGameMenu(
+        string[] menuOptions,
+        int selectedOption,
+        List<Player> players,
+        bool sideMenuActive,
+        bool roundFinished,
+        string[] playerStatuses,
+        bool cardsFaceDown)
     {
         var content = new List<Spectre.Console.Rendering.IRenderable>
         {
@@ -255,9 +262,10 @@ public partial class ConsoleUi
             string statusColor = status == "TJOCK" || status == "FÖRLORADE" ? "red" :
                 status == "DIN TUR" || status == "VANN" ? "green1" :
                 status == "OAVGJORT" ? "gold1" : "grey";
+            string score = cardsFaceDown ? "--" : player.Score.ToString();
             content.Add(new Markup(
                 $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
-                $"[gold1]{player.Score.ToString().PadLeft(2)}[/] " +
+                $"[gold1]{score.PadLeft(2)}[/] " +
                 $"[{statusColor}]{Markup.Escape(status.PadLeft(9))}[/]"));
         }
         Player main = players[0];
@@ -293,7 +301,7 @@ public partial class ConsoleUi
             new Markup("[white]Enter[/]  Lägg till marker"),
             new Markup("[white]Mellanslag[/]  Bekräfta insats"),
             new Markup("[white]Backspace[/]  Ta bort marker"),
-            new Markup("[white]I[/]  Öppna inställningar"),
+            new Markup("[white]Inställningar[/]  Ändras från huvudmenyn före spelstart"),
             new Text(""),
             new Align(new Markup("[grey]Tryck Enter för att återgå till spelet.[/]"), HorizontalAlignment.Center)
         };

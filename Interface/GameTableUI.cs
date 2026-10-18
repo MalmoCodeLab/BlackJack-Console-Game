@@ -56,6 +56,7 @@ internal sealed class GameTableUI
         string? notice = $"{players[0].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
         DateTime noticeUntil = DateTime.MinValue;
         statuses[0] = "SATSAR";
+        BettingUI.ResetSelection();
 
         void FinishBetting()
         {
@@ -168,7 +169,14 @@ internal sealed class GameTableUI
                                      key == ConsoleKey.Enter ||
                                      key == ConsoleKey.Backspace)
                             {
+                                int betBefore = bettingPlayer.CurrentBet;
                                 BettingUI.HandleKey(key, bettingPlayer);
+                                if (key == ConsoleKey.Enter &&
+                                    bettingPlayer.CurrentBet == betBefore)
+                                {
+                                    notice =
+                                        $"{bettingPlayer.Name.ToUpperInvariant()}: INTE TILLRÄCKLIGT MED MARKER FÖR {BettingUI.SelectedChipValue} KR. VÄLJ EN LÄGRE MARKER.";
+                                }
                             }
                             else if (key == ConsoleKey.Spacebar)
                             {
@@ -181,6 +189,7 @@ internal sealed class GameTableUI
                                         FinishBetting();
                                     else
                                     {
+                                        BettingUI.ResetSelection();
                                         statuses[currentPlayerIndex] = "SATSAR";
                                         notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
                                     }
@@ -585,7 +594,7 @@ internal sealed class GameTableUI
             new Layout("MenuSpace").Ratio(1));
         layout["MenuContent"].Update(ui.BuildGameMenu(
             GameMessages.InGameMenuOptions, selectedMenuOption,
-            round.Players, sideMenuActive, roundFinished, statuses));
+            round.Players, sideMenuActive, roundFinished, statuses, cardsFaceDown));
         layout["MenuSpace"].Update(new Text(""));
         return layout;
     }

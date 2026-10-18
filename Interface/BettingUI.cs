@@ -17,7 +17,7 @@ public static class BettingUI
         SelectedChip = 0;
     }
 
-    public static IRenderable Create()
+    internal static IRenderable Create(Player player)
     {
         var chips = new Grid();
         for (int i = 0; i < chipValues.Length; i++) chips.AddColumn(new GridColumn().PadRight(2));
@@ -34,7 +34,13 @@ public static class BettingUI
         chips.AddRow(chipRow);
         return new Rows(
             new Align(new Markup("[bold gold1]♠ SPELMARKER ♠[/]"), HorizontalAlignment.Center),
-            new Align(chips, HorizontalAlignment.Center));
+            new Align(chips, HorizontalAlignment.Center),
+            new Align(
+                new Markup(
+                    $"[white]{Markup.Escape(player.Name)} · Saldo: [/]" +
+                    $"[green1]{player.Chips} kr[/]  " +
+                    $"[white]Insats: [/][gold1]{player.CurrentBet} kr[/]"),
+                HorizontalAlignment.Center));
     }
 
     public static IRenderable CreateInfoPanel()
@@ -73,6 +79,10 @@ public static class BettingUI
                 return false;
         }
     }
+
+    public static int SelectedChipValue => chipValues[SelectedChip];
+
+    public static void ResetSelection() => SelectedChip = 0;
 
     public static void Reset() => LoadBalance(1000);
 }

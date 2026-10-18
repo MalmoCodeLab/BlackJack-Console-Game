@@ -69,7 +69,7 @@ public partial class ConsoleUi
         // Both the dealer and current player's large cards use one shared
         // 75-cell seating center, no matter how many players join.
         tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown, activePlayerIndex));
-        tableContent.Add(BettingUI.Create());
+        tableContent.Add(BettingUI.Create(players[activePlayerIndex]));
         var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
         return new Panel(greenTable)
             .Header("[gold1] ♠ BLACKJACK ♠ [/]")
