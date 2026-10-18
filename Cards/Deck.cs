@@ -6,8 +6,8 @@ class Deck
     public List<Hand> ListOfHands { get; } = [];
     public int CutCardPosition { get; private set; }
     public bool CutCardReached { get; private set; }
-    public int RunningCount;
-    public double TrueCount;
+    public int RunningCount {get; private set;}
+    public double TrueCount {get; private set;}
 
     public Deck(RuleSet? rules = null)
     {
