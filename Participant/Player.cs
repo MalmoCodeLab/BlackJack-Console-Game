@@ -35,7 +35,7 @@ class Player : Participant
             case Outcome.Blackjack:
                 Wins++;
                 break;
-            case Outcome.Lose:
+            case Outcome.Loss:
                 Losses++;
                 break;
             case Outcome.Push:
@@ -76,7 +76,7 @@ class Player : Participant
             case Outcome.Push:
                 Chips += CurrentBet;                      // bet back
                 break;
-            case Outcome.Lose:
+            case Outcome.Loss:
                 break;                                    // bet is lost
         }
         RecordResult(outcome);

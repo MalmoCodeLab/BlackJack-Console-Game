@@ -1,7 +1,7 @@
 enum Outcome
 {
     Win,
-    Lose,
+    Loss,
     Push,
     Blackjack
 }

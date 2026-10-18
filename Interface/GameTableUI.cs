@@ -653,7 +653,7 @@ internal sealed class GameTableUI
     private static string OutcomeStatus(Outcome outcome) => outcome switch
     {
         Outcome.Blackjack or Outcome.Win => "VANN",
-        Outcome.Lose => "FÖRLORADE",
+        Outcome.Loss => "FÖRLORADE",
         Outcome.Push => "OAVGJORT",
         _ => "KLAR"
     };
