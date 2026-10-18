@@ -95,17 +95,17 @@ class Round
                 Dealer.Score == Hand.BlackjackValue;
 
             if (player.IsBust)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else if ((playerHasNatural && dealerHasThreeCard21) ||
                      (dealerHasNatural && playerHasThreeCard21))
             {
                 if (Rules.NaturalBlackjackBeatsThreeCard21)
-                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Lose;
+                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Loss;
                 else
                     outcome = Outcome.Push;
             }
             else if (dealerHasNatural && !playerHasNatural)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             // A natural blackjack is checked before a dealer bust so it always pays 3:2.
             else if (playerHasNatural && !dealerHasNatural)
                 outcome = Outcome.Blackjack;
@@ -114,7 +114,7 @@ class Round
             else if (player.Score > Dealer.Score)
                 outcome = Outcome.Win;
             else if (player.Score < Dealer.Score)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else
                 outcome = Outcome.Push;
 
