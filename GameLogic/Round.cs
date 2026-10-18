@@ -55,7 +55,7 @@ class Round
         {
             foreach (Player player in Players)
                 player.ReceiveCard(Deck);
-            Dealer.ReceiveCard(Deck);
+            Dealer.ReceiveCard(Deck, faceUp: cardNumber == 0);
         }
 
         started = true;
@@ -69,6 +69,7 @@ class Round
             throw new InvalidOperationException("This round has already ended.");
 
         Dealer.ShowHoleCard();
+        Deck.CardCounter(Dealer.Hand.CardsOnHand[1]);
         bool anyPlayerStillIn = Players.Exists(player => !player.IsBust);
         if (anyPlayerStillIn)
         {

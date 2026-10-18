@@ -78,7 +78,7 @@ public partial class ConsoleUi
         {
             ("Givare vid mjuk 17", rules.DealerHitsSoft17 ? "Tar kort" : "Stannar"),
             ("Antal kortlekar", rules.DeckCount.ToString()),
-            ("Omblandning", $"Under {rules.ReshuffleThreshold} kort kvar"),
+            ("Blandkor", $"Minst {rules.ReshuffleThreshold} kort kvar"),
             ("Naturlig Blackjack",
                 rules.NaturalBlackjackBeatsThreeCard21 ? "Slår vanlig 21" : "Samma värde som vanlig 21")
         };

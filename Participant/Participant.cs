@@ -15,10 +15,10 @@ abstract class Participant
         Name = name.Trim();
     }
 
-    public void ReceiveCard(Deck deck)
+    public void ReceiveCard(Deck deck, bool faceUp = true)
     {
         ArgumentNullException.ThrowIfNull(deck);
-        Hand.ReceiveCard(deck);
+        Hand.ReceiveCard(deck, faceUp);
     }
 
     public int Score => Hand.Score;
