@@ -12,10 +12,7 @@ public class Game
         rules = RuleSet.LoadFromDefaultLocation(message => notice = message);
         ruleConfigurationNotice = notice;
         playerSessions = new PlayerSessionService(new GameStorage(), ui);
-        gameTable = new GameTableUI(ui)
-        {
-            OpenSettings = () => rules = ui.EditRules(rules)
-        };
+        gameTable = new GameTableUI(ui);
     }
 
     public void Run()
