@@ -244,9 +244,10 @@ public partial class ConsoleUi
         int activePlayerIndex = 0)
     {
         bool menuOpen = sideMenuActive || roundFinished;
-        int terminalWidth = Math.Max(1, Console.WindowWidth);
-        int sidebarWidth = Math.Clamp(terminalWidth / 5, 33, 38);
-        bool useFullScreen = menuOpen && terminalWidth - sidebarWidth < 80;
+        // GameTableUI displays this menu only when Esc has been pressed
+        // (or automatically at round end). Always use the separate full-screen
+        // layout so no menu is shown next to the table during gameplay.
+        bool useFullScreen = menuOpen;
 
         int focusedIndex = players.Count > 0
             ? Math.Clamp(activePlayerIndex, 0, players.Count - 1)

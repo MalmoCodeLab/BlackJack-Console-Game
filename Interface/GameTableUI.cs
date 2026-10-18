@@ -644,20 +644,11 @@ internal sealed class GameTableUI
             return layout;
         }
 
-        // Preserve the full-size card artwork on narrower terminals.
-        // When there is not room for both columns, Esc shows the same
-        // in-game menu as a full-width view instead of squeezing the cards.
-        int menuWidth = Math.Clamp(width / 5, 33, 38);
-        bool showSideMenu = (sideMenuActive || roundFinished) &&
-                            width - menuWidth >= MinimumTableWidth;
-
-        if (showSideMenu)
-        {
-            layout.SplitColumns(
-                new Layout("Table"),
-                new Layout("Menu").Size(menuWidth));
-        }
-        else if (sideMenuActive || roundFinished)
+        // Keep the game table full-width while playing. Esc opens the
+        // game menu as a separate screen, rather than a sidebar beside the table.
+        // The result menu still appears after a completed round so the player
+        // can choose a new round, return to the main menu, or save and quit.
+        if (sideMenuActive || roundFinished)
         {
             layout.Update(ui.BuildGameMenu(
                 GameMessages.InGameMenuOptions, selectedMenuOption,
@@ -666,7 +657,7 @@ internal sealed class GameTableUI
             return layout;
         }
 
-        Layout tableArea = showSideMenu ? layout["Table"] : layout;
+        Layout tableArea = layout;
         int tableHeight = height - ActionPanelHeight;
 
         // Keep these as TWO named layouts. Replacing them with one Rows()
@@ -702,18 +693,6 @@ internal sealed class GameTableUI
             BuildInlinePlayerActions(
                 GameMessages.GameOptions, selectedGameOption,
                 sideMenuActive, roundFinished, bettingMode));
-
-        if (showSideMenu)
-        {
-            layout["Menu"].SplitRows(
-                new Layout("MenuContent").Size(height - 3),
-                new Layout("MenuSpace").Ratio(1));
-            layout["MenuContent"].Update(ui.BuildGameMenu(
-                GameMessages.InGameMenuOptions, selectedMenuOption,
-                round.Players, sideMenuActive, roundFinished, statuses,
-                activePlayerIndex));
-            layout["MenuSpace"].Update(new Text(""));
-        }
 
         return layout;
     }
