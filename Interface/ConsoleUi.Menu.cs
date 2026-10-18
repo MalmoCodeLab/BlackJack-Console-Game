@@ -265,8 +265,15 @@ public partial class ConsoleUi
         content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
         content.Add(new Markup($"[white]Rundor: {main.GamesPlayed}[/]"));
         content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup($"[white]Saldo:[/] [green1]{main.Chips} kr[/]"));
-        content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{main.CurrentBet} kr[/]"));
+        content.Add(new Markup("[grey]SPELARE     SALDO INSATS[/]"));
+        foreach (Player player in players)
+        {
+            string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
+            content.Add(new Markup(
+                $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
+                $"[green1]{player.Chips.ToString().PadLeft(5)}[/] " +
+                $"[gold1]{player.CurrentBet.ToString().PadLeft(6)}[/]"));
+        }
         return new Panel(new Rows(content))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
     }

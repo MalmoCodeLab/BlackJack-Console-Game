@@ -55,7 +55,13 @@ internal sealed class GameTableUI
         bool pendingBlackjackAdvance = false;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
-        string? notice = $"{players[0].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
+        // The message at the top of the table always says whose turn it is.
+        static string BetTurnNotice(Player player) =>
+            $"{player.Name.ToUpperInvariant()} – DIN TUR ATT SATSA: ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
+        static string PlayTurnNotice(Player player) =>
+            $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
+
+        string? notice = BetTurnNotice(players[0]);
         DateTime noticeUntil = DateTime.MinValue;
         statuses[0] = "SATSAR";
 
@@ -65,7 +71,7 @@ internal sealed class GameTableUI
             bettingMode = false;
             currentPlayerIndex = 0;
             selectedGameOption = 0;
-            notice = null;
+            notice = PlayTurnNotice(players[0]);
 
             // Cards were dealt already; revealing them is handled by BuildTable.
             for (int i = 0; i < players.Count; i++)
@@ -99,6 +105,7 @@ internal sealed class GameTableUI
                 }
 
                 statuses[currentPlayerIndex] = "DIN TUR";
+                notice = PlayTurnNotice(nextPlayer);
                 return;
             }
 
@@ -189,7 +196,7 @@ internal sealed class GameTableUI
                                         else
                                         {
                                             statuses[currentPlayerIndex] = "SATSAR";
-                                            notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
+                                            notice = BetTurnNotice(players[currentPlayerIndex]);
                                         }
                                     }
                                     else
