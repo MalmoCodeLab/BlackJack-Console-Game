@@ -71,15 +71,19 @@ public class Game
     private void PlayGame(List<Player> players)
     {
         gameTable.ResetSession();
-        Deck deck = new(rules);
+
+        RuleSet gameRules = rules;
+
+        Deck deck = new(gameRules);
         deck.CreateDeck();
         deck.ShuffleDeck();
-        Dealer dealer = new(rules);
+
+        Dealer dealer = new(gameRules);
         int roundNumber = 1;
 
         while (true)
         {
-            Round round = new(roundNumber++, players, dealer, deck, rules);
+            Round round = new(roundNumber++, players, dealer, deck, gameRules);
             // Deal cards now; the table shows only their backs until betting is confirmed.
             round.StartRound();
             GameTableAction action = gameTable.PlayRound(
