@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <Compile Remove="Test\**\*.cs" />
+    <Compile Remove="Tests\**" />
+    <InternalsVisibleTo Include="Mai26ma-Grupp1-BlackJack.Tests" />
   </ItemGroup>
 
 </Project>

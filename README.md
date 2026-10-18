@@ -60,6 +60,16 @@ results. If the game finds an older `player-results.json` in its current working
 app-data results exist yet, it imports those results into the new location without removing the
 older file. Results are local to one computer and are not automatically synchronized.
 
+## Tests
+
+The house rules are covered by xUnit tests in the `Tests` folder (missing or invalid rules
+file, dealer on soft 17, number of decks, reshuffle threshold, and natural 21 versus a
+three-card 21). Run them from the project directory with:
+
+```text
+dotnet test Tests
+```
+
 ## Language
 
 Class, method, and variable names are in English. Console prompts and messages are currently in
