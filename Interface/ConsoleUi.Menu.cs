@@ -231,72 +231,202 @@ public partial class ConsoleUi
             .Expand();
     }
 
-    // Shows the menu, saved statistics, live bet and controls on the right.
-    internal Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, bool roundFinished, string[] playerStatuses, int activePlayerIndex = 0)
+    // Builds the in-game menu in two responsive layouts.
+    // A compact sidebar is used when the table has enough horizontal space;
+    // otherwise the menu opens as a centered, two-column screen.
+    internal Panel BuildGameMenu(
+        string[] menuOptions,
+        int selectedOption,
+        List<Player> players,
+        bool sideMenuActive,
+        bool roundFinished,
+        string[] playerStatuses,
+        int activePlayerIndex = 0)
     {
-        var content = new List<Spectre.Console.Rendering.IRenderable>();
+        bool menuOpen = sideMenuActive || roundFinished;
+        int terminalWidth = Math.Max(1, Console.WindowWidth);
+        int sidebarWidth = Math.Clamp(terminalWidth / 5, 33, 38);
+        bool useFullScreen = menuOpen && terminalWidth - sidebarWidth < 80;
 
-        // Show choices only when the user opens the menu with Up,
-        // or automatically when the round has ended.
-        if (sideMenuActive || roundFinished)
+        int focusedIndex = players.Count > 0
+            ? Math.Clamp(activePlayerIndex, 0, players.Count - 1)
+            : 0;
+
+        // Use the full-width menu only when GameTableUI also switches from
+        // sidebar to overlay. The input handling remains in GameTableUI.
+        if (useFullScreen)
         {
-            content.Add(new Align(
-                new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
-                HorizontalAlignment.Center));
+            var actionRows = new List<IRenderable>
+            {
+                new Align(new Markup("[bold gold1]VÄLJ HANDLING[/]"),
+                    HorizontalAlignment.Center),
+                new Text("")
+            };
 
             for (int i = 0; i < menuOptions.Length; i++)
             {
-                string label = Markup.Escape(menuOptions[i]);
-                content.Add(new Markup(i == selectedOption
-                    ? $"[bold white on #961923] ❯ {label} [/]"
-                    : $"[white]   {label}[/]"));
+                string option = Markup.Escape(menuOptions[i]);
+                string line = i == selectedOption
+                    ? $"[bold white on #961923] ❯ {option.PadRight(23)} [/]"
+                    : $"[white]   {option}[/]";
+                actionRows.Add(new Markup(line));
+            }
+
+            actionRows.Add(new Text(""));
+            actionRows.Add(new Rule().RuleStyle(Color.Gold1));
+            actionRows.Add(new Align(new Markup("[grey]↑ ↓  Navigera[/]"),
+                HorizontalAlignment.Center));
+            actionRows.Add(new Align(new Markup(roundFinished
+                    ? "[grey]Enter  Välj[/]"
+                    : "[grey]Enter  Välj  •  Esc  Tillbaka[/]"),
+                HorizontalAlignment.Center));
+
+            var actionPanel = new Panel(new Rows(actionRows))
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Gold1)
+                .Padding(1, 0, 1, 0);
+
+            var infoRows = BuildGameMenuInformation(players, playerStatuses,
+                focusedIndex, compact: false);
+            infoRows.Insert(0, new Align(
+                new Markup("[bold gold1]SPELARÖVERSIKT[/]"),
+                HorizontalAlignment.Center));
+            var infoPanel = new Panel(new Rows(infoRows))
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Gold1)
+                .Padding(1, 0, 1, 0);
+
+            var columns = new Grid();
+            columns.AddColumn(new GridColumn().NoWrap());
+            columns.AddColumn(new GridColumn().NoWrap());
+            columns.AddColumn(new GridColumn().NoWrap());
+            columns.AddRow(actionPanel, new Text("   "), infoPanel);
+
+            var main = new Rows(
+                new Align(new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
+                    HorizontalAlignment.Center),
+                new Align(new Markup("[grey]BLACKJACK 21[/]"),
+                    HorizontalAlignment.Center),
+                new Text(""),
+                new Align(columns, HorizontalAlignment.Center));
+
+            // Center the menu vertically instead of leaving a large empty area
+            // below the content. The outer gold border still fills the screen.
+            int innerHeight = Math.Max(1, Console.WindowHeight - 2);
+            return new Panel(new Align(main,
+                    HorizontalAlignment.Center, VerticalAlignment.Middle)
+                    .Height(innerHeight))
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Gold1)
+                .Expand();
+        }
+
+        // Sidebar: compact enough for the 33–38 character menu column.
+        // Keep all player scores and bets visible for 1–5 players.
+        var sidebarRows = new List<IRenderable>
+        {
+            new Align(new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
+                HorizontalAlignment.Center)
+        };
+
+        if (menuOpen)
+        {
+            sidebarRows.Add(new Align(new Markup("[grey]VÄLJ HANDLING[/]"),
+                HorizontalAlignment.Center));
+            for (int i = 0; i < menuOptions.Length; i++)
+            {
+                string option = Markup.Escape(menuOptions[i]);
+                sidebarRows.Add(new Markup(i == selectedOption
+                    ? $"[bold white on #961923] ❯ {option} [/]"
+                    : $"[white]   {option}[/]"));
             }
         }
         else
         {
-            content.Add(new Align(new Markup("[grey]↑ Öppna spelmenyn[/]"),
+            sidebarRows.Add(new Align(new Markup("[grey]Esc  Öppna spelmenyn[/]"),
                 HorizontalAlignment.Center));
         }
-        content.Add(new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup("[grey]SPELARE     P   RESULTAT[/]"));
-        for (int i = 0; i < players.Count; i++)
-        {
-            Player player = players[i];
-            string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
-            string status = playerStatuses[i];
-            string statusColor = status == "TJOCK" || status == "FÖRLORADE" ? "red" :
-                status == "DIN TUR" || status == "VANN" ? "green1" :
-                status == "OAVGJORT" ? "gold1" : "grey";
-            content.Add(new Markup(
-                $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
-                $"[gold1]{player.Score.ToString().PadLeft(2)}[/] " +
-                $"[{statusColor}]{Markup.Escape(status.PadLeft(9))}[/]"));
-        }
-        Player main = players[0];
-        content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
-        content.Add(new Markup($"[white]Rundor: {main.GamesPlayed}[/]"));
-        // Each player has their own balance and current bet. Highlight the
-        // current player rather than always showing player one's markers.
-        int focusedIndex = Math.Clamp(activePlayerIndex, 0, players.Count - 1);
-        content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        // Show each player's balance and bet, with the active player highlighted.
-        content.Add(new Markup("[grey]SPELARE      SALDO INSATS[/]"));
-        for (int i = 0; i < players.Count; i++)
-        {
-            Player player = players[i];
-            string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
-            string selected = i == focusedIndex ? "[bold gold1]❯[/]" : " ";
-            string textStyle = i == focusedIndex ? "bold white" : "grey";
 
-            content.Add(new Markup(
-                $"{selected}[{textStyle}]{Markup.Escape(name.PadRight(10))}[/] " +
+        sidebarRows.AddRange(BuildGameMenuInformation(players, playerStatuses,
+            focusedIndex, compact: true));
+
+        if (menuOpen)
+            sidebarRows.Add(new Align(new Markup(roundFinished
+                    ? "[grey]↑ ↓  Enter[/]"
+                    : "[grey]↑ ↓  Enter  Esc[/]"),
+                HorizontalAlignment.Center));
+
+        return new Panel(new Rows(sidebarRows))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Padding(1, 0, 1, 0)
+            .Expand();
+    }
+
+    // Shared score/statistics/chip rendering so narrow and wide menus show
+    // exactly the same game state without touching betting or round logic.
+    private List<IRenderable> BuildGameMenuInformation(
+        List<Player> players,
+        string[] playerStatuses,
+        int focusedIndex,
+        bool compact)
+    {
+        var rows = new List<IRenderable>
+        {
+            new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1),
+            new Markup("[grey]SPELARE     P  RESULTAT[/]")
+        };
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player player = players[i];
+            string name = player.Name.Length > 10
+                ? player.Name[..9] + "…" : player.Name;
+            string status = i < playerStatuses.Length ? playerStatuses[i] : "";
+            string statusColor = status switch
+            {
+                "TJOCK" or "FÖRLORADE" => "red",
+                "DIN TUR" or "VANN" => "green1",
+                "SATSAR" => "gold1",
+                "SATSAT" => "green1",
+                "OAVGJORT" or "BLACKJACK" => "gold1",
+                _ => "grey"
+            };
+            string visibleStatus = status.Length > 9 ? status[..9] : status;
+            rows.Add(new Markup(
+                $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
+                $"[gold1]{player.Score.ToString().PadLeft(2)}[/]  " +
+                $"[{statusColor}]{Markup.Escape(visibleStatus)}[/]"));
+        }
+
+        rows.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
+        if (players.Count > 0)
+        {
+            Player main = players[0];
+            rows.Add(new Markup(
+                $"[green1]V: {main.Wins}[/]  " +
+                $"[red]F: {main.Losses}[/]  " +
+                $"[gold1]O: {main.Pushes}[/]"));
+            if (!compact)
+                rows.Add(new Markup($"[grey]Rundor: {main.GamesPlayed}[/]"));
+        }
+
+        rows.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
+        rows.Add(new Markup("[grey]SPELARE      SALDO INSATS[/]"));
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player player = players[i];
+            string name = player.Name.Length > 10
+                ? player.Name[..9] + "…" : player.Name;
+            string selected = i == focusedIndex ? "[bold gold1]❯[/]" : " ";
+            string style = i == focusedIndex ? "bold white" : "grey";
+            rows.Add(new Markup(
+                $"{selected}[{style}]{Markup.Escape(name.PadRight(10))}[/] " +
                 $"[green1]{player.Chips.ToString().PadLeft(5)}[/] " +
                 $"[gold1]{player.CurrentBet.ToString().PadLeft(6)}[/]"));
-
         }
-        return new Panel(new Rows(content))
-            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+
+        return rows;
     }
 
     // Shows controls on a separate screen without changing the current game state.
