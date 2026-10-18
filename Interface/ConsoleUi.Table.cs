@@ -15,13 +15,15 @@ public partial class ConsoleUi
         bool cardsFaceDown = false,
         int? runningCount = null,
         double? trueCount = null,
-        int activePlayerIndex = 0)
+        int activePlayerIndex = 0,
+        bool showEmptyTable = false,
+        int dealerCardsShown = -1,
+        int[]? playerCardsShown = null)
     {
         List<IRenderable> tableContent = new();
         if (notice != null)
         {
             tableContent.Add(new Align(new Markup($"[bold white on #961923]  ★ {Markup.Escape(notice)} ★  [/]"), HorizontalAlignment.Center));
-            tableContent.Add(new Align(new Markup("[gold1]╰──── ♠ BLACKJACK 21 ♠ ────╯[/]"), HorizontalAlignment.Center));
         }
         else if (runningCount.HasValue && trueCount.HasValue)
         {
@@ -43,7 +45,8 @@ public partial class ConsoleUi
         // This prevents the bottom action buttons from being pushed off screen.
         int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
         const int coreRows = 19; // Givare (1), cards (7), players (9), chips (2).
-        int headerRows = notice is not null || !(runningCount.HasValue && trueCount.HasValue) ? 2 : 0;
+        int headerRows = notice is not null ? 1 :
+            (runningCount.HasValue && trueCount.HasValue ? 0 : 2);
         int extraRows = Math.Max(0, innerHeight - coreRows - headerRows);
 
         // The largest gap belongs between the dealer's cards and the players.
@@ -61,14 +64,29 @@ public partial class ConsoleUi
         for (int i = 0; i < dealerCardGap; i++)
             tableContent.Add(new Text(" "));
 
-        AddRenderedCards(tableContent, dealer.Hand.CardsOnHand, !dealer.HoleCardVisible, cardsFaceDown);
+        // During betting the board is empty. During the animated deal, show
+        // only the cards whose turn to appear has arrived. Do not touch hands.
+        if (showEmptyTable || dealerCardsShown == 0)
+        {
+            for (int r = 0; r < 7; r++)
+                tableContent.Add(new Text(" "));
+        }
+        else
+        {
+            List<Card> shownDealerCards = dealerCardsShown < 0
+                ? dealer.Hand.CardsOnHand
+                : dealer.Hand.CardsOnHand.Take(dealerCardsShown).ToList();
+            AddRenderedCards(tableContent, shownDealerCards,
+                !dealer.HoleCardVisible, cardsFaceDown);
+        }
 
         for (int i = 0; i < playerGap; i++)
             tableContent.Add(new Text(" "));
 
         // Both the dealer and current player's large cards use one shared
         // 75-cell seating center, no matter how many players join.
-        tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown, activePlayerIndex));
+        tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown,
+            activePlayerIndex, showEmptyTable, playerCardsShown));
         tableContent.Add(BettingUI.Create());
         var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
         return new Panel(greenTable)
@@ -93,12 +111,15 @@ public partial class ConsoleUi
     private const int SideSeatWidth = 10;
     private const int CenterSeatWidth = 35;
     private const int SeatingWidth = 4 * SideSeatWidth + CenterSeatWidth;
-    private IRenderable BuildPlayerRow(List<Player> players, string[]? playerStatuses, bool cardsFaceDown, int activePlayerIndex)
+    private IRenderable BuildPlayerRow(List<Player> players, string[]? playerStatuses,
+        bool cardsFaceDown, int activePlayerIndex, bool showEmptyTable,
+        int[]? playerCardsShown)
     {
         // In solo mode, center each card line in the same table width as the dealer.
         // The five-seat grid is only needed for multiplayer.
         if (players.Count == 1)
-            return BuildSoloPlayerRow(players[0], playerStatuses, cardsFaceDown);
+            return BuildSoloPlayerRow(players[0], playerStatuses, cardsFaceDown,
+                showEmptyTable, playerCardsShown);
 
         // The player whose turn it is always gets the full-size center seat.
         // All other players use compact cards in the remaining side seats.
@@ -131,20 +152,33 @@ public partial class ConsoleUi
             {
                 Player player = players[index];
                 string name = player.Name.ToUpperInvariant();
-                string handType = cardsFaceDown ? "" : GetHandType(player);
+                bool partiallyDealt = playerCardsShown is not null;
+                string handType = cardsFaceDown || showEmptyTable || partiallyDealt
+                    ? "" : GetHandType(player);
+                List<Card> visibleHand = partiallyDealt && index < playerCardsShown!.Length
+                    ? player.Hand.CardsOnHand.Take(
+                        Math.Max(0, playerCardsShown[index])).ToList()
+                    : player.Hand.CardsOnHand;
                 string label = index == activeIndex && handType.Length > 0 ? $"{name} · {handType}" : name;
                 if (label.Length > width) label = label[..width];
                 lines[0] = CenterText(Markup.Escape(label), label.Length, width, "bold gold1");
                 if (index == activeIndex)
                 {
-                    List<string> fan = BuildFanCardLines(player.Hand.CardsOnHand, cardsFaceDown);
-                    for (int r = 0; r < 7; r++)
-                        lines[r + 1] = CenterMarkup(fan[r], GetFanWidth(player.Hand.CardsOnHand.Count), width);
+                    if (!showEmptyTable && visibleHand.Count > 0)
+                    {
+                        List<string> fan = BuildFanCardLines(visibleHand, cardsFaceDown);
+                        for (int r = 0; r < 7; r++)
+                            lines[r + 1] = CenterMarkup(fan[r], GetFanWidth(visibleHand.Count), width);
+                    }
                 }
                 else
                 {
-                    string cards = BuildCompactCards(player.Hand.CardsOnHand, width, cardsFaceDown);
-                    lines[1] = CenterMarkup(cards, CompactVisibleWidth(player.Hand.CardsOnHand, width, cardsFaceDown), width);
+                    if (!showEmptyTable && visibleHand.Count > 0)
+                    {
+                        string cards = BuildCompactCards(visibleHand, width, cardsFaceDown);
+                        lines[1] = CenterMarkup(cards,
+                            CompactVisibleWidth(visibleHand, width, cardsFaceDown), width);
+                    }
                     if (handType.Length > 0)
                     {
                         string shortType = player.HasBlackjack ? "NATURAL BJ" :
@@ -172,7 +206,6 @@ public partial class ConsoleUi
             string status = playerStatuses != null && index >= 0 && index < players.Count && index < playerStatuses.Length
                 ? playerStatuses[index]
                 : "";
-            if (status.Length > width) status = status[..width];
             string style = status switch
             {
                 "DIN TUR" => "bold black on gold1",
@@ -186,19 +219,31 @@ public partial class ConsoleUi
                 "KLAR" => "grey",
                 _ => "grey"
             };
+            // One row only: the table height stays unchanged.
+            if (index == activeIndex && index >= 0 && index < players.Count)
+            {
+                Player current = players[index];
+                status = string.IsNullOrEmpty(status)
+                    ? $"{current.Chips} MARKER KVAR"
+                    : $"{status} · {current.Chips} MARKER KVAR";
+                style = "bold gold1";
+            }
+            if (status.Length > width) status = status[..width];
             statusRow += CenterText(Markup.Escape(status), status.Length, width, style);
         }
         output.Add(new Markup(statusRow));
 
         return new Align(new Rows(output), HorizontalAlignment.Center);
     }
-    private IRenderable BuildSoloPlayerRow(Player player, string[]? playerStatuses, bool cardsFaceDown)
+    private IRenderable BuildSoloPlayerRow(Player player, string[]? playerStatuses,
+        bool cardsFaceDown, bool showEmptyTable, int[]? playerCardsShown)
     {
         // Both the dealer and the focused player are centered in SeatingWidth.
         // This stays aligned in solo mode and with up to five players.
 
         string name = player.Name.ToUpperInvariant();
-        string handType = cardsFaceDown ? "" : GetHandType(player);
+        string handType = cardsFaceDown || showEmptyTable || playerCardsShown is not null
+            ? "" : GetHandType(player);
         string label = handType.Length > 0 ? $"{name} · {handType}" : name;
 
         List<IRenderable> rows = new()
@@ -206,9 +251,21 @@ public partial class ConsoleUi
             new Markup(CenterText(Markup.Escape(label), label.Length, SeatingWidth, "bold gold1"))
         };
 
-        int cardWidth = GetFanWidth(player.Hand.CardsOnHand.Count);
-        foreach (string line in BuildFanCardLines(player.Hand.CardsOnHand, cardsFaceDown))
-            rows.Add(new Markup(CenterMarkup(line, cardWidth, SeatingWidth)));
+        int shownCount = playerCardsShown is { Length: > 0 }
+            ? Math.Max(0, playerCardsShown[0])
+            : player.Hand.CardsOnHand.Count;
+        List<Card> visibleHand = player.Hand.CardsOnHand.Take(shownCount).ToList();
+        if (showEmptyTable || visibleHand.Count == 0)
+        {
+            for (int row = 0; row < 7; row++)
+                rows.Add(new Text(" "));
+        }
+        else
+        {
+            int cardWidth = GetFanWidth(visibleHand.Count);
+            foreach (string line in BuildFanCardLines(visibleHand, cardsFaceDown))
+                rows.Add(new Markup(CenterMarkup(line, cardWidth, SeatingWidth)));
+        }
 
         string status = playerStatuses is { Length: > 0 } ? playerStatuses[0] : "";
         string style = status switch
@@ -220,7 +277,10 @@ public partial class ConsoleUi
             "STANNAT" => "bold white",
             _ => "grey"
         };
-        rows.Add(new Markup(CenterText(Markup.Escape(status), status.Length, SeatingWidth, style)));
+        // Preserve the existing status while showing the live remaining balance.
+        string chipsLine = $"{status}   KVAR: {player.Chips} MARKER   INSATS: {player.CurrentBet}".Trim();
+        rows.Add(new Markup(CenterText(Markup.Escape(chipsLine),
+            chipsLine.Length, SeatingWidth, "bold gold1")));
         return new Align(new Rows(rows), HorizontalAlignment.Center);
     }
 
@@ -345,6 +405,13 @@ public partial class ConsoleUi
         };
         return $"[{color} on white]{text}[/]";
     }
+    // Kept for compatibility with a previous Game.cs version.
+    // The screen is now rendered only by GameTableUI during betting.
+    internal void ShowEmptyTableBeforeDeal(List<Player> players, Dealer dealer)
+    {
+        // No standalone screen; avoids the earlier terminal conflict.
+    }
+
     internal void ShowBlackjackTable(List<Player> players, Dealer dealer)
     {
         AnsiConsole.Write(BuildBlackjackTable(players, dealer));

@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 internal enum GameTableAction
 {
@@ -80,17 +81,60 @@ internal sealed class GameTableUI
                 activePlayerIndex: currentPlayerIndex));
         }
 
+        // Renders the already-dealt hands gradually. Round.StartRound has
+        // created the cards before PlayRound; this does NOT deal again.
+        void AnimateInitialDeal()
+        {
+            int[] visiblePlayers = new int[players.Count];
+            int visibleDealer = 0;
+
+            void DrawDealFrame()
+            {
+                DrawTable(BuildTable(
+                    round, statuses, "GIVAREN DELAR UT KORTEN...",
+                    selectedGameOption, selectedMenuOption,
+                    sideMenuActive: false, roundFinished: false,
+                    bettingMode: false, cardsFaceDown: false,
+                    activePlayerIndex: 0,
+                    dealerCardsShown: visibleDealer,
+                    playerCardsShown: visiblePlayers));
+                Thread.Sleep(220);
+            }
+
+            // First frame: table with no cards at all.
+            DrawDealFrame();
+
+            // Order: each player, dealer, each player, dealer.
+            for (int card = 0; card < 2; card++)
+            {
+                for (int i = 0; i < players.Count; i++)
+                {
+                    if (players[i].Hand.CardsOnHand.Count > card)
+                    {
+                        visiblePlayers[i]++;
+                        DrawDealFrame();
+                    }
+                }
+                if (round.Dealer.Hand.CardsOnHand.Count > card)
+                {
+                    visibleDealer++;
+                    DrawDealFrame();
+                }
+            }
+        }
+
         void FinishBetting()
         {
-            betsComplete = true;
             bettingMode = false;
             currentPlayerIndex = 0;
             selectedGameOption = 0;
             notice = PlayTurnNotice(players[0]);
 
-            // Cards have already been dealt; the UI reveals them after betting.
+            // No actual card-hand changes: reveal their existing hands in order.
             for (int i = 0; i < players.Count; i++)
                 statuses[i] = "VÄNTAR";
+            AnimateInitialDeal();
+            betsComplete = true;
 
             pendingBlackjackAdvance = players[0].HasBlackjack;
             statuses[0] = pendingBlackjackAdvance ? "BLACKJACK" : "DIN TUR";
@@ -558,7 +602,7 @@ internal sealed class GameTableUI
     // would cut off cards or the action buttons.
     private const int MinimumTableWidth = 80;
     private const int MinimumTerminalHeight = 26;
-    private const int ActionPanelHeight = 3;
+    private const int ActionPanelHeight = 2;
 
     private static bool TerminalTooSmall =>
         Console.WindowWidth < MinimumTableWidth ||
@@ -574,14 +618,16 @@ internal sealed class GameTableUI
         bool roundFinished,
         bool bettingMode,
         bool cardsFaceDown = false,
-        int activePlayerIndex = 0)
+        int activePlayerIndex = 0,
+        int dealerCardsShown = -1,
+        int[]? playerCardsShown = null)
     {
         // The same game state is rendered again when the VS Code terminal
         // changes size. This does not reset bets, cards, or menu selection.
         rebuildLastTable = () => BuildTable(
             round, statuses, notice, selectedGameOption, selectedMenuOption,
             sideMenuActive, roundFinished, bettingMode, cardsFaceDown,
-            activePlayerIndex);
+            activePlayerIndex, dealerCardsShown, playerCardsShown);
 
         int width = Math.Max(1, Console.WindowWidth);
         int height = Math.Max(1, Console.WindowHeight);
@@ -633,17 +679,27 @@ internal sealed class GameTableUI
             lowestCardsRemaining = Math.Min(
                 lowestCardsRemaining, round.Deck.DeckCards.Count);
 
-        visibleCardCounter.Observe(
-            round.Deck, round.Players, round.Dealer, cardsFaceDown);
+        // An animation frame does not count cards that have not appeared yet.
+        if (playerCardsShown is null)
+            visibleCardCounter.Observe(
+                round.Deck, round.Players, round.Dealer, cardsFaceDown);
 
+        // Join the lower corners of the table to the footer borders.
+        // The divider and both side borders now form one continuous frame.
         tableArea["BlackjackTable"].Update(
-            ui.BuildBlackjackTable(
+            new ConnectedTableBorder(ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses,
                 cardsFaceDown, visibleCardCounter.RunningCount,
-                visibleCardCounter.TrueCount, activePlayerIndex));
+                visibleCardCounter.TrueCount, activePlayerIndex,
+                showEmptyTable: bettingMode && playerCardsShown is null,
+                dealerCardsShown: dealerCardsShown,
+                playerCardsShown: playerCardsShown)));
 
+        // Render the action buttons WITHOUT a separate Panel top border.
+        // Row 1 holds the buttons immediately below the table frame;
+        // row 2 is a gold bottom rule. No blank row separates them.
         tableArea["PlayerActions"].Update(
-            ui.BuildPlayerActions(
+            BuildInlinePlayerActions(
                 GameMessages.GameOptions, selectedGameOption,
                 sideMenuActive, roundFinished, bettingMode));
 
@@ -660,6 +716,158 @@ internal sealed class GameTableUI
         }
 
         return layout;
+    }
+
+    // Spectre draws every Panel with rounded bottom corners. The player
+    // actions continue immediately below it, so join those corners to the
+    // footer instead of closing the frame before the buttons.
+    // This changes only the border's final row (never card data or input).
+    private sealed class ConnectedTableBorder : Renderable
+    {
+        private readonly IRenderable table;
+
+        public ConnectedTableBorder(IRenderable table)
+        {
+            this.table = table;
+        }
+
+        protected override Measurement Measure(RenderOptions options, int maxWidth) =>
+            table.Measure(options, maxWidth);
+
+        protected override IEnumerable<Segment> Render(RenderOptions options, int maxWidth)
+        {
+            List<Segment> segments = table.Render(options, maxWidth).ToList();
+            int startOfLine = 0;
+            int bottomStart = -1;
+            int bottomEnd = -1;
+
+            for (int i = 0; i <= segments.Count; i++)
+            {
+                if (i < segments.Count && !segments[i].IsLineBreak)
+                    continue;
+
+                bool leftCorner = false;
+                bool rightCorner = false;
+                for (int j = startOfLine; j < i; j++)
+                {
+                    leftCorner |= segments[j].Text.Contains('╰');
+                    rightCorner |= segments[j].Text.Contains('╯');
+                }
+
+                if (leftCorner && rightCorner)
+                {
+                    bottomStart = startOfLine;
+                    bottomEnd = i;
+                }
+                startOfLine = i + 1;
+            }
+
+            for (int i = 0; i < segments.Count; i++)
+            {
+                Segment segment = segments[i];
+                if (i >= bottomStart && i < bottomEnd && !segment.IsLineBreak)
+                {
+                    string joined = segment.Text.Replace('╰', '├').Replace('╯', '┤');
+                    yield return new Segment(joined, segment.Style);
+                }
+                else
+                {
+                    yield return segment;
+                }
+            }
+        }
+    }
+
+    // Two-row footer: side borders around the actions and a bottom border.
+    // No top border, so it stays flush with the Blackjack table above.
+    private static IRenderable BuildInlinePlayerActions(
+        string[] options,
+        int selectedOption,
+        bool sideMenuActive,
+        bool roundFinished,
+        bool bettingMode)
+    {
+        var buttons = new IRenderable[options.Length];
+        for (int i = 0; i < options.Length; i++)
+        {
+            string label = Markup.Escape(options[i]);
+            bool selected = !sideMenuActive && !roundFinished &&
+                            i == selectedOption && !(bettingMode && i == 0);
+
+            if (i == 0 && !roundFinished && bettingMode)
+            {
+                buttons[i] = new Markup($"[grey]   {label}[/]");
+                continue;
+            }
+
+            string highlight = i == 0 && !roundFinished
+                ? "bold white on green3"
+                : bettingMode && i == 2
+                    ? "bold black on gold1"
+                    : "bold white on #961923";
+            buttons[i] = new Markup(selected
+                ? $"[{highlight}] ❯ {label} [/]"
+                : $"[white]   {label}[/]");
+        }
+
+        return new CompactActionFooter(buttons);
+    }
+
+    // Draw one action row and one lower gold border, while keeping the
+    // left and right borders. Distribute the actions evenly across the width.
+    // Unlike Panel this renderable does not add a third (top-border) row.
+    private sealed class CompactActionFooter : Renderable
+    {
+        private readonly IRenderable[] buttons;
+
+        public CompactActionFooter(IRenderable[] buttons)
+        {
+            this.buttons = buttons;
+        }
+
+        protected override Measurement Measure(RenderOptions options, int maxWidth) =>
+            new Measurement(maxWidth, maxWidth);
+
+        protected override IEnumerable<Segment> Render(RenderOptions options, int maxWidth)
+        {
+            int width = Math.Max(2, maxWidth);
+            int available = width - 2;
+            var gold = new Style(foreground: Color.Gold1);
+
+            yield return new Segment("│", gold);
+
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                // Allocate a third of the space to each button (or an equal
+                // share if the number of actions changes in the future).
+                int from = available * i / buttons.Length;
+                int to = available * (i + 1) / buttons.Length;
+                int cellWidth = to - from;
+
+                var segments = new List<Segment>();
+                int contentWidth = 0;
+                foreach (Segment segment in buttons[i].Render(options, cellWidth))
+                {
+                    if (segment.IsLineBreak)
+                        break;
+                    segments.Add(segment);
+                    contentWidth += segment.CellCount();
+                }
+
+                int leftPadding = Math.Max(0, (cellWidth - contentWidth) / 2);
+                int rightPadding = Math.Max(0, cellWidth - contentWidth - leftPadding);
+                if (leftPadding > 0)
+                    yield return new Segment(new string(' ', leftPadding));
+                foreach (Segment segment in segments)
+                    yield return segment;
+                if (rightPadding > 0)
+                    yield return new Segment(new string(' ', rightPadding));
+            }
+
+            yield return new Segment("│", gold);
+            yield return Segment.LineBreak;
+            yield return new Segment("╰" + new string('─', available) + "╯", gold);
+        }
     }
 
     private ConsoleKey ReadTableKey(int timeoutMs = -1)

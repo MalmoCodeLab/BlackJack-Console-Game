@@ -234,16 +234,28 @@ public partial class ConsoleUi
     // Shows the menu, saved statistics, live bet and controls on the right.
     internal Panel BuildGameMenu(string[] menuOptions, int selectedOption, List<Player> players, bool sideMenuActive, bool roundFinished, string[] playerStatuses, int activePlayerIndex = 0)
     {
-        var content = new List<Spectre.Console.Rendering.IRenderable>
+        var content = new List<Spectre.Console.Rendering.IRenderable>();
+
+        // Show choices only when the user opens the menu with Up,
+        // or automatically when the round has ended.
+        if (sideMenuActive || roundFinished)
         {
-            new Align(new Markup(GameMessages.GameMenuTitleMarkup), HorizontalAlignment.Center)
-        };
-        for (int i = 0; i < menuOptions.Length; i++)
+            content.Add(new Align(
+                new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
+                HorizontalAlignment.Center));
+
+            for (int i = 0; i < menuOptions.Length; i++)
+            {
+                string label = Markup.Escape(menuOptions[i]);
+                content.Add(new Markup(i == selectedOption
+                    ? $"[bold white on #961923] ❯ {label} [/]"
+                    : $"[white]   {label}[/]"));
+            }
+        }
+        else
         {
-            string label = Markup.Escape(menuOptions[i]);
-            content.Add(new Markup((sideMenuActive || roundFinished) && i == selectedOption
-                ? $"[bold white on #961923] ❯ {label} [/]"
-                : $"[white]   {label}[/]"));
+            content.Add(new Align(new Markup("[grey]↑ Öppna spelmenyn[/]"),
+                HorizontalAlignment.Center));
         }
         content.Add(new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1));
         content.Add(new Markup("[grey]SPELARE     P   RESULTAT[/]"));
