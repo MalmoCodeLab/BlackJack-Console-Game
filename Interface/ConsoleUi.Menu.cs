@@ -55,21 +55,44 @@ public partial class ConsoleUi
         return playerCount;
     }
 
+    // Keep the full-screen menus away from the shell's scrollback buffer.
+    // GameTableUI uses a separate alternate screen for gameplay as well.
+    private static void EnterMenuScreen()
+    {
+        Console.Write("\u001b[0m\u001b[?1049h\u001b[?25l\u001b[2J\u001b[H");
+        Console.Out.Flush();
+    }
+
+    private static void LeaveMenuScreen()
+    {
+        Console.Write("\u001b[0m\u001b[?25h\u001b[?1049l");
+        Console.Out.Flush();
+    }
+
+    // Only clear when transitioning between views or on a resize.
+    // Do not clear for each arrow key; that makes the menus flash.
+    private static void ClearMenuTransition()
+    {
+        Console.Write("\u001b[0m\u001b[?25l\u001b[2J\u001b[H");
+        Console.Out.Flush();
+    }
+
     // Shows a menu screen in the middle of the window and redraws it when the
     // window changes size. handleKey returns true when the menu should close.
     private void RunScreen(Func<IRenderable> build, Func<ConsoleKey, bool> handleKey)
     {
-        int shownWidth = -1;
-        int shownHeight = -1;
+        int shownWidth = Math.Max(1, Console.WindowWidth);
+        int shownHeight = Math.Max(1, Console.WindowHeight);
 
         void Draw()
         {
-            // Fill the whole window so nothing old is left on the screen.
-            int height = Math.Max(1, Console.WindowHeight);
+            // Reserve two rows so the Spectre renderer cannot scroll the buffer
+            // when it writes its final newline.
+            int height = Math.Max(1, Console.WindowHeight - 2);
             var screen = new Align(build(), HorizontalAlignment.Center, VerticalAlignment.Middle)
                 .Height(height);
-            Console.Write("\u001b[H\u001b[?25l");
-            int windowHeight = AnsiConsole.Profile.Height;
+            Console.Write("\u001b[0m\u001b[H\u001b[?25l");
+            int previousHeight = AnsiConsole.Profile.Height;
             AnsiConsole.Profile.Height = height;
             try
             {
@@ -77,24 +100,25 @@ public partial class ConsoleUi
             }
             finally
             {
-                AnsiConsole.Profile.Height = windowHeight;
+                AnsiConsole.Profile.Height = previousHeight;
                 Console.Out.Flush();
             }
         }
 
-        // Stay on the same screen as the other menus; switching screens made
-        // the terminal flash black between the menus.
-        Console.Write("\u001b[?25l");
+        // Keep navigation on an isolated terminal screen. This prevents
+        // fragments of previous menus being mixed into the name prompt.
+        EnterMenuScreen();
         try
         {
+            Draw();
             while (true)
             {
-                // Redraw from scratch when the window is resized.
+                // A resize can leave remnants at old positions; clear only then.
                 if (Console.WindowWidth != shownWidth || Console.WindowHeight != shownHeight)
                 {
-                    shownWidth = Console.WindowWidth;
-                    shownHeight = Console.WindowHeight;
-                    Console.Write("\u001b[2J");
+                    shownWidth = Math.Max(1, Console.WindowWidth);
+                    shownHeight = Math.Max(1, Console.WindowHeight);
+                    ClearMenuTransition();
                     Draw();
                 }
 
@@ -111,7 +135,7 @@ public partial class ConsoleUi
         }
         finally
         {
-            Console.Out.Flush();
+            LeaveMenuScreen();
         }
     }
 
@@ -433,7 +457,7 @@ public partial class ConsoleUi
     // Shows controls on a separate screen without changing the current game state.
     public void ShowGameControls()
     {
-        AnsiConsole.Clear();
+        ClearMenuTransition();
 
         var rows = new List<IRenderable>
         {
@@ -462,7 +486,7 @@ public partial class ConsoleUi
         while (Console.ReadKey(true).Key != ConsoleKey.Enter)
         {
         }
-        AnsiConsole.Clear();
+        ClearMenuTransition();
     }
 
     // Returns null if the player presses Esc.
@@ -483,10 +507,12 @@ public partial class ConsoleUi
             Console.Write("\u001b[?25l");
         }
 
-        // Hide the cursor before the first clear and keep it hidden afterwards.
+        // The name prompt must not share scrollback with the previous menu.
+        // It also uses cursor-positioning commands, so isolate its screen.
+        EnterMenuScreen();
         HideInputCursor();
-        AnsiConsole.Clear();
-        HideInputCursor();
+        int previousPromptWidth = Math.Max(1, Console.WindowWidth);
+        int previousPromptHeight = Math.Max(1, Console.WindowHeight);
 
         try
         {
@@ -494,6 +520,14 @@ public partial class ConsoleUi
             {
                 int width = Math.Max(1, Console.WindowWidth);
                 int height = Math.Max(1, Console.WindowHeight);
+                // The prompt moves on resize; remove it from its old position.
+                if (width != previousPromptWidth || height != previousPromptHeight)
+                {
+                    previousPromptWidth = width;
+                    previousPromptHeight = height;
+                    ClearMenuTransition();
+                    HideInputCursor();
+                }
                 string prompt = $"Ange namn för spelare {playerNumber}:";
                 int top = Math.Max(0, height / 2 - 2);
                 int left = Math.Max(0, (width - 44) / 2);
@@ -553,8 +587,14 @@ public partial class ConsoleUi
         }
         finally
         {
-            // The menus also use a hidden cursor.
-            HideInputCursor();
+            LeaveMenuScreen();
+            try
+            {
+                if (!Console.IsOutputRedirected)
+                    Console.CursorVisible = true;
+            }
+            catch (IOException) { }
+            catch (PlatformNotSupportedException) { }
         }
     }
 
