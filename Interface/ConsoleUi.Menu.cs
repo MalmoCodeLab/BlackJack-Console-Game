@@ -94,7 +94,7 @@ public partial class ConsoleUi
                 {
                     shownWidth = Console.WindowWidth;
                     shownHeight = Console.WindowHeight;
-                    Console.Write("\u001b[2J");
+                   Console.Write("\u001b[H\u001b[2J\u001b[3J");
                     Draw();
                 }
 

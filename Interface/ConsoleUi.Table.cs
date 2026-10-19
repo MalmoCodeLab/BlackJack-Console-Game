@@ -79,7 +79,7 @@ public partial class ConsoleUi
     }
     private static string GetHandType(Player player)
     {
-        if (player.Score != 21) return "";
+        if (player.Score != Player.BlackjackValue) return "";
         if (player.HasBlackjack) return "NATURAL BLACKJACK";
         int total = 0, aces = 0;
         foreach (Card card in player.Hand.CardsOnHand)
@@ -87,7 +87,7 @@ public partial class ConsoleUi
             total += card.IndividualCardValue(card);
             if (card.Rank == Rank.Ace) aces++;
         }
-        while (total > 21 && aces > 0) { total -= 10; aces--; }
+        while (total > Player.BlackjackValue && aces > 0) { total -= 10; aces--; }
         return aces > 0 ? "MJUK BLACKJACK" : "HÅRD BLACKJACK";
     }
     private const int SideSeatWidth = 10;
