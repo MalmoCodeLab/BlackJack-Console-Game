@@ -8,6 +8,7 @@ class Player : Participant
 
     public int Chips { get; private set; }
     public int CurrentBet { get; private set; }
+    public int InsuranceBet { get; private set; }
     public bool IsOutOfChips => Chips <= 0;
 
     public int GamesPlayed => Wins + Losses + Pushes;
@@ -81,5 +82,24 @@ class Player : Participant
         }
         RecordResult(outcome);
         CurrentBet = 0;
+    }
+    // Insurance costs half the bet. Returns false if the player cannot afford it.
+    public bool TryTakeInsurance()
+    {
+        int amount = CurrentBet / 2;
+        if (amount <= 0 || amount > Chips || InsuranceBet > 0)
+            return false;
+
+        Chips -= amount;
+        InsuranceBet = amount;
+        return true;
+    }
+
+    // Pays 2:1 if the dealer has blackjack, otherwise the insurance is lost.
+    public void SettleInsurance(bool dealerHasBlackjack)
+    {
+        if (dealerHasBlackjack)
+            Chips += InsuranceBet * 3; // insurance back + 2:1
+        InsuranceBet = 0;
     }
 }

@@ -119,6 +119,9 @@ class Round
             else
                 outcome = Outcome.Push;
 
+            player.SettleInsurance(dealerHasNatural);
+            player.SettleBet(outcome);
+            outcomes[player] = outcome;
             player.SettleBet(outcome);
             outcomes[player] = outcome;
         }
