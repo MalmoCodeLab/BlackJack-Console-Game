@@ -42,7 +42,7 @@ internal static class GameMessages
 
     internal static readonly string[] GameOptions =
     {
-        "♥ Ta kort",
+        "♥ Köp kort",
         "♠ Stanna",
         "♦ Satsa"
     };
