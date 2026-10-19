@@ -297,7 +297,7 @@ public partial class ConsoleUi
             return result;
         }
         CardRenderer renderer = new();
-        int start = Math.Max(0, cards.Count - 5);
+        int start = Math.Max(0, cards.Count - 10);
         List<string[]> rendered = new();
         for (int i = start; i < cards.Count; i++)
             rendered.Add(cardsFaceDown ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));

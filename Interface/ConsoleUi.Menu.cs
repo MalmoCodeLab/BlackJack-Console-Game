@@ -245,25 +245,17 @@ public partial class ConsoleUi
                 ? $"[bold white on #961923] ❯ {label} [/]"
                 : $"[white]   {label}[/]"));
         }
-        content.Add(new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup("[grey]SPELARE     P   RESULTAT[/]"));
-        for (int i = 0; i < players.Count; i++)
-        {
-            Player player = players[i];
-            string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
-            string status = playerStatuses[i];
-            string statusColor = status == "TJOCK" || status == "FÖRLORADE" ? "red" :
-                status == "DIN TUR" || status == "VANN" ? "green1" :
-                status == "OAVGJORT" ? "gold1" : "grey";
-            content.Add(new Markup(
-                $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
-                $"[gold1]{player.Score.ToString().PadLeft(2)}[/] " +
-                $"[{statusColor}]{Markup.Escape(status.PadLeft(9))}[/]"));
-        }
-        Player main = players[0];
+        
         content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
-        content.Add(new Markup($"[white]Rundor: {main.GamesPlayed}[/]"));
+        foreach (Player player in players)
+        {
+        content.Add(new Markup($"[bold]{Markup.Escape(player.Name)}[/]"));
+        content.Add(new Markup($"[green1]V: {player.Wins}[/]  [red]F: {player.Losses}[/]  [gold1]O: {player.Pushes}[/]  [blue]R: {player.GamesPlayed}[/]"));
+
+        if (player != players[^1])
+        content.Add(new Rule().RuleStyle(Color.Grey30));
+        }
+        
         content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
         content.Add(new Markup("[grey]SPELARE     SALDO INSATS[/]"));
         foreach (Player player in players)
