@@ -5,6 +5,13 @@ class Player : Participant
     public int Pushes { get; private set; }
 
     public const int StartingChips = 1000;
+    private const int WinMultiplier = 2;                // bet back + 1:1
+    private const int BlackjackPayoutNumerator = 3;     // blackjack pays 3:2
+    private const int BlackjackPayoutDenominator = 2;
+    private const int InsuranceCostDivisor = 2;         // insurance costs half the bet
+    private const int InsuranceMultiplier = 3;          // insurance back + 2:1
+
+    public int InsuranceCost => CurrentBet / InsuranceCostDivisor;
 
     public int Chips { get; private set; }
     public int CurrentBet { get; private set; }
@@ -69,10 +76,10 @@ class Player : Participant
         switch (outcome)
         {
             case Outcome.Win:
-                Chips += CurrentBet * 2;                  // bet back + 1:1
+                Chips += CurrentBet * WinMultiplier;
                 break;
             case Outcome.Blackjack:
-                Chips += CurrentBet + CurrentBet * 3 / 2; // bet back + 3:2
+                Chips += CurrentBet + CurrentBet * BlackjackPayoutNumerator / BlackjackPayoutDenominator;
                 break;
             case Outcome.Push:
                 Chips += CurrentBet;                      // bet back
@@ -86,7 +93,7 @@ class Player : Participant
     // Insurance costs half the bet. Returns false if the player cannot afford it.
     public bool TryTakeInsurance()
     {
-        int amount = CurrentBet / 2;
+        int amount = InsuranceCost;
         if (amount <= 0 || amount > Chips || InsuranceBet > 0)
             return false;
 
@@ -99,7 +106,7 @@ class Player : Participant
     public void SettleInsurance(bool dealerHasBlackjack)
     {
         if (dealerHasBlackjack)
-            Chips += InsuranceBet * 3; // insurance back + 2:1
+            Chips += InsuranceBet * InsuranceMultiplier; // insurance back + 2:1
         InsuranceBet = 0;
     }
 }

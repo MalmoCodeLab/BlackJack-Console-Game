@@ -60,7 +60,7 @@ internal sealed class GameTableUI
         static string PlayTurnNotice(Player player) =>
             $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
         static string InsuranceNotice(Player player) =>
-            $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING FÖR {player.CurrentBet / 2}? J = JA, N = NEJ";
+            $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING FÖR {player.InsuranceCost}? J = JA, N = NEJ";
 
         string? notice = BetTurnNotice(players[0]);
         DateTime noticeUntil = DateTime.MinValue;
