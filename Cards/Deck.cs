@@ -3,7 +3,6 @@ class Deck
     public RuleSet Rules { get; }
     public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
-    public List<Hand> ListOfHands { get; } = [];
     public int CutCardPosition { get; private set; }
     public bool CutCardReached { get; private set; }
     public int RunningCount {get; private set;}
@@ -13,13 +12,6 @@ class Deck
     {
         Rules = rules ?? RuleSet.Default;
         Rules.Validate();
-    }
-
-    public Hand CreateHand()
-    {
-        Hand hand = new Hand();
-        ListOfHands.Add(hand);
-        return hand;
     }
 
     public void CreateDeck()
@@ -106,23 +98,4 @@ class Deck
         }
         return dealCard;
     }
-    public void ForceRetriveAllCards()
-    {
-        for (int i = 0; i < ListOfHands.Count; i++)
-        {
-            ReciveDiscardedCard(ListOfHands[i]);
-        }
-    }
-    public void ReciveDiscardedCard(Hand hand)
-    {
-        List<Card> recievedDiscardedCard = hand.DiscardCards();
-        int numberOfCards = recievedDiscardedCard.Count();
-        for (int i = 0; i < numberOfCards; i++)
-        {
-            DiscardedCards.Add(recievedDiscardedCard[0]);
-            recievedDiscardedCard.RemoveAt(0);
-        }
-    }
-
-
 }
