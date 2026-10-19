@@ -60,7 +60,6 @@ class Round
 
         started = true;
     }
-
     public void EndRound()
     {
         if (!started)
@@ -120,8 +119,6 @@ class Round
                 outcome = Outcome.Push;
 
             player.SettleInsurance(dealerHasNatural);
-            player.SettleBet(outcome);
-            outcomes[player] = outcome;
             player.SettleBet(outcome);
             outcomes[player] = outcome;
         }

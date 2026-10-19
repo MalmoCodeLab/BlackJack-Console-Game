@@ -51,6 +51,7 @@ internal sealed class GameTableUI
         bool bettingMode = true;
         bool betsComplete = false;
         bool pendingBlackjackAdvance = false;
+        bool insuranceMode = false;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
         // The message at the top of the table always says whose turn it is.
@@ -58,6 +59,8 @@ internal sealed class GameTableUI
             $"{player.Name.ToUpperInvariant()} – DIN TUR ATT SATSA: ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
         static string PlayTurnNotice(Player player) =>
             $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
+        static string InsuranceNotice(Player player) =>
+            $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING FÖR {player.CurrentBet / 2}? J = JA, N = NEJ";
 
         string? notice = BetTurnNotice(players[0]);
         DateTime noticeUntil = DateTime.MinValue;
@@ -68,12 +71,27 @@ internal sealed class GameTableUI
             betsComplete = true;
             bettingMode = false;
             currentPlayerIndex = 0;
-            selectedGameOption = 0;
-            notice = PlayTurnNotice(players[0]);
 
-            // Cards were dealt already; revealing them is handled by BuildTable.
             for (int i = 0; i < players.Count; i++)
                 statuses[i] = "VÄNTAR";
+
+            // The dealer shows an ace: ask every player about insurance first.
+            if (round.Dealer.ShowsAce)
+            {
+                insuranceMode = true;
+                statuses[0] = "FÖRSÄKRING?";
+                notice = InsuranceNotice(players[0]);
+                return;
+            }
+
+            StartPlaying();
+        }
+
+        void StartPlaying()
+        {
+            currentPlayerIndex = 0;
+            selectedGameOption = 0;
+            notice = PlayTurnNotice(players[0]);
 
             pendingBlackjackAdvance = players[0].HasBlackjack;
             statuses[0] = pendingBlackjackAdvance ? "BLACKJACK" : "DIN TUR";
@@ -194,6 +212,39 @@ internal sealed class GameTableUI
                                 }
                                 else
                                     notice = "DU MÅSTE SATSA MINST EN MARKER FÖRST!";
+                            }
+
+                            DrawTable(BuildTable(
+                                round, statuses, notice, selectedGameOption,
+                                selectedMenuOption, sideMenuActive,
+                                roundFinished: false, bettingMode: bettingMode, cardsFaceDown: !betsComplete,
+                                activePlayerIndex: currentPlayerIndex));
+                            continue;
+                        }
+
+                        if (insuranceMode)
+                        {
+                            Player insuredPlayer = players[currentPlayerIndex];
+                            if (key == ConsoleKey.J)
+                                statuses[currentPlayerIndex] = insuredPlayer.TryTakeInsurance()
+                                    ? "FÖRSÄKRAD"
+                                    : "FÖR LITE MARKER";
+                            else if (key == ConsoleKey.N)
+                                statuses[currentPlayerIndex] = "EJ FÖRSÄKRAD";
+                            else
+                                continue; // Ignore other keys.
+
+                            currentPlayerIndex++;
+                            if (currentPlayerIndex < players.Count)
+                            {
+                                statuses[currentPlayerIndex] = "FÖRSÄKRING?";
+                                notice = InsuranceNotice(players[currentPlayerIndex]);
+                            }
+                            else
+                            {
+                                // Everyone has answered: start the game.
+                                insuranceMode = false;
+                                StartPlaying();
                             }
 
                             DrawTable(BuildTable(
