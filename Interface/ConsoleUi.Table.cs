@@ -22,32 +22,47 @@ public partial class ConsoleUi
         int[]? playerCardsShown = null)
     {
         List<IRenderable> tableContent = new();
+
+        // Always reserve two rows above the dealer, so the cards don't move
+        // when a message appears or the True Count changes.
         if (notice != null)
         {
-            tableContent.Add(new Align(new Markup($"[bold white on #961923]  ★ {Markup.Escape(notice)} ★  [/]"), HorizontalAlignment.Center));
-        }
-        else if (runningCount.HasValue && trueCount.HasValue)
-        {
-            // Use the same two lines that previously displayed the marker stand.
-            // This keeps the overall table height and card positions unchanged.
-            string running = runningCount.Value.ToString("+0;-0;0");
-            string actual = trueCount.Value.ToString("+0.0;-0.0;0.0", System.Globalization.CultureInfo.GetCultureInfo("sv-SE"));
-            string label = trueCount.Value >= 1 ? "Gynnsamt" :
-                trueCount.Value <= -1 ? "Ogynnsamt" : "Neutralt";
-            string labelColor = trueCount.Value >= 1 ? "green1" :
-                trueCount.Value <= -1 ? "red" : "gold1";
+            tableContent.Add(new Align(
+                new Markup($"[bold white on #961923]  ★ {Markup.Escape(notice)} ★  [/]"),
+                HorizontalAlignment.Center));
         }
         else
         {
-            tableContent.Add(new Align(new Markup("[gold1]╭──────── MARKERSTÄLL ────────╮[/]"), HorizontalAlignment.Center));
-            tableContent.Add(new Align(new Markup("[white]● ●[/]  [red]● ●[/]  [green]● ●[/]  [blue]● ●[/]  [yellow]● ●[/]"), HorizontalAlignment.Center));
+            tableContent.Add(new Align(
+                new Markup("[gold1]╭──────── MARKERSTÄLL ────────╮[/]"),
+                HorizontalAlignment.Center));
         }
+
+        // Show the current True Count throughout the game, including notices.
+        if (trueCount.HasValue)
+        {
+            string actual = trueCount.Value.ToString(
+                "+0.0;-0.0;0.0",
+                System.Globalization.CultureInfo.GetCultureInfo("sv-SE"));
+            string valueColor = trueCount.Value >= 1 ? "green1" :
+                trueCount.Value <= -1 ? "red" : "gold1";
+
+            tableContent.Add(new Align(
+                new Markup($"[gold1]Fördel:[/] [{valueColor}]{actual}[/]"),
+                HorizontalAlignment.Center));
+        }
+        else
+        {
+            tableContent.Add(new Align(
+                new Markup("[gold1]Fördel:[/] [grey]–[/]"),
+                HorizontalAlignment.Center));
+        }
+
         // Reserve extra vertical space only when it fits inside the table.
         // This prevents the bottom action buttons from being pushed off screen.
         int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
         const int coreRows = 19; // Givare (1), cards (7), players (9), chips (2).
-        int headerRows = notice is not null ? 1 :
-            (runningCount.HasValue && trueCount.HasValue ? 0 : 2);
+        const int headerRows = 2;
         int extraRows = Math.Max(0, innerHeight - coreRows - headerRows);
 
         // The largest gap belongs between the dealer's cards and the players.

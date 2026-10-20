@@ -770,13 +770,17 @@ internal sealed class GameTableUI
             visibleCardCounter.Observe(
                 round.Deck, round.Players, round.Dealer, cardsFaceDown);
 
+        // Use the UI counter that already observes visible cards.
+        // Deck has no Counter property in this version of the project.
+        double trueCount = visibleCardCounter.TrueCount;
+
         // Join the lower corners of the table to the footer borders.
         // The divider and both side borders now form one continuous frame.
         tableArea["BlackjackTable"].Update(
             new ConnectedTableBorder(ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses,
                 cardsFaceDown, visibleCardCounter.RunningCount,
-                visibleCardCounter.TrueCount, activePlayerIndex,
+                trueCount, activePlayerIndex,
                 showEmptyTable: false, // Display the backs during betting.
                 dealerCardsShown: dealerCardsShown,
                 playerCardsShown: playerCardsShown)));
