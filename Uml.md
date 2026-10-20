@@ -54,8 +54,11 @@ classDiagram
         +int Wins
         +int Losses
         +int Pushes
+        +Wallet Wallet
         +int Chips
         +int CurrentBet
+        +int InsuranceBet
+        +int InsuranceCost
         +bool IsOutOfChips
         +int GamesPlayed
         +bool CanHit
@@ -63,6 +66,21 @@ classDiagram
         +TryPlaceBet(amount) bool
         +CancelBet()
         +SettleBet(outcome)
+        +TryTakeInsurance() bool
+        +SettleInsurance(dealerHasBlackjack)
+    }
+    class Wallet {
+        +int StartingChips$
+        +int Chips
+        +int CurrentBet
+        +int InsuranceBet
+        +int InsuranceCost
+        +bool IsOutOfChips
+        +TryPlaceBet(amount) bool
+        +CancelBet()
+        +SettleBet(outcome)
+        +TryTakeInsurance() bool
+        +SettleInsurance(dealerHasBlackjack)
     }
     class Dealer {
         +RuleSet Rules
@@ -138,6 +156,8 @@ classDiagram
     Game *-- Deck : owns
     Player --|> Participant
     Dealer --|> Participant
+    Player *-- Wallet : owns chips and bets
+    Wallet ..> Outcome : pays out by
     Participant *-- Hand : owns
     Hand ..> Deck : receives cards from
     Deck o-- Card : contains cards
@@ -158,7 +178,8 @@ classDiagram
 | `GameStorage` | Load, save, and delete cumulative player statistics from JSON and keep the readable `player-results.txt` summary in sync. | Running a round or interacting with the console. |
 | `PlayerStatistics` | Represent the persisted wins, losses, and pushes for one player. | Game behavior or persistence operations. |
 | `Participant` | Share a name, hand, card receiving, score calculation, bust/blackjack checks, and round reset. | Player-specific statistics or dealer policy. |
-| `Player` | Track one player's wins, losses, and pushes. | Console interaction or saved-file management. |
+| `Player` | Track one player's wins, losses, and pushes, and pass chip, bet, and insurance actions on to its `Wallet`. | Console interaction or saved-file management. |
+| `Wallet` | Hold one player's chips, bet, and insurance; place and cancel bets, pay out by `Outcome`, and take and settle insurance. | Statistics, console interaction, or deciding the round result. |
 | `Dealer` | Represent the dealer, reveal the hole card, and apply the hit/stand threshold. | Choosing moves interactively. |
 | `Deck` | Create and shuffle the deck, deal cards, and recycle discards when needed. | Hand scoring or round outcomes. |
 | `Hand` | Hold cards and receive or clear them. | Deciding the winner. |
