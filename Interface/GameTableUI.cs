@@ -741,7 +741,7 @@ internal sealed class VisibleCardCounter
 
         // Recalculate even when no new card appears, since the remaining
         // number of cards may have changed after the last render.
-        double remainingDecks = deck.DeckCards.Count / 52.0;
+        double remainingDecks = deck.DeckCards.Count / (double)Deck.CardsPerDeck;
         TrueCount = remainingDecks > 0
             ? Math.Round(RunningCount / remainingDecks, 1, MidpointRounding.AwayFromZero)
             : 0;

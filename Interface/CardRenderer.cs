@@ -3,6 +3,8 @@ using Spectre.Console;
 
 class CardRenderer
 {
+    private const int LowestRankValue = 2;
+    
     // Converts the rank to a short text.
     public string GetRank(Rank rank)
     {
@@ -13,7 +15,7 @@ class CardRenderer
             Rank.Queen => "Q",
             Rank.Jack => "J",
             Rank.Ten => "10",
-            _ => ((int)rank + 2).ToString()
+           _ => ((int)rank + LowestRankValue).ToString()
         };
     }
 

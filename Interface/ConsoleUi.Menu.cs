@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
+
+
 public partial class ConsoleUi
 {
+    private const int MaxPlayers = 5;
+    private const int PlayerCountOptions = MaxPlayers + 1;
     private readonly string[] menuOptions = GameMessages.MainMenuOptions;
 
     // Main menu with arrow-key navigation.
@@ -40,12 +44,12 @@ public partial class ConsoleUi
             key =>
             {
                 if (key == ConsoleKey.UpArrow)
-                    selectedOption = (selectedOption + 5) % 6;
+                    selectedOption = (selectedOption + PlayerCountOptions - 1) % PlayerCountOptions;
                 else if (key == ConsoleKey.DownArrow)
-                    selectedOption = (selectedOption + 1) % 6;
+                    selectedOption = (selectedOption + 1) % PlayerCountOptions;
                 else if (key == ConsoleKey.Enter)
                 {
-                    playerCount = selectedOption == 5 ? 0 : selectedOption + 1;
+                    playerCount = selectedOption == MaxPlayers ? 0 : selectedOption + 1;
                     return true;
                 }
                 return false;
@@ -125,9 +129,9 @@ public partial class ConsoleUi
             new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < PlayerCountOptions; i++)
         {
-            string text = i == 5
+            string text = i == MaxPlayers
                 ? GameMessages.Settings
                 : string.Format(GameMessages.PlayerCountFormat, i + 1);
             string label = text.PadRight(17);
