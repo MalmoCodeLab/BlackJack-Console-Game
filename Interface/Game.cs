@@ -51,11 +51,11 @@ public class Game
     private void StartNewGame()
     {
         int playerCount = ui.AskPlayerCountCentered();
-        while (playerCount == 0)
-        {
-            rules = ui.EditRules(rules);
-            playerCount = ui.AskPlayerCountCentered();
-        }
+
+        // Esc returns 0 and goes back to the main menu.
+        if (playerCount == 0)
+            return;
+
         List<Player>? players = playerSessions.CreateNewPlayers(playerCount);
         if (players is not null)
             PlayGame(players);

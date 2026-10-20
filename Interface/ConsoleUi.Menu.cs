@@ -30,28 +30,34 @@ public partial class ConsoleUi
         return choice;
     }
 
-    // Player count selection, 1–5 players. Returns 0 when the player chose Inställningar.
+    // Choose 1–5 players. Esc returns 0 so Game can return to the main menu.
     public int AskPlayerCountCentered()
     {
+        const int maxPlayers = 5;
         int selectedOption = 0;
-        int playerCount = 1;
+        int playerCount = 0;
         RunScreen(
             () => CreatePlayerCountMenu(selectedOption),
             key =>
             {
                 if (key == ConsoleKey.UpArrow)
-                    selectedOption = (selectedOption + 5) % 6;
+                    selectedOption = (selectedOption - 1 + maxPlayers) % maxPlayers;
                 else if (key == ConsoleKey.DownArrow)
-                    selectedOption = (selectedOption + 1) % 6;
+                    selectedOption = (selectedOption + 1) % maxPlayers;
                 else if (key == ConsoleKey.Enter)
                 {
-                    playerCount = selectedOption == 5 ? 0 : selectedOption + 1;
+                    playerCount = selectedOption + 1;
+                    return true;
+                }
+                else if (key == ConsoleKey.Escape)
+                {
                     return true;
                 }
                 return false;
             });
-        // Hide the cursor before entering the first name prompt.
-        Console.Write("\u001b[?25l");
+        // Hide the cursor before entering the name prompt, but not on Esc.
+        if (playerCount > 0)
+            Console.Write("\u001b[?25l");
         return playerCount;
     }
 
@@ -149,11 +155,9 @@ public partial class ConsoleUi
             new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 5; i++)
         {
-            string text = i == 5
-                ? GameMessages.Settings
-                : string.Format(GameMessages.PlayerCountFormat, i + 1);
+            string text = string.Format(GameMessages.PlayerCountFormat, i + 1);
             string label = text.PadRight(17);
             string line = i == selectedOption
                 ? $"[bold white on #961923] ❯ {label} [/]"
@@ -162,7 +166,7 @@ public partial class ConsoleUi
             rows.Add(new Text(""));
         }
         rows.Add(new Rule().RuleStyle(Color.Gold1));
-        rows.Add(new Align(new Markup(GameMessages.MenuNavigationMarkup), HorizontalAlignment.Center));
+        rows.Add(new Align(new Markup("[grey]↑ ↓ Navigera  •  Enter Välj  •  Esc Tillbaka[/]"), HorizontalAlignment.Center));
         return CenterMenuPanel(rows);
     }
 
