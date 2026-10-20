@@ -44,7 +44,7 @@ public sealed record RuleSet
         if (!File.Exists(filePath))
         {
             notify?.Invoke(
-                $"Rules file '{filePath}' was not found. Using default rules.");
+                $"Regelfilen '{filePath}' kunde inte hittas. Standardregler används.");
             return Default;
         }
 
@@ -52,28 +52,28 @@ public sealed record RuleSet
         {
             return Load(filePath);
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
             notify?.Invoke(
-                $"Rules file contains invalid JSON: {ex.Message} Using default rules.");
+                "Regelfilen innehåller ogiltig JSON. Kontrollera filens format. Standardregler används.");
             return Default;
         }
         catch (ArgumentOutOfRangeException ex)
         {
             notify?.Invoke(
-                $"Rules file contains invalid values: {ex.Message} Using default rules.");
+                $"Regelfilen innehåller ogiltiga värden: {ex.Message} Standardregler används.");
             return Default;
         }
-        catch (IOException ex)
+        catch (IOException)
         {
             notify?.Invoke(
-                $"Rules file could not be read: {ex.Message} Using default rules.");
+                "Regelfilen kunde inte läsas. Kontrollera att filen går att öppna. Standardregler används.");
             return Default;
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             notify?.Invoke(
-                $"Access to rules file was denied: {ex.Message} Using default rules.");
+                "Åtkomst till regelfilen nekades. Kontrollera filens behörigheter. Standardregler används.");
             return Default;
         }
     }
@@ -85,7 +85,7 @@ public sealed record RuleSet
         string json = File.ReadAllText(filePath);
         RuleSet rules = JsonSerializer.Deserialize<RuleSet>(json, JsonOptions)
             ?? throw new JsonException(
-                $"Rules file '{filePath}' did not contain a rule set.");
+                $"Regelfilen '{filePath}' innehöll ingen giltig regeluppsättning.");
         rules.Validate();
         return rules;
     }
@@ -95,10 +95,10 @@ public sealed record RuleSet
         if (DeckCount is < MinDeckCount or > MaxDeckCount)
             throw new ArgumentOutOfRangeException(
                 nameof(DeckCount),
-                $"Deck count must be between {MinDeckCount} and {MaxDeckCount}.");
+                $"Antalet kortlekar måste vara mellan {MinDeckCount} och {MaxDeckCount}.");
         if (ReshuffleThreshold < 1 || ReshuffleThreshold > DeckCount * Deck.CardsPerDeck)
             throw new ArgumentOutOfRangeException(
                 nameof(ReshuffleThreshold),
-                "Reshuffle threshold must be between 1 and the total number of cards.");
+                "Blandningsgränsen måste vara minst 1 och får inte överstiga det totala antalet kort.");
     }
 }

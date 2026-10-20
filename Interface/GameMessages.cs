@@ -2,9 +2,7 @@ using System;
 
 internal static class GameMessages
 {
-    internal const string GameTitleMarkup = "[bold gold1]♠ BLACKJACK 21 ♠[/]";
-    internal const string GameSubtitleMarkup = "[italic green3]Tur kan inte kompileras.[/]";
-    internal const string MainMenuTitleMarkup = "[gold1]♠ HUVUDMENY ♠[/]";
+    internal const string GameTitleMarkup = "[bold gold1]♠ BLACKJACK 21 ♠[/]";    internal const string MainMenuTitleMarkup = "[gold1]♠ HUVUDMENY ♠[/]";
     internal const string PlayerCountTitleMarkup = "[gold1]♠ VÄLJ ANTAL SPELARE ♠[/]";
     internal const string MenuNavigationMarkup = "[grey]↑ ↓ Navigera  •  Enter Välj[/]";
     internal const string PlayerCountFormat = "{0} spelare";

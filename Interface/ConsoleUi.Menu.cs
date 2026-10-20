@@ -162,7 +162,7 @@ public partial class ConsoleUi
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
@@ -187,7 +187,7 @@ public partial class ConsoleUi
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule(GameMessages.MainMenuTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
@@ -602,7 +602,7 @@ public partial class ConsoleUi
         var rows = new List<Spectre.Console.Rendering.IRenderable>
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule("[bold gold1]♠ LADDA SPEL ♠[/]").RuleStyle(Color.Gold1),
             new Align(new Markup($"[grey]SPARADE SPELARE  ({names.Count}/3)[/]"), HorizontalAlignment.Center),
