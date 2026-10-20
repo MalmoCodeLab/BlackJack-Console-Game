@@ -110,7 +110,7 @@ internal sealed class GameTableUI
             // Betting already showed the empty table. Start the animation
             // with the first card to avoid an extra blank frame and pause.
             // Order: each player, dealer, each player, dealer.
-            for (int card = 0; card < Round.StartingHandSize; card++)
+            for (int card = 0; card < 2; card++)
             {
                 for (int i = 0; i < players.Count; i++)
                 {
@@ -287,35 +287,6 @@ internal sealed class GameTableUI
 
                     if (key == ConsoleKey.NoName)
                         continue;
-
-                    if (insuranceMode)
-                    {
-                        Player insuredPlayer = players[currentPlayerIndex];
-                        if (key == ConsoleKey.J)
-                            statuses[currentPlayerIndex] = insuredPlayer.TryTakeInsurance()
-                                ? "FÖRSÄKRAD"
-                                : "FÖR LITE MARKER";
-                        else if (key == ConsoleKey.N)
-                            statuses[currentPlayerIndex] = "EJ FÖRSÄKRAD";
-                        else
-                            continue; // Ignore other keys.
-
-                        currentPlayerIndex++;
-                        if (currentPlayerIndex < players.Count)
-                        {
-                            statuses[currentPlayerIndex] = "FÖRSÄKRING?";
-                            notice = InsuranceNotice(players[currentPlayerIndex]);
-                        }
-                        else
-                        {
-                            // Everyone has answered: start the game.
-                            insuranceMode = false;
-                            StartPlaying();
-                        }
-
-                        RedrawCurrentRound();
-                        continue;
-                    }
 
                     if (!betsComplete)
                     {
@@ -661,9 +632,9 @@ internal sealed class GameTableUI
         return writer.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
     }
 
-    // Five multiplayer seats need 75 cells plus the Blackjack table border.
+    // Five 17-column seats need 85 cells plus the Blackjack table border.
     // Reserve a sidebar only when the cards still fit without clipping.
-    private const int MinimumTableWidth = 80;
+    private const int MinimumTableWidth = 90;
     private const int MinimumTerminalHeight = 24;
     private const int SidebarMinimumWidth = 32;
     private const int SidebarMaximumWidth = 40;
@@ -1071,7 +1042,7 @@ internal sealed class VisibleCardCounter
 
         // Recalculate even when no new card appears, since the remaining
         // number of cards may have changed after the last render.
-        double remainingDecks = deck.DeckCards.Count / (double)Deck.CardsPerDeck;
+        double remainingDecks = deck.DeckCards.Count / 52.0;
         TrueCount = remainingDecks > 0
             ? Math.Round(RunningCount / remainingDecks, 1, MidpointRounding.AwayFromZero)
             : 0;
