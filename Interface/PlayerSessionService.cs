@@ -144,12 +144,7 @@ internal sealed class PlayerSessionService
     {
         try
         {
-            Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
-            if (!results.Remove(playerName))
-                return false;
-
-            gameStorage.SaveResults(results);
-            return true;
+            return gameStorage.DeletePlayer(playerName);
         }
         catch (Exception ex) when (
             ex is IOException ||
