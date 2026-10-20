@@ -288,6 +288,35 @@ internal sealed class GameTableUI
                     if (key == ConsoleKey.NoName)
                         continue;
 
+                    if (insuranceMode)
+                    {
+                        Player insuredPlayer = players[currentPlayerIndex];
+                        if (key == ConsoleKey.J)
+                            statuses[currentPlayerIndex] = insuredPlayer.TryTakeInsurance()
+                                ? "FÖRSÄKRAD"
+                                : "FÖR LITE MARKER";
+                        else if (key == ConsoleKey.N)
+                            statuses[currentPlayerIndex] = "EJ FÖRSÄKRAD";
+                        else
+                            continue; // Ignore other keys.
+
+                        currentPlayerIndex++;
+                        if (currentPlayerIndex < players.Count)
+                        {
+                            statuses[currentPlayerIndex] = "FÖRSÄKRING?";
+                            notice = InsuranceNotice(players[currentPlayerIndex]);
+                        }
+                        else
+                        {
+                            // Everyone has answered: start the game.
+                            insuranceMode = false;
+                            StartPlaying();
+                        }
+
+                        RedrawCurrentRound();
+                        continue;
+                    }
+
                     if (!betsComplete)
                     {
                         Player bettingPlayer = players[currentPlayerIndex];
