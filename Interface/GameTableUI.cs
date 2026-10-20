@@ -26,7 +26,6 @@ internal sealed class GameTableUI
     private int lastHeight;
     private int builtWidth;
     private int builtHeight;
-    private readonly VisibleCardCounter visibleCardCounter = new();
     // Read-only observation: detect a refilled shoe without modifying Deck.
     private Deck? observedDeck;
     private int lowestCardsRemaining = int.MaxValue;
@@ -41,7 +40,6 @@ internal sealed class GameTableUI
     {
         CloseTableScreen();
         BettingUI.Reset();
-        visibleCardCounter.Reset();
         observedDeck = null;
         lowestCardsRemaining = int.MaxValue;
     }
@@ -236,7 +234,6 @@ internal sealed class GameTableUI
             bool shoeRefilled = DetectRefilledShoe(round.Deck);
             if (shoeRefilled)
             {
-                visibleCardCounter.Reset();
                 DrawTable(BuildTable(
                     round, statuses, "KORTLEKEN HAR BLANDATS OM INFÖR DEN NYA RUNDAN!",
                     selectedGameOption, selectedMenuOption, sideMenuActive,
@@ -576,7 +573,6 @@ internal sealed class GameTableUI
         {
             observedDeck = deck;
             lowestCardsRemaining = remaining;
-            visibleCardCounter.Reset();
             return false; // Initial shoe is not a reshuffle.
         }
 
@@ -808,22 +804,16 @@ internal sealed class GameTableUI
             lowestCardsRemaining = Math.Min(
                 lowestCardsRemaining, round.Deck.DeckCards.Count);
 
-        // An animation frame does not count cards that have not appeared yet.
-        if (playerCardsShown is null)
-            visibleCardCounter.Observe(
-                round.Deck, round.Players, round.Dealer, cardsFaceDown);
-
-        // Use the UI counter that already observes visible cards.
-        // Deck has no Counter property in this version of the project.
-        double trueCount = visibleCardCounter.TrueCount;
+        // Use the shared counter from Deck; only the game logic counts cards.
+        // The UI just displays the current Running Count and True Count.
 
         // Join the lower corners of the table to the footer borders.
         // The divider and both side borders now form one continuous frame.
         tableArea["BlackjackTable"].Update(
             new ConnectedTableBorder(ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses,
-                cardsFaceDown, visibleCardCounter.RunningCount,
-                trueCount, activePlayerIndex,
+                cardsFaceDown, round.Deck.Counter.RunningCount,
+                round.Deck.Counter.TrueCount, activePlayerIndex,
                 showEmptyTable: false, // Display the backs during betting.
                 dealerCardsShown: dealerCardsShown,
                 playerCardsShown: playerCardsShown,
@@ -1073,67 +1063,4 @@ internal sealed class GameTableUI
 
     private static string NaturalBlackjackNotice(Player player) =>
         $"{player.Name.ToUpperInvariant()} – NATURAL BLACKJACK!";
-}
-
-// Read-only observer for the UI. It does not draw or change cards,
-// decide moves, change bets, or determine outcomes.
-internal sealed class VisibleCardCounter
-{
-    private readonly HashSet<Card> seenCards = new(ReferenceEqualityComparer.Instance);
-    private Deck? currentDeck;
-
-
-    public int RunningCount { get; private set; }
-    public double TrueCount { get; private set; }
-
-    public void Reset()
-    {
-        seenCards.Clear();
-        currentDeck = null;
-        RunningCount = 0;
-        TrueCount = 0;
-    }
-
-    public void Observe(Deck deck, List<Player> players, Dealer dealer, bool cardsFaceDown)
-    {
-        // The parent UI resets the counter on a detected shoe refill.
-        // A different Deck instance also starts a fresh count.
-        if (!ReferenceEquals(currentDeck, deck))
-        {
-            Reset();
-            currentDeck = deck;
-        }
-
-        if (!cardsFaceDown)
-        {
-            foreach (Player player in players)
-                foreach (Card card in player.Hand.CardsOnHand)
-                    CountIfFirstSeen(card);
-
-            // Never include the dealer's hidden hole card.
-            for (int i = 0; i < dealer.Hand.CardsOnHand.Count; i++)
-            {
-                if (i != 1 || dealer.HoleCardVisible)
-                    CountIfFirstSeen(dealer.Hand.CardsOnHand[i]);
-            }
-        }
-
-        // Recalculate even when no new card appears, since the remaining
-        // number of cards may have changed after the last render.
-        double remainingDecks = deck.DeckCards.Count / 52.0;
-        TrueCount = remainingDecks > 0
-            ? Math.Round(RunningCount / remainingDecks, 1, MidpointRounding.AwayFromZero)
-            : 0;
-    }
-
-    private void CountIfFirstSeen(Card card)
-    {
-        if (!seenCards.Add(card))
-            return;
-
-        if (card.Rank >= Rank.Two && card.Rank <= Rank.Six)
-            RunningCount++;
-        else if (card.Rank >= Rank.Ten)
-            RunningCount--;
-    }
 }
