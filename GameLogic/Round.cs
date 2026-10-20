@@ -9,6 +9,8 @@ class Round
     public Dealer Dealer { get; }
     public Deck Deck { get; }
     public RuleSet Rules { get; }
+    public const int StartingHandSize = 2;
+    private const int ThreeCardHandSize = 3;
     public IReadOnlyDictionary<Player, Outcome> Outcomes => outcomes;
 
     public Round(
@@ -49,9 +51,12 @@ class Round
         foreach (Player player in Players)
             player.NewRound(Deck);
         Dealer.NewRound(Deck);
-        Deck.CheckIfNewShuffleIsNeeded(2 * (Players.Count + 1));
 
-        for (int cardNumber = 0; cardNumber < 2; cardNumber++)
+        int participantCount = Players.Count + 1;   // all players + the dealer
+        
+        Deck.CheckIfNewShuffleIsNeeded(StartingHandSize * participantCount);
+
+        for (int cardNumber = 0; cardNumber < StartingHandSize; cardNumber++)
         {
             foreach (Player player in Players)
                 player.ReceiveCard(Deck);
@@ -88,10 +93,10 @@ class Round
             bool playerHasNatural = player.HasBlackjack;
             bool dealerHasNatural = Dealer.HasBlackjack;
             bool playerHasThreeCard21 =
-                player.Hand.CardsOnHand.Count == 3 &&
+                player.Hand.CardsOnHand.Count == ThreeCardHandSize &&
                 player.Score == Hand.BlackjackValue;
             bool dealerHasThreeCard21 =
-                Dealer.Hand.CardsOnHand.Count == 3 &&
+                Dealer.Hand.CardsOnHand.Count == ThreeCardHandSize &&
                 Dealer.Score == Hand.BlackjackValue;
 
             if (player.IsBust)

@@ -1,6 +1,8 @@
 // Builds only the card artwork. ConsoleUi.Table.cs adds color and positioning.
 class CardRenderer
 {
+    
+    // Converts the rank to a short text.
     public string GetRank(Rank rank)
     {
         return rank switch
