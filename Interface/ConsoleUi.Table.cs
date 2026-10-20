@@ -129,19 +129,9 @@ public partial class ConsoleUi
 
         int activeIndex = Math.Clamp(activePlayerIndex, 0, players.Count - 1);
 
-        // Seats are assigned in player order, not based on whose turn it is.
-        // Switching turns must never move a player or their cards on the table.
-        int[] order = { -1, -1, -1, -1, -1 };
-        int[] fixedSeats = players.Count switch
-        {
-            2 => new[] { 1, 3 },
-            3 => new[] { 1, 2, 3 },
-            4 => new[] { 0, 1, 3, 4 },
-            _ => new[] { 0, 1, 2, 3, 4 }
-        };
-
-        for (int index = 0; index < players.Count; index++)
-            order[fixedSeats[index]] = index;
+        // Keep player order fixed so changing turns never moves the hands.
+        // The spacing is added after the card rows have been built.
+        int[] order = Enumerable.Range(0, players.Count).ToArray();
 
         List<string[]> seatLines = new();
         foreach (int index in order)
@@ -180,7 +170,7 @@ public partial class ConsoleUi
             bool isCurrentTurn = isActive && (turnStatus is
                 "DIN TUR" or "SATSAR" or "FÖRSÄKRING?" or "BLACKJACK");
             lines[0] = CenterText(Markup.Escape(name), name.Length,
-                SmallSeatWidth, isCurrentTurn ? "bold black on gold1" : "white");
+                SmallSeatWidth, isCurrentTurn ? "bold black on green1" : "white");
 
             if (!showEmptyTable && visibleCards.Count > 0)
             {
@@ -216,9 +206,27 @@ public partial class ConsoleUi
             seatLines.Add(lines);
         }
 
+        // Keep all players closer together while centering them as a group.
+        // Five players use the full table width; fewer players get equal gaps.
+        int preferredGap = players.Count switch
+        {
+            2 => 20,
+            3 => 10,
+            4 => 4,
+            _ => 0
+        };
+        int gapCount = Math.Max(1, seatLines.Count - 1);
+        int availableGap = Math.Max(0,
+            (SeatingWidth - seatLines.Count * SmallSeatWidth) / gapCount);
+        int playerGap = Math.Min(preferredGap, availableGap);
+        string spacing = new string(' ', playerGap);
+
         List<IRenderable> output = new();
         for (int row = 0; row < 9; row++)
-            output.Add(new Markup(string.Concat(seatLines.Select(seat => seat[row]))));
+        {
+            string line = string.Join(spacing, seatLines.Select(seat => seat[row]));
+            output.Add(new Markup(line));
+        }
         return new Align(new Rows(output), HorizontalAlignment.Center);
     }
 
@@ -558,15 +566,28 @@ public partial class ConsoleUi
     }
     private string GetRankLabel(Card card) => card.Rank switch
     {
-        Rank.Ace => "A", Rank.King => "K", Rank.Queen => "Q", Rank.Jack => "J",
-        Rank.Ten => "10", Rank.Nine => "9", Rank.Eight => "8", Rank.Seven => "7",
-        Rank.Six => "6", Rank.Five => "5", Rank.Four => "4", Rank.Three => "3",
-        Rank.Two => "2", _ => "?"
+        Rank.Ace => "A",
+        Rank.King => "K",
+        Rank.Queen => "Q",
+        Rank.Jack => "J",
+        Rank.Ten => "10",
+        Rank.Nine => "9",
+        Rank.Eight => "8",
+        Rank.Seven => "7",
+        Rank.Six => "6",
+        Rank.Five => "5",
+        Rank.Four => "4",
+        Rank.Three => "3",
+        Rank.Two => "2",
+        _ => "?"
     };
     private string GetSuitLabel(Card card) => card.Suit switch
     {
-        Suit.Hearts => "♥", Suit.Diamonds => "♦", Suit.Clubs => "♣",
-        Suit.Spades => "♠", _ => "?"
+        Suit.Hearts => "♥",
+        Suit.Diamonds => "♦",
+        Suit.Clubs => "♣",
+        Suit.Spades => "♠",
+        _ => "?"
     };
     private string GetCardLabel(Card card) => GetRankLabel(card) + GetSuitLabel(card);
     private string GetCardColor(Card card) =>
