@@ -155,9 +155,7 @@ public partial class ConsoleUi
             List<Card> visibleCards = player.Hand.CardsOnHand;
 
             string name = player.Name.ToUpperInvariant();
-            string handType = cardsFaceDown || showEmptyTable || dealing ? "" : GetHandType(player);
-            if (handType.Length > 0)
-                name += player.HasBlackjack ? " · BJ" : " · 21";
+        
             // With very large hands the fan displays the latest nine cards.
             if (visibleCards.Count > 9)
                 name += $" +{visibleCards.Count - 9}";
