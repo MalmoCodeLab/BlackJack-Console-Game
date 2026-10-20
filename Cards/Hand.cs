@@ -1,6 +1,7 @@
 class Hand
 {
     public const int BlackjackValue = 21;
+    private const int AceReduction = 10;
     public List<Card> CardsOnHand { get; } = [];
 
     public void ReceiveCard(Deck deck, bool faceUp = true)
@@ -39,7 +40,7 @@ class Hand
 
             while (total > BlackjackValue && aces > 0)
             {
-                total -= 10;
+                total -= AceReduction;
                 aces--;
             }
 
@@ -67,7 +68,7 @@ class Hand
                 }
             }
 
-            return hasAce && hardTotal + 10 <= BlackjackValue;
+            return hasAce && hardTotal + AceReduction <= BlackjackValue;
         }
     }
 }
