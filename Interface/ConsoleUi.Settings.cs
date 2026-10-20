@@ -51,14 +51,14 @@ public partial class ConsoleUi
             case 0:
                 return rules with { DealerHitsSoft17 = !rules.DealerHitsSoft17 };
             case 1:
-                int decks = Math.Clamp(rules.DeckCount + direction, 1, 8);
+                int decks = Math.Clamp(rules.DeckCount + direction, RuleSet.MinDeckCount, RuleSet.MaxDeckCount);
                 return rules with
                 {
                     DeckCount = decks,
-                    ReshuffleThreshold = Math.Min(rules.ReshuffleThreshold, decks * 52)
+                    ReshuffleThreshold = Math.Min(rules.ReshuffleThreshold, decks * Deck.CardsPerDeck)
                 };
             case 2:
-                int maxThreshold = rules.DeckCount * 52;
+                int maxThreshold = rules.DeckCount * Deck.CardsPerDeck;
                 int threshold = rules.ReshuffleThreshold + direction * ReshuffleStep;
                 return rules with
                 {

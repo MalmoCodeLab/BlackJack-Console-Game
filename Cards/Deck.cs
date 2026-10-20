@@ -8,7 +8,7 @@ class Deck
     public int CutCardPosition { get; private set; }
     public bool CutCardReached { get; private set; }
     public CardCounter Counter { get; } = new();
- 
+
 
     public Deck(RuleSet? rules = null)
     {
@@ -30,6 +30,7 @@ class Deck
             }
         }
     }
+
     private void PlaceCutCard()
     {
         int lastQuarter = DeckCards.Count / 4;
@@ -38,7 +39,7 @@ class Deck
         CutCardPosition = Random.Shared.Next(min, max + 1);
         CutCardReached = false;
     }
-    
+
     public void ShuffleDeck()
     {
         if (DiscardedCards.Count > 0)

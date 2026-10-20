@@ -10,10 +10,10 @@ internal static class RoundResultFormatter
                 Outcome.Blackjack => GameMessages.PlayerBlackjackOutcome,
                 Outcome.Win when round.Dealer.IsBust => GameMessages.DealerBustOutcome,
                 Outcome.Win => GameMessages.WinOutcome,
-                Outcome.Lose when player.IsBust => GameMessages.PlayerBustOutcome,
-                Outcome.Lose when round.Dealer.HasBlackjack =>
+                Outcome.Loss when player.IsBust => GameMessages.PlayerBustOutcome,
+                Outcome.Loss when round.Dealer.HasBlackjack =>
                     GameMessages.DealerBlackjackOutcome,
-                Outcome.Lose => GameMessages.LossOutcome,
+                Outcome.Loss => GameMessages.LossOutcome,
                 Outcome.Push => GameMessages.PushOutcome,
                 _ => throw new InvalidOperationException(
                     $"Round {round.RoundNumber} did not resolve player '{player.Name}'.")

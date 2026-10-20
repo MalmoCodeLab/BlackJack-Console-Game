@@ -80,6 +80,18 @@ public class GameStorage
         SaveReadableResults(results);
     }
 
+    // Deletes a player's statistics from the saved results and readable report.
+    // Returns false when the player does not exist.
+    public bool DeletePlayer(string playerName)
+    {
+        Dictionary<string, PlayerStatistics> results = LoadResults();
+        if (!results.Remove(playerName))
+            return false;
+
+        SaveResults(results);
+        return true;
+    }
+
     private void SaveJsonResults(IReadOnlyDictionary<string, PlayerStatistics> results)
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(_filePath))!;

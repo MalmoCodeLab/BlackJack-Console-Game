@@ -35,32 +35,60 @@ classDiagram
         +int Wins
         +int Losses
         +int Pushes
+        +int Chips
     }
     class Participant {
         <<abstract>>
+        +int BlackjackValue$
         +string Name
         +Hand Hand
         +int Score
         +bool IsBust
         +bool HasBlackjack
         +ReceiveCard(deck)
+        +NewRound(deck)
         +NewRound()
     }
     class Player {
+        +int StartingChips$
         +int Wins
         +int Losses
         +int Pushes
-        +RecordWin()
-        +RecordLoss()
-        +RecordPush()
-        +StatsText() string
+        +Wallet Wallet
+        +int Chips
+        +int CurrentBet
+        +int InsuranceBet
+        +int InsuranceCost
+        +bool IsOutOfChips
+        +int GamesPlayed
+        +bool CanHit
+        +RecordResult(outcome)
+        +TryPlaceBet(amount) bool
+        +CancelBet()
+        +SettleBet(outcome)
+        +TryTakeInsurance() bool
+        +SettleInsurance(dealerHasBlackjack)
+    }
+    class Wallet {
+        +int StartingChips$
+        +int Chips
+        +int CurrentBet
+        +int InsuranceBet
+        +int InsuranceCost
+        +bool IsOutOfChips
+        +TryPlaceBet(amount) bool
+        +CancelBet()
+        +SettleBet(outcome)
+        +TryTakeInsurance() bool
+        +SettleInsurance(dealerHasBlackjack)
     }
     class Dealer {
-        +Card UpCard
+        +RuleSet Rules
         +bool HoleCardVisible
-        +ShouldHit() bool
+        +bool ShowsAce
         +ShowHoleCard()
-        +NewRound()
+        +ShouldHit() bool
+        +NewRound(deck)
     }
     class Deck {
         +CreateDeck()
@@ -112,6 +140,7 @@ classDiagram
         Win
         Loss
         Push
+        Blackjack
     }
 
     Program ..> ConsoleUI : creates
@@ -127,6 +156,8 @@ classDiagram
     Game *-- Deck : owns
     Player --|> Participant
     Dealer --|> Participant
+    Player *-- Wallet : owns chips and bets
+    Wallet ..> Outcome : pays out by
     Participant *-- Hand : owns
     Hand ..> Deck : receives cards from
     Deck o-- Card : contains cards
@@ -144,10 +175,11 @@ classDiagram
 | `Program` | Composition root: load saved totals, create the UI and game, start play, and save totals on exit. | Round rules or card scoring. |
 | `ConsoleUI` | Read and validate console input; display players, hands, prompts, and outcomes. | Game flow, scoring, or file access. |
 | `Game` | Coordinate rounds, player turns, dealer turn, result calculation, and statistics updates. | JSON serialization or low-level console input parsing. |
-| `GameStorage` | Load cumulative player statistics from JSON and write both the JSON data and a readable `player-results.txt` summary. | Running a round or interacting with the console. |
+| `GameStorage` | Load, save, and delete cumulative player statistics from JSON and keep the readable `player-results.txt` summary in sync. | Running a round or interacting with the console. |
 | `PlayerStatistics` | Represent the persisted wins, losses, and pushes for one player. | Game behavior or persistence operations. |
 | `Participant` | Share a name, hand, card receiving, score calculation, bust/blackjack checks, and round reset. | Player-specific statistics or dealer policy. |
-| `Player` | Track one player's wins, losses, and pushes. | Console interaction or saved-file management. |
+| `Player` | Track one player's wins, losses, and pushes, and pass chip, bet, and insurance actions on to its `Wallet`. | Console interaction or saved-file management. |
+| `Wallet` | Hold one player's chips, bet, and insurance; place and cancel bets, pay out by `Outcome`, and take and settle insurance. | Statistics, console interaction, or deciding the round result. |
 | `Dealer` | Represent the dealer, reveal the hole card, and apply the hit/stand threshold. | Choosing moves interactively. |
 | `Deck` | Create and shuffle the deck, deal cards, and recycle discards when needed. | Hand scoring or round outcomes. |
 | `Hand` | Hold cards and receive or clear them. | Deciding the winner. |

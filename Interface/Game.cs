@@ -3,6 +3,7 @@ public class Game
     private readonly ConsoleUi ui = new();
     private readonly PlayerSessionService playerSessions;
     private readonly GameTableUI gameTable;
+    private bool exitRequested;
     private RuleSet rules;
     private readonly string? ruleConfigurationNotice;
 
@@ -12,17 +13,14 @@ public class Game
         rules = RuleSet.LoadFromDefaultLocation(message => notice = message);
         ruleConfigurationNotice = notice;
         playerSessions = new PlayerSessionService(new GameStorage(), ui);
-        gameTable = new GameTableUI(ui)
-        {
-            OpenSettings = () => rules = ui.EditRules(rules)
-        };
+        gameTable = new GameTableUI(ui);
     }
 
     public void Run()
     {
         bool running = true;
         bool showRuleNotice = ruleConfigurationNotice is not null;
-        while (running)
+        while (running && !exitRequested)
         {
             string choice = ui.ShowMenu(
                 showRuleNotice ? ruleConfigurationNotice : null);
@@ -54,11 +52,11 @@ public class Game
     private void StartNewGame()
     {
         int playerCount = ui.AskPlayerCountCentered();
-        while (playerCount == 0)
-        {
-            rules = ui.EditRules(rules);
-            playerCount = ui.AskPlayerCountCentered();
-        }
+
+        // Esc returns 0 and goes back to the main menu.
+        if (playerCount == 0)
+            return;
+
         List<Player>? players = playerSessions.CreateNewPlayers(playerCount);
         if (players is not null)
             PlayGame(players);
@@ -74,16 +72,22 @@ public class Game
     private void PlayGame(List<Player> players)
     {
         gameTable.ResetSession();
-        Deck deck = new(rules);
+
+        RuleSet gameRules = rules;
+
+        Deck deck = new(gameRules);
         deck.CreateDeck();
         deck.ShuffleDeck();
-        Dealer dealer = new(rules);
+
+        Dealer dealer = new(gameRules);
         int roundNumber = 1;
 
         while (true)
         {
-            Round round = new(roundNumber++, players, dealer, deck, rules);
-            // Deal cards now; the table shows only their backs until betting is confirmed.
+            Round round = new(roundNumber++, players, dealer, deck, gameRules);
+            // Display an empty table before dealing. No cards are added yet.
+            ui.ShowEmptyTableBeforeDeal(players, dealer);
+            // Deal cards after Enter, keeping the existing round rules unchanged.
             round.StartRound();
             GameTableAction action = gameTable.PlayRound(
                 round, playerSessions.SaveGame);
@@ -104,6 +108,12 @@ public class Game
 
                 action = gameTable.ShowRoundEndMenu(
                     round, summary, playerSessions.SaveGame);
+            }
+
+            if (action == GameTableAction.ExitGame)
+            {
+                exitRequested = true;
+                return;
             }
 
             if (action != GameTableAction.StartNewRound)

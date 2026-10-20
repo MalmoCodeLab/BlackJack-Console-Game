@@ -1,6 +1,7 @@
 abstract class Participant
 {
     public const int BlackjackValue = Hand.BlackjackValue;
+    private const int NaturalBlackjackCards = 2;
 
     public string Name { get; }
     public Hand Hand { get; } = new Hand();
@@ -24,7 +25,7 @@ abstract class Participant
     public int Score => Hand.Score;
 
     public bool IsBust => Score > BlackjackValue;
-    public bool HasBlackjack => Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
+    public bool HasBlackjack => Hand.CardsOnHand.Count == NaturalBlackjackCards && Score == BlackjackValue;
 
     public override string ToString()
     {

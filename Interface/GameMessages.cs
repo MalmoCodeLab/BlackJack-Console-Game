@@ -55,8 +55,7 @@ internal static class GameMessages
         "♠ Ny runda",
         "♣ Huvudmeny",
         GameControls,
-        Settings,
-        "♦ Spara och avsluta"
+        "♦ Avsluta"
     };
 
     internal static readonly string[] RoundEndMenuOptions = InGameMenuOptions;

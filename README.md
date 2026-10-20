@@ -38,7 +38,7 @@ This is the basic game: it does not use insurance, doubling down, or splitting p
 - `RoundResultFormatter` formats the outcomes resolved by a round.
 - `Player` and `Dealer` represent the people playing; `Participant` contains behavior shared by both.
 - `Deck`, `Hand`, and `Card` handle cards, dealing, and hand contents.
-- `GameStorage` loads and saves player statistics in the user's local
+- `GameStorage` loads, saves, and deletes player statistics in the user's local
 application-data folder.
 On macOS, the save will typically be under ~/Library/Application Support/Mai26ma-Grupp1-BlackJack; on Windows, it’s under %LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack.
 

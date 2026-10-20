@@ -9,6 +9,8 @@ class Round
     public Dealer Dealer { get; }
     public Deck Deck { get; }
     public RuleSet Rules { get; }
+    public const int StartingHandSize = 2;
+    private const int ThreeCardHandSize = 3;
     public IReadOnlyDictionary<Player, Outcome> Outcomes => outcomes;
 
     public Round(
@@ -49,9 +51,12 @@ class Round
         foreach (Player player in Players)
             player.NewRound(Deck);
         Dealer.NewRound(Deck);
-        Deck.CheckIfNewShuffleIsNeeded(2 * (Players.Count + 1));
 
-        for (int cardNumber = 0; cardNumber < 2; cardNumber++)
+        int participantCount = Players.Count + 1;   // all players + the dealer
+        
+        Deck.CheckIfNewShuffleIsNeeded(StartingHandSize * participantCount);
+
+        for (int cardNumber = 0; cardNumber < StartingHandSize; cardNumber++)
         {
             foreach (Player player in Players)
                 player.ReceiveCard(Deck);
@@ -60,7 +65,6 @@ class Round
 
         started = true;
     }
-
     public void EndRound()
     {
         if (!started)
@@ -89,24 +93,24 @@ class Round
             bool playerHasNatural = player.HasBlackjack;
             bool dealerHasNatural = Dealer.HasBlackjack;
             bool playerHasThreeCard21 =
-                player.Hand.CardsOnHand.Count == 3 &&
+                player.Hand.CardsOnHand.Count == ThreeCardHandSize &&
                 player.Score == Hand.BlackjackValue;
             bool dealerHasThreeCard21 =
-                Dealer.Hand.CardsOnHand.Count == 3 &&
+                Dealer.Hand.CardsOnHand.Count == ThreeCardHandSize &&
                 Dealer.Score == Hand.BlackjackValue;
 
             if (player.IsBust)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else if ((playerHasNatural && dealerHasThreeCard21) ||
                      (dealerHasNatural && playerHasThreeCard21))
             {
                 if (Rules.NaturalBlackjackBeatsThreeCard21)
-                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Lose;
+                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Loss;
                 else
                     outcome = Outcome.Push;
             }
             else if (dealerHasNatural && !playerHasNatural)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             // A natural blackjack is checked before a dealer bust so it always pays 3:2.
             else if (playerHasNatural && !dealerHasNatural)
                 outcome = Outcome.Blackjack;
@@ -115,10 +119,11 @@ class Round
             else if (player.Score > Dealer.Score)
                 outcome = Outcome.Win;
             else if (player.Score < Dealer.Score)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else
                 outcome = Outcome.Push;
 
+            player.SettleInsurance(dealerHasNatural);
             player.SettleBet(outcome);
             outcomes[player] = outcome;
         }
