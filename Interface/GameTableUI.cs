@@ -107,8 +107,8 @@ internal sealed class GameTableUI
                 Thread.Sleep(CardDealDelayMs);
             }
 
-            // Betting already showed the empty table. Start the animation
-            // with the first card to avoid an extra blank frame and pause.
+            // Cards already sit face-down during betting. Flip their faces
+            // in place rather than erasing the board for the animation.
             // Order: each player, dealer, each player, dealer.
             for (int card = 0; card < 2; card++)
             {
@@ -634,7 +634,7 @@ internal sealed class GameTableUI
 
     // Five 17-column seats need 85 cells plus the Blackjack table border.
     // Reserve a sidebar only when the cards still fit without clipping.
-    private const int MinimumTableWidth = 90;
+    private const int MinimumTableWidth = 100; // Five 19-cell seats plus the table border.
     private const int MinimumTerminalHeight = 24;
     private const int SidebarMinimumWidth = 32;
     private const int SidebarMaximumWidth = 40;
@@ -747,7 +747,7 @@ internal sealed class GameTableUI
                 round.Players, round.Dealer, tableHeight, notice, statuses,
                 cardsFaceDown, visibleCardCounter.RunningCount,
                 visibleCardCounter.TrueCount, activePlayerIndex,
-                showEmptyTable: bettingMode && playerCardsShown is null,
+                showEmptyTable: false, // Display the backs during betting.
                 dealerCardsShown: dealerCardsShown,
                 playerCardsShown: playerCardsShown)));
 
