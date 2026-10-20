@@ -265,20 +265,19 @@ public partial class ConsoleUi
         bool sideMenuActive,
         bool roundFinished,
         string[] playerStatuses,
-        int activePlayerIndex = 0)
+        int activePlayerIndex = 0,
+        bool forceSidebar = false)
     {
         bool menuOpen = sideMenuActive || roundFinished;
-        // GameTableUI displays this menu only when Esc has been pressed
-        // (or automatically at round end). Always use the separate full-screen
-        // layout so no menu is shown next to the table during gameplay.
-        bool useFullScreen = menuOpen;
+        // At a normal terminal width the menu is always on the right. Esc
+        // changes selection focus; it does not hide the player overview.
+        bool useFullScreen = menuOpen && !forceSidebar;
 
         int focusedIndex = players.Count > 0
             ? Math.Clamp(activePlayerIndex, 0, players.Count - 1)
             : 0;
 
-        // Use the full-width menu only when GameTableUI also switches from
-        // sidebar to overlay. The input handling remains in GameTableUI.
+        // On narrow screens Esc opens a separate menu while the game waits.
         if (useFullScreen)
         {
             var actionRows = new List<IRenderable>
@@ -312,7 +311,7 @@ public partial class ConsoleUi
                 .Padding(1, 0, 1, 0);
 
             var infoRows = BuildGameMenuInformation(players, playerStatuses,
-                focusedIndex, compact: false);
+                focusedIndex, compact: Console.WindowWidth < 116 || Console.WindowHeight < 32);
             infoRows.Insert(0, new Align(
                 new Markup("[bold gold1]SPELARÖVERSIKT[/]"),
                 HorizontalAlignment.Center));
@@ -346,29 +345,25 @@ public partial class ConsoleUi
                 .Expand();
         }
 
-        // When the gameplay menu is closed, show compact information in the sidebar.
+        // Always show the menu choices, player stats, balance and bets.
+        // The selected option is highlighted only when Esc has focused it.
         var sidebarRows = new List<IRenderable>
         {
             new Align(new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
-                HorizontalAlignment.Center)
+                HorizontalAlignment.Center),
+            new Align(new Markup(menuOpen
+                ? "[gold1]↑ ↓ Välj   Enter Bekräfta[/]"
+                : "[grey]Esc: Aktivera menyn[/]"),
+                HorizontalAlignment.Center),
+            new Rule("[gold1]VAL[/]").RuleStyle(Color.Gold1)
         };
 
-        if (menuOpen)
+        for (int i = 0; i < menuOptions.Length; i++)
         {
-            sidebarRows.Add(new Align(new Markup("[grey]VÄLJ HANDLING[/]"),
-                HorizontalAlignment.Center));
-            for (int i = 0; i < menuOptions.Length; i++)
-            {
-                string option = Markup.Escape(menuOptions[i]);
-                sidebarRows.Add(new Markup(i == selectedOption
-                    ? $"[bold white on #961923] ❯ {option} [/]"
-                    : $"[white]   {option}[/]"));
-            }
-        }
-        else
-        {
-            sidebarRows.Add(new Align(new Markup("[grey]Esc  Öppna spelmenyn[/]"),
-                HorizontalAlignment.Center));
+            string option = Markup.Escape(menuOptions[i]);
+            sidebarRows.Add(new Markup(menuOpen && i == selectedOption
+                ? $"[bold white on #961923] ❯ {option} [/]"
+                : $"[white]   {option}[/]"));
         }
 
         sidebarRows.AddRange(BuildGameMenuInformation(players, playerStatuses,
@@ -380,7 +375,8 @@ public partial class ConsoleUi
             .Expand();
     }
 
-    // Shows player statistics and bets in both the full-screen menu and sidebar.
+    // Detailed information is used in the full-screen fallback. The compact
+    // sidebar uses one line per player so five players fit in the terminal.
     private static List<IRenderable> BuildGameMenuInformation(
         List<Player> players,
         string[] playerStatuses,
@@ -388,24 +384,36 @@ public partial class ConsoleUi
         bool compact)
     {
         var rows = new List<IRenderable>();
-
         rows.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
-        for (int i = 0; i < players.Count; i++)
+
+        if (compact)
         {
-            Player player = players[i];
-            rows.Add(new Markup($"[bold]{Markup.Escape(player.Name)}[/]"));
-            rows.Add(new Markup(
-                $"[green1]V: {player.Wins}[/]  [red]F: {player.Losses}[/]  " +
-                $"[gold1]O: {player.Pushes}[/]  [blue]R: {player.GamesPlayed}[/]"));
-
-            if (!compact && i < playerStatuses.Length &&
-                !string.IsNullOrWhiteSpace(playerStatuses[i]))
+            rows.Add(new Markup("[grey]Spelare   V / F / O / R[/]"));
+            foreach (Player player in players)
             {
-                rows.Add(new Markup($"[grey]{Markup.Escape(playerStatuses[i])}[/]"));
+                string name = player.Name.Length > 8
+                    ? player.Name[..7] + "…" : player.Name;
+                rows.Add(new Markup(
+                    $"[white]{Markup.Escape(name.PadRight(8))}[/] " +
+                    $"[green1]{player.Wins}[/]/[red]{player.Losses}[/]/" +
+                    $"[gold1]{player.Pushes}[/]/[deepskyblue1]{player.GamesPlayed}[/]"));
             }
-
-            if (i < players.Count - 1)
-                rows.Add(new Rule().RuleStyle(Color.Grey30));
+        }
+        else
+        {
+            for (int i = 0; i < players.Count; i++)
+            {
+                Player player = players[i];
+                rows.Add(new Markup($"[bold]{Markup.Escape(player.Name)}[/]"));
+                rows.Add(new Markup(
+                    $"[green1]V: {player.Wins}[/]  [red]F: {player.Losses}[/]  " +
+                    $"[gold1]O: {player.Pushes}[/]  [blue]R: {player.GamesPlayed}[/]"));
+                if (i < playerStatuses.Length &&
+                    !string.IsNullOrWhiteSpace(playerStatuses[i]))
+                    rows.Add(new Markup($"[grey]{Markup.Escape(playerStatuses[i])}[/]"));
+                if (i < players.Count - 1)
+                    rows.Add(new Rule().RuleStyle(Color.Grey30));
+            }
         }
 
         rows.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
@@ -413,16 +421,15 @@ public partial class ConsoleUi
         for (int i = 0; i < players.Count; i++)
         {
             Player player = players[i];
-            string name = player.Name.Length > 10
-                ? player.Name[..9] + "…" : player.Name;
+            string name = player.Name.Length > 9
+                ? player.Name[..8] + "…" : player.Name;
             string selected = i == focusedIndex ? "[bold gold1]❯[/]" : " ";
             string style = i == focusedIndex ? "bold white" : "grey";
             rows.Add(new Markup(
-                $"{selected}[{style}]{Markup.Escape(name.PadRight(10))}[/] " +
+                $"{selected}[{style}]{Markup.Escape(name.PadRight(9))}[/] " +
                 $"[green1]{player.Chips.ToString().PadLeft(5)}[/] " +
                 $"[gold1]{player.CurrentBet.ToString().PadLeft(6)}[/]"));
         }
-
         return rows;
     }
 

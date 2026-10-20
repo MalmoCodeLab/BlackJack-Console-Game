@@ -598,15 +598,33 @@ internal sealed class GameTableUI
         return writer.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
     }
 
-    // Card rows have a fixed width. Below this size, showing the full table
-    // would cut off cards or the action buttons.
+    // Five multiplayer seats need 75 cells plus the Blackjack table border.
+    // Reserve a sidebar only when the cards still fit without clipping.
     private const int MinimumTableWidth = 80;
-    private const int MinimumTerminalHeight = 26;
+    private const int MinimumTerminalHeight = 24;
+    private const int SidebarMinimumWidth = 32;
+    private const int SidebarMaximumWidth = 40;
     private const int ActionPanelHeight = 2;
 
     private static bool TerminalTooSmall =>
         Console.WindowWidth < MinimumTableWidth ||
         Console.WindowHeight < MinimumTerminalHeight;
+
+    private static IRenderable BuildResizeMessage(int width, int height)
+    {
+        // Avoid rendering a blank/black terminal during a resize.
+        // The game is paused while the cards cannot fit at their real size.
+        string message = width >= 44
+            ? "FÖRSTORA TERMINALEN FÖR ATT FORTSÄTTA"
+            : width >= 22 ? "FÖRSTORA TERMINALEN" : "FÖR LITET";
+        // Keep the felt-green background even in the small-window fallback.
+        return new GreenTableBackground(
+            new Align(
+                new Markup($"[bold gold1]♠ {message} ♠[/]"),
+                HorizontalAlignment.Center,
+                VerticalAlignment.Middle).Height(height),
+            new Color(7, 80, 46), height);
+    }
 
     private Layout BuildTable(
         Round round,
@@ -635,20 +653,19 @@ internal sealed class GameTableUI
         builtHeight = height;
         var layout = new Layout("Root").Size(height);
 
-        // Keep the size guard without displaying an error message.
-        // A blank frame clears old content and protects the fixed-size cards.
-        // ReadTableKey pauses input until the terminal is large enough again.
+        // A tiny terminal cannot display five card seats reliably. Keep a
+        // visible resize message instead of replacing the game with black.
         if (TerminalTooSmall)
         {
-            layout.Update(new Text(string.Empty));
+            layout.Update(BuildResizeMessage(width, height));
             return layout;
         }
 
-        // Keep the game table full-width while playing. Esc opens the
-        // game menu as a separate screen, rather than a sidebar beside the table.
-        // The result menu still appears after a completed round so the player
-        // can choose a new round, return to the main menu, or save and quit.
-        if (sideMenuActive || roundFinished)
+        // Display the game menu and statistics on the right at normal widths.
+        // With less space, let the table use the width it needs, and open a
+        // centered menu using Esc. No hand/deck/bet state is changed.
+        bool showSidebar = width >= MinimumTableWidth + SidebarMinimumWidth;
+        if (!showSidebar && (sideMenuActive || roundFinished))
         {
             layout.Update(ui.BuildGameMenu(
                 GameMessages.InGameMenuOptions, selectedMenuOption,
@@ -658,6 +675,20 @@ internal sealed class GameTableUI
         }
 
         Layout tableArea = layout;
+        if (showSidebar)
+        {
+            int sidebarWidth = Math.Min(SidebarMaximumWidth,
+                width - MinimumTableWidth);
+            layout.SplitColumns(
+                new Layout("TableArea").Size(width - sidebarWidth),
+                new Layout("Sidebar").Size(sidebarWidth));
+            tableArea = layout["TableArea"];
+            layout["Sidebar"].Update(ui.BuildGameMenu(
+                GameMessages.InGameMenuOptions, selectedMenuOption,
+                round.Players, sideMenuActive, roundFinished, statuses,
+                activePlayerIndex, forceSidebar: true));
+        }
+
         int tableHeight = height - ActionPanelHeight;
 
         // Keep these as TWO named layouts. Replacing them with one Rows()
