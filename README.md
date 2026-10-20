@@ -8,23 +8,12 @@ statistics between program runs.
 
 - Play repeated rounds with one to five named players.
 - Load each returning player's wins, losses, and pushes.
-- Deal from a configurable number of decks and reshuffle below the configured card threshold.
-- Configure whether the dealer hits on soft 17 and whether a natural blackjack beats a
-  three-card 21.
+- Configure the house rules from the settings menu or the JSON configuration file.
 - Save cumulative player statistics as JSON for the game and as a readable `player-results.txt`
   report for players.
 
-The house rules are read from `blackjack-rules.json` in the working directory, or from beside
-the application if the working-directory file is absent. The file is copied beside the built
-application and can be edited without recompiling. If no file is found, the game displays a
-notice on its main menu and uses the defaults: dealer stands on soft 17, six decks,
-reshuffle below 15 remaining cards, and natural blackjack beats a three-card 21.
-
-The JSON properties are `DealerHitsSoft17` (boolean), `DeckCount` (1–8),
-`ReshuffleThreshold` (1 through the configured total deck size), and
-`NaturalBlackjackBeatsThreeCard21` (boolean). Invalid JSON or values are reported as errors
-rather than silently ignored. Edit these values in `blackjack-rules.json` and restart the game
-for the changes to take effect; rebuilding is not required.
+See [HouseRules.md](HouseRules.md) for details about the rule settings, the `RuleSet` class,
+and the `blackjack-rules.json` configuration file.
 
 This is the basic game: it does not use insurance, doubling down, or splitting pairs.
 
