@@ -3,6 +3,10 @@ using System.Text.Json;
 public sealed record RuleSet
 {
     public const string FileName = "blackjack-rules.json";
+    public const int MinDeckCount = 1;
+    public const int MaxDeckCount = 8;
+    private const int DefaultDeckCount = 6;
+    private const int DefaultReshuffleThreshold = 15;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -10,8 +14,8 @@ public sealed record RuleSet
     };
 
     public bool DealerHitsSoft17 { get; init; }
-    public int DeckCount { get; init; } = 6;
-    public int ReshuffleThreshold { get; init; } = 15;
+    public int DeckCount { get; init; } = DefaultDeckCount;
+    public int ReshuffleThreshold { get; init; } = DefaultReshuffleThreshold;
     public bool NaturalBlackjackBeatsThreeCard21 { get; init; } = true;
 
     public static RuleSet Default => new();
@@ -88,10 +92,11 @@ public sealed record RuleSet
 
     public void Validate()
     {
-        if (DeckCount is < 1 or > 8)
+        if (DeckCount is < MinDeckCount or > MaxDeckCount)
             throw new ArgumentOutOfRangeException(
-                nameof(DeckCount), "Deck count must be between 1 and 8.");
-        if (ReshuffleThreshold < 1 || ReshuffleThreshold > DeckCount * 52)
+                nameof(DeckCount),
+                $"Deck count must be between {MinDeckCount} and {MaxDeckCount}.");
+        if (ReshuffleThreshold < 1 || ReshuffleThreshold > DeckCount * Deck.CardsPerDeck)
             throw new ArgumentOutOfRangeException(
                 nameof(ReshuffleThreshold),
                 "Reshuffle threshold must be between 1 and the total number of cards.");
