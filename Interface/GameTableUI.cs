@@ -14,10 +14,11 @@ internal sealed class GameTableUI
     // Fit the table and the action buttons within the available terminal height.
     private static int TableHeight => Math.Max(4, Console.WindowHeight);
     private const int BlackjackNoticeDurationMs = 2400;
-    private const int CardDealDelayMs = 400; // Delay between cards during the initial deal.
+    private const int CardDealDelayMs = 180; // Shorter pause, while keeping the dealing animation.
 
     private readonly ConsoleUi ui;
     private bool tableScreenActive;
+    private bool tableScreenEntered;
     private Func<Layout>? rebuildLastTable;
     private int lastWidth;
     private int lastHeight;
@@ -106,9 +107,8 @@ internal sealed class GameTableUI
                 Thread.Sleep(CardDealDelayMs);
             }
 
-            // First frame: table with no cards at all.
-            DrawDealFrame();
-
+            // Betting already showed the empty table. Start the animation
+            // with the first card to avoid an extra blank frame and pause.
             // Order: each player, dealer, each player, dealer.
             for (int card = 0; card < 2; card++)
             {
@@ -531,9 +531,10 @@ internal sealed class GameTableUI
         if (tableScreenActive)
             return;
 
-        Console.Write("\u001b[?1049h\u001b[?25l\u001b[H\u001b[2J");
-        Console.Out.Flush();
+        // Wait until the first complete frame is ready before switching to
+        // the alternate screen. Otherwise a blank screen can flash briefly.
         tableScreenActive = true;
+        tableScreenEntered = false;
     }
 
     private void CloseTableScreen()
@@ -541,8 +542,13 @@ internal sealed class GameTableUI
         if (!tableScreenActive)
             return;
 
-        Console.Write("\u001b[?25h\u001b[?1049l");
-        Console.Out.Flush();
+        // Do not send "leave alternate screen" if we never entered it.
+        if (tableScreenEntered)
+        {
+            Console.Write("\u001b[?25h\u001b[?1049l");
+            Console.Out.Flush();
+        }
+        tableScreenEntered = false;
         tableScreenActive = false;
     }
 
@@ -575,6 +581,10 @@ internal sealed class GameTableUI
             }
 
             var frame = new System.Text.StringBuilder();
+            // Switch screens and paint the first fully rendered frame in one
+            // write, rather than clearing the screen before rendering starts.
+            if (tableScreenActive && !tableScreenEntered)
+                frame.Append("\u001b[?1049h");
             frame.Append("\u001b[?2026h\u001b[?25l\u001b[H");
 
             int visibleRows = Math.Min(lines.Length, height);
@@ -595,6 +605,8 @@ internal sealed class GameTableUI
 
             Console.Write(frame.ToString());
             Console.Out.Flush();
+            if (tableScreenActive)
+                tableScreenEntered = true;
             lastWidth = width;
             lastHeight = height;
             return;

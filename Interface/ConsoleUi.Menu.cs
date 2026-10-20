@@ -65,7 +65,7 @@ public partial class ConsoleUi
     // GameTableUI uses a separate alternate screen for gameplay as well.
     private static void EnterMenuScreen()
     {
-        Console.Write("\u001b[0m\u001b[?1049h\u001b[?25l\u001b[2J\u001b[H");
+        Console.Write("\u001b[0m\u001b[?1049h\u001b[?25l\u001b[H");
         Console.Out.Flush();
     }
 
@@ -97,16 +97,20 @@ public partial class ConsoleUi
             int height = Math.Max(1, Console.WindowHeight - 2);
             var screen = new Align(build(), HorizontalAlignment.Center, VerticalAlignment.Middle)
                 .Height(height);
-            Console.Write("\u001b[0m\u001b[H\u001b[?25l");
             int previousHeight = AnsiConsole.Profile.Height;
             AnsiConsole.Profile.Height = height;
             try
             {
+                // On terminals that support synchronized updates, present the
+                // whole redraw at once instead of showing intermediate frames.
+                // Unsupported terminals simply ignore these ANSI sequences.
+                Console.Write("\u001b[?2026h\u001b[0m\u001b[H\u001b[?25l");
                 AnsiConsole.Write(screen);
             }
             finally
             {
                 AnsiConsole.Profile.Height = previousHeight;
+                Console.Write("\u001b[?2026l");
                 Console.Out.Flush();
             }
         }
@@ -134,9 +138,14 @@ public partial class ConsoleUi
                     continue;
                 }
 
-                if (handleKey(Console.ReadKey(true).Key))
+                ConsoleKey key = Console.ReadKey(true).Key;
+                if (handleKey(key))
                     return;
-                Draw();
+
+                // Only Up/Down changes the selected menu option. Avoid
+                // rebuilding the entire screen for unrelated key presses.
+                if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
+                    Draw();
             }
         }
         finally
