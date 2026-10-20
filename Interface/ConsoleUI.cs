@@ -4,16 +4,17 @@ using Spectre.Console;
 // Other ConsoleUi methods are defined in the ConsoleUi.*.cs partial files.
 public partial class ConsoleUi
 {
-    // Displays a centered message and waits for the player to acknowledge it.
+    // Displays a centered message and closes it with Esc.
     public void ShowCenteredMessage(string message)
     {
-        // Only the empty-saves message uses Esc; other messages still use Enter.
-        bool returnWithEscape = string.Equals(message, GameMessages.NoSavedGames,
-            StringComparison.Ordinal);
-        ConsoleKey exitKey = returnWithEscape ? ConsoleKey.Escape : ConsoleKey.Enter;
-        string instruction = returnWithEscape
+        bool backToMainMenu =
+            string.Equals(message, GameMessages.NoSavedGames, StringComparison.Ordinal) ||
+            string.Equals(message, GameMessages.SaveStatisticsSuccess, StringComparison.Ordinal) ||
+            string.Equals(message, GameMessages.AllPlayersOutOfChips, StringComparison.Ordinal);
+
+        string instruction = backToMainMenu
             ? "Tryck Esc för att återgå till huvudmenyn."
-            : "Tryck Enter för att fortsätta.";
+            : "Tryck Esc för att fortsätta.";
 
         var content = new Rows(
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
@@ -23,7 +24,7 @@ public partial class ConsoleUi
             new Align(new Markup($"[grey]{instruction}[/]"), HorizontalAlignment.Center)
         );
 
-        ShowInformationPanel(content, exitKey);
+        ShowInformationPanel(content, ConsoleKey.Escape);
     }
 
     // Shows the basic Blackjack rules from the main menu.
@@ -112,14 +113,13 @@ public partial class ConsoleUi
         ShowInformationPanel(content, ConsoleKey.Escape);
     }
 
-    // Clears only when entering or leaving an information screen,
-    // not when navigating the menu with arrow keys.
-
+    // Clears only when entering or leaving an information screen.
     private void ShowInformationPanel(
         Rows content,
         ConsoleKey returnKey = ConsoleKey.Enter)
     {
         AnsiConsole.Clear();
+        Console.Write("\u001b[?25l"); // Hide the terminal cursor.
 
         var panel = new Panel(content)
             .Border(BoxBorder.Rounded)
@@ -135,18 +135,25 @@ public partial class ConsoleUi
             .PadLeft(leftPadding)
             .PadRight(terminalWidth - panelWidth - leftPadding);
 
-        // Center the panel vertically.
-        AnsiConsole.Write(
-            new Align(
-                centeredPanel,
-                HorizontalAlignment.Center,
-                VerticalAlignment.Middle)
-            .Height(Math.Max(1, Console.WindowHeight)));
-
-        while (Console.ReadKey(true).Key != returnKey)
+        try
         {
-        }
+            AnsiConsole.Write(
+                new Align(
+                    centeredPanel,
+                    HorizontalAlignment.Center,
+                    VerticalAlignment.Middle)
+                .Height(Math.Max(1, Console.WindowHeight)));
 
-        AnsiConsole.Clear();
+            Console.Write("\u001b[?25l"); // Keep cursor hidden after drawing.
+
+            while (Console.ReadKey(true).Key != returnKey)
+            {
+            }
+        }
+        finally
+        {
+            AnsiConsole.Clear();
+            Console.Write("\u001b[?25l");
+        }
     }
 }

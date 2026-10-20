@@ -476,11 +476,11 @@ public partial class ConsoleUi
             new Markup("[white]Backspace[/]  Ta bort marker"),
             new Markup("[grey]Inställningar ändras i huvudmenyn[/]"),
             new Text(""),
-            new Align(new Markup("[grey]Tryck Enter för att återgå till spelet.[/]"), HorizontalAlignment.Center)
+            new Align(new Markup("[grey]Tryck Esc för att återgå till spelet.[/]"), HorizontalAlignment.Center)
         };
 
         AnsiConsole.Write(CenterMenuPanel(rows));
-        while (Console.ReadKey(true).Key != ConsoleKey.Enter)
+        while (Console.ReadKey(true).Key != ConsoleKey.Escape)
         {
         }
         ClearMenuTransition();
