@@ -42,7 +42,7 @@ internal static class GameMessages
 
     internal static readonly string[] GameOptions =
     {
-        "♥ Köp kort",
+        "♥ Ta kort",
         "♠ Stanna",
         "♦ Satsa"
     };
@@ -55,7 +55,7 @@ internal static class GameMessages
         "♠ Ny runda",
         "♣ Huvudmeny",
         GameControls,
-        "♦ Spara och avsluta"
+        "♦ Avsluta"
     };
 
     internal static readonly string[] RoundEndMenuOptions = InGameMenuOptions;

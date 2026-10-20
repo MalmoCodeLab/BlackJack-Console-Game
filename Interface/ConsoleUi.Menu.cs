@@ -346,8 +346,7 @@ public partial class ConsoleUi
                 .Expand();
         }
 
-        // Sidebar: compact enough for the 33–38 character menu column.
-        // Keep all player scores and bets visible for 1–5 players.
+        // When the gameplay menu is closed, show compact information in the sidebar.
         var sidebarRows = new List<IRenderable>
         {
             new Align(new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
@@ -371,20 +370,47 @@ public partial class ConsoleUi
             sidebarRows.Add(new Align(new Markup("[grey]Esc  Öppna spelmenyn[/]"),
                 HorizontalAlignment.Center));
         }
-        
-        content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
-        foreach (Player player in players)
-        {
-        content.Add(new Markup($"[bold]{Markup.Escape(player.Name)}[/]"));
-        content.Add(new Markup($"[green1]V: {player.Wins}[/]  [red]F: {player.Losses}[/]  [gold1]O: {player.Pushes}[/]  [blue]R: {player.GamesPlayed}[/]"));
 
-        if (player != players[^1])
-        content.Add(new Rule().RuleStyle(Color.Grey30));
+        sidebarRows.AddRange(BuildGameMenuInformation(players, playerStatuses,
+            focusedIndex, compact: true));
+
+        return new Panel(new Rows(sidebarRows))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Expand();
+    }
+
+    // Shows player statistics and bets in both the full-screen menu and sidebar.
+    private static List<IRenderable> BuildGameMenuInformation(
+        List<Player> players,
+        string[] playerStatuses,
+        int focusedIndex,
+        bool compact)
+    {
+        var rows = new List<IRenderable>();
+
+        rows.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
+        for (int i = 0; i < players.Count; i++)
+        {
+            Player player = players[i];
+            rows.Add(new Markup($"[bold]{Markup.Escape(player.Name)}[/]"));
+            rows.Add(new Markup(
+                $"[green1]V: {player.Wins}[/]  [red]F: {player.Losses}[/]  " +
+                $"[gold1]O: {player.Pushes}[/]  [blue]R: {player.GamesPlayed}[/]"));
+
+            if (!compact && i < playerStatuses.Length &&
+                !string.IsNullOrWhiteSpace(playerStatuses[i]))
+            {
+                rows.Add(new Markup($"[grey]{Markup.Escape(playerStatuses[i])}[/]"));
+            }
+
+            if (i < players.Count - 1)
+                rows.Add(new Rule().RuleStyle(Color.Grey30));
         }
-        
-        content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup("[grey]SPELARE     SALDO INSATS[/]"));
-        foreach (Player player in players)
+
+        rows.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
+        rows.Add(new Markup("[grey]SPELARE     SALDO INSATS[/]"));
+        for (int i = 0; i < players.Count; i++)
         {
             Player player = players[i];
             string name = player.Name.Length > 10

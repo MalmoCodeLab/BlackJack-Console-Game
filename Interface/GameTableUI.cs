@@ -241,7 +241,7 @@ internal sealed class GameTableUI
                                 case 2: // Spelstyrning
                                     ShowControlsScreen();
                                     break;
-                                case 3: // Spara och avsluta
+                                case 3: // Avsluta
                                     saveRequested = true;
                                     break;
                             }

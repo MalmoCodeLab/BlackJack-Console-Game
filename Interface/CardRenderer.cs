@@ -1,8 +1,6 @@
-// Builds the shape of playing cards without choosing their colors.
-// ConsoleUi.Table.cs is responsible for color and layout.
+// Builds only the card artwork. ConsoleUi.Table.cs adds color and positioning.
 class CardRenderer
 {
-    // Converts the rank to short text.
     public string GetRank(Rank rank)
     {
         return rank switch
@@ -24,7 +22,6 @@ class CardRenderer
         };
     }
 
-    // Converts the suit to a symbol.
     public string GetSuit(Suit suit)
     {
         return suit switch
@@ -37,19 +34,12 @@ class CardRenderer
         };
     }
 
-    // Returns seven unstyled rows. ConsoleUi places and colors the card.
+    // Original full-size artwork, retained for solo play.
     public string[] RenderCard(Card card)
     {
         string rank = GetRank(card.Rank);
         string suit = GetSuit(card.Suit);
-
-        string center = card.Rank switch
-        {
-            Rank.King => "♚",
-            Rank.Queen => "♛",
-            Rank.Jack => "♞",
-            _ => suit
-        };
+        string center = GetCenterSymbol(card, suit);
 
         return new string[]
         {
@@ -63,7 +53,6 @@ class CardRenderer
         };
     }
 
-    // Returns the seven unstyled rows of a face-down card.
     public string[] RenderHiddenCard()
     {
         return new string[]
@@ -77,4 +66,42 @@ class CardRenderer
             "╰─────────╯"
         };
     }
+
+    // Compact multiplayer cards: 7 columns x 5 rows.
+    // Both visible and hidden cards have exactly the same dimensions.
+    public string[] RenderSmallCard(Card card)
+    {
+        string rank = GetRank(card.Rank);
+        string suit = GetSuit(card.Suit);
+        string center = GetCenterSymbol(card, suit);
+
+        return new string[]
+        {
+            "╭─────╮",
+            $"│{rank.PadRight(3)} {suit}│",
+            $"│  {center}  │",
+            $"│{rank.PadLeft(5)}│",
+            "╰─────╯"
+        };
+    }
+
+    public string[] RenderSmallHiddenCard()
+    {
+        return new string[]
+        {
+            "╭─────╮",
+            "│◇♠◇♠◇│",
+            "│♠◇♠◇♠│",
+            "│◇♠◇♠◇│",
+            "╰─────╯"
+        };
+    }
+
+    private static string GetCenterSymbol(Card card, string suit) => card.Rank switch
+    {
+        Rank.King => "♚",
+        Rank.Queen => "♛",
+        Rank.Jack => "♞",
+        _ => suit
+    };
 }
