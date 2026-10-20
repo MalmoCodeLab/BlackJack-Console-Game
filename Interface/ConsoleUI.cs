@@ -118,8 +118,24 @@ public partial class ConsoleUi
         Rows content,
         ConsoleKey returnKey = ConsoleKey.Enter)
     {
+        // Hide the cursor using both Spectre.Console and the terminal.
+        void HideCursor()
+        {
+            try
+            {
+                if (!Console.IsOutputRedirected)
+                    Console.CursorVisible = false;
+            }
+            catch (System.IO.IOException) { }
+            catch (PlatformNotSupportedException) { }
+
+            AnsiConsole.Cursor.Hide();
+            Console.Write("\u001b[?25l");
+            Console.Out.Flush();
+        }
+
         AnsiConsole.Clear();
-        Console.Write("\u001b[?25l"); // Hide the terminal cursor.
+        HideCursor();
 
         var panel = new Panel(content)
             .Border(BoxBorder.Rounded)
@@ -144,7 +160,8 @@ public partial class ConsoleUi
                     VerticalAlignment.Middle)
                 .Height(Math.Max(1, Console.WindowHeight)));
 
-            Console.Write("\u001b[?25l"); // Keep cursor hidden after drawing.
+            // Spectre.Console can update cursor state during rendering.
+            HideCursor();
 
             while (Console.ReadKey(true).Key != returnKey)
             {
@@ -153,7 +170,7 @@ public partial class ConsoleUi
         finally
         {
             AnsiConsole.Clear();
-            Console.Write("\u001b[?25l");
+            HideCursor();
         }
     }
 }
