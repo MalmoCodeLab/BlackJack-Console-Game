@@ -7,17 +7,23 @@ public partial class ConsoleUi
     // Displays a centered message and waits for the player to acknowledge it.
     public void ShowCenteredMessage(string message)
     {
-        AnsiConsole.Clear();
+        // Only the empty-saves message uses Esc; other messages still use Enter.
+        bool returnWithEscape = string.Equals(message, GameMessages.NoSavedGames,
+            StringComparison.Ordinal);
+        ConsoleKey exitKey = returnWithEscape ? ConsoleKey.Escape : ConsoleKey.Enter;
+        string instruction = returnWithEscape
+            ? "Tryck Esc för att återgå till huvudmenyn."
+            : "Tryck Enter för att fortsätta.";
 
         var content = new Rows(
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
             new Text(""),
             new Align(new Markup($"[white]{Markup.Escape(message)}[/]"), HorizontalAlignment.Center),
             new Text(""),
-            new Align(new Markup("[grey]Tryck Enter för att fortsätta.[/]"), HorizontalAlignment.Center)
+            new Align(new Markup($"[grey]{instruction}[/]"), HorizontalAlignment.Center)
         );
 
-        ShowInformationPanel(content);
+        ShowInformationPanel(content, exitKey);
     }
 
     // Shows the basic Blackjack rules from the main menu.
@@ -40,10 +46,10 @@ public partial class ConsoleUi
             new Markup("[white]Över 21 betyder att du förlorar rundan.[/]"),
             new Markup("[white]Blackjack är ett ess och ett tiopoängskort på de första två korten.[/]"),
             new Text(""),
-            new Align(new Markup("[grey]Tryck Enter för att återgå till huvudmenyn.[/]"), HorizontalAlignment.Center)
+            new Align(new Markup("[grey]Tryck Esc för att återgå till huvudmenyn.[/]"), HorizontalAlignment.Center)
         );
 
-        ShowInformationPanel(content);
+        ShowInformationPanel(content, ConsoleKey.Escape);
     }
 
     // Shows the team credits from the main menu.
@@ -57,14 +63,15 @@ public partial class ConsoleUi
             new Align(new Markup("[bold white]Grupp 1 – Blackjack[/]"), HorizontalAlignment.Center),
             new Align(new Markup("[white]Utvecklat i C# med Spectre.Console.[/]"), HorizontalAlignment.Center),
             new Text(""),
-            new Align(new Markup("[grey]Tryck Enter för att återgå till huvudmenyn.[/]"), HorizontalAlignment.Center)
+            new Align(new Markup("[grey]Tryck Esc för att återgå till huvudmenyn.[/]"), HorizontalAlignment.Center)
         );
 
-        ShowInformationPanel(content);
+        ShowInformationPanel(content, ConsoleKey.Escape);
     }
 
-    // Uses the same centered, gold-bordered layout for informational screens.
-    private void ShowInformationPanel(Rows content)
+    // Clears only when entering or leaving an information screen,
+    // not when navigating the menu with arrow keys.
+    private void ShowInformationPanel(Rows content, ConsoleKey exitKey = ConsoleKey.Enter)
     {
         AnsiConsole.Clear();
 
@@ -76,8 +83,11 @@ public partial class ConsoleUi
             new Align(panel, HorizontalAlignment.Center, VerticalAlignment.Middle)
                 .Height(Math.Max(1, Console.WindowHeight)));
 
-        while (Console.ReadKey(true).Key != ConsoleKey.Enter)
+        while (Console.ReadKey(true).Key != exitKey)
         {
         }
+
+        // Remove the information panel before the main menu draws again.
+        AnsiConsole.Clear();
     }
 }

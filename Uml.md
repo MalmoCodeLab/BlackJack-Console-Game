@@ -155,7 +155,7 @@ classDiagram
 | `Program` | Composition root: load saved totals, create the UI and game, start play, and save totals on exit. | Round rules or card scoring. |
 | `ConsoleUI` | Read and validate console input; display players, hands, prompts, and outcomes. | Game flow, scoring, or file access. |
 | `Game` | Coordinate rounds, player turns, dealer turn, result calculation, and statistics updates. | JSON serialization or low-level console input parsing. |
-| `GameStorage` | Load cumulative player statistics from JSON and write both the JSON data and a readable `player-results.txt` summary. | Running a round or interacting with the console. |
+| `GameStorage` | Load, save, and delete cumulative player statistics from JSON and keep the readable `player-results.txt` summary in sync. | Running a round or interacting with the console. |
 | `PlayerStatistics` | Represent the persisted wins, losses, and pushes for one player. | Game behavior or persistence operations. |
 | `Participant` | Share a name, hand, card receiving, score calculation, bust/blackjack checks, and round reset. | Player-specific statistics or dealer policy. |
 | `Player` | Track one player's wins, losses, and pushes. | Console interaction or saved-file management. |
