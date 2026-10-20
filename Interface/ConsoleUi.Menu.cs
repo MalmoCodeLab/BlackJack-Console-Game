@@ -208,7 +208,6 @@ public partial class ConsoleUi
                 ? $"[bold white on #961923] ❯ {paddedOption} [/]"
                 : $"[white]   {paddedOption} [/]";
             rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
-            rows.Add(new Text(""));
         }
         rows.Add(new Rule().RuleStyle(Color.Gold1));
         rows.Add(new Align(new Markup(GameMessages.MenuNavigationMarkup), HorizontalAlignment.Center));

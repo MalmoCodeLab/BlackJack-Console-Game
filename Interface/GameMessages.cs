@@ -159,7 +159,7 @@ internal static class GameMessages
     internal static string AppendSaveResultsSuccess(
         string summary, IEnumerable<string> names) =>
         $"{summary}{Environment.NewLine}Sparat i databasen: {string.Join(", ", names)}. " +
-        "Pågående runda sparas inte om du lämnar.";
+        "Pågående runda sparas om du lämnar.";
 
     internal static string AppendSaveResultsError(string summary) =>
         $"{summary}{Environment.NewLine}{SaveResultsError}";
