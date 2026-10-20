@@ -6,7 +6,7 @@ public static class BettingUI
 {
     private static readonly int[] chipValues = { 5, 25, 100, 500 };
     private static readonly string[] chipColors = { "red", "green3", "deepskyblue1", "gold1" };
-    public static int Balance { get; private set; } = 1000;
+    public static int Balance { get; private set; } = Player.StartingChips;
     public static int CurrentBet { get; private set; }
     public static int SelectedChip { get; private set; }
 
@@ -94,5 +94,5 @@ public static class BettingUI
         }
     }
 
-    public static void Reset() => LoadBalance(1000);
+    public static void Reset() => LoadBalance(Player.StartingChips);
 }

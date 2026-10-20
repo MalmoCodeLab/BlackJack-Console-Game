@@ -5,9 +5,17 @@ class Player : Participant
     public int Pushes { get; private set; }
 
     public const int StartingChips = 1000;
+    private const int WinMultiplier = 2;                // bet back + 1:1
+    private const int BlackjackPayoutNumerator = 3;     // blackjack pays 3:2
+    private const int BlackjackPayoutDenominator = 2;
+    private const int InsuranceCostDivisor = 2;         // insurance costs half the bet
+    private const int InsuranceMultiplier = 3;          // insurance back + 2:1
+
+    public int InsuranceCost => CurrentBet / InsuranceCostDivisor;
 
     public int Chips { get; private set; }
     public int CurrentBet { get; private set; }
+    public int InsuranceBet { get; private set; }
     public bool IsOutOfChips => Chips <= 0;
 
     public int GamesPlayed => Wins + Losses + Pushes;
@@ -68,10 +76,10 @@ class Player : Participant
         switch (outcome)
         {
             case Outcome.Win:
-                Chips += CurrentBet * 2;                  // bet back + 1:1
+                Chips += CurrentBet * WinMultiplier;
                 break;
             case Outcome.Blackjack:
-                Chips += CurrentBet + CurrentBet * 3 / 2; // bet back + 3:2
+                Chips += CurrentBet + CurrentBet * BlackjackPayoutNumerator / BlackjackPayoutDenominator;
                 break;
             case Outcome.Push:
                 Chips += CurrentBet;                      // bet back
@@ -81,5 +89,24 @@ class Player : Participant
         }
         RecordResult(outcome);
         CurrentBet = 0;
+    }
+    // Insurance costs half the bet. Returns false if the player cannot afford it.
+    public bool TryTakeInsurance()
+    {
+        int amount = InsuranceCost;
+        if (amount <= 0 || amount > Chips || InsuranceBet > 0)
+            return false;
+
+        Chips -= amount;
+        InsuranceBet = amount;
+        return true;
+    }
+
+    // Pays 2:1 if the dealer has blackjack, otherwise the insurance is lost.
+    public void SettleInsurance(bool dealerHasBlackjack)
+    {
+        if (dealerHasBlackjack)
+            Chips += InsuranceBet * InsuranceMultiplier; // insurance back + 2:1
+        InsuranceBet = 0;
     }
 }

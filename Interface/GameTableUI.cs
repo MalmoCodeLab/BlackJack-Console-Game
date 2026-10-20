@@ -56,6 +56,7 @@ internal sealed class GameTableUI
         bool bettingMode = true;
         bool betsComplete = false;
         bool pendingBlackjackAdvance = false;
+        bool insuranceMode = false;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
 
@@ -63,6 +64,8 @@ internal sealed class GameTableUI
             $"{player.Name.ToUpperInvariant()} – DIN TUR ATT SATSA: ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
         static string PlayTurnNotice(Player player) =>
             $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
+        static string InsuranceNotice(Player player) =>
+            $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING FÖR {player.InsuranceCost}? J = JA, N = NEJ";
 
         string? notice = BetTurnNotice(players[0]);
         DateTime noticeUntil = DateTime.MinValue;
@@ -129,14 +132,30 @@ internal sealed class GameTableUI
         {
             bettingMode = false;
             currentPlayerIndex = 0;
-            selectedGameOption = 0;
-            notice = PlayTurnNotice(players[0]);
 
             // No actual card-hand changes: reveal their existing hands in order.
             for (int i = 0; i < players.Count; i++)
                 statuses[i] = "VÄNTAR";
             AnimateInitialDeal();
             betsComplete = true;
+
+            // The dealer shows an ace: ask every player about insurance first.
+            if (round.Dealer.ShowsAce)
+            {
+                insuranceMode = true;
+                statuses[0] = "FÖRSÄKRING?";
+                notice = InsuranceNotice(players[0]);
+                return;
+            }
+
+            StartPlaying();
+        }
+
+        void StartPlaying()
+        {
+            currentPlayerIndex = 0;
+            selectedGameOption = 0;
+            notice = PlayTurnNotice(players[0]);
 
             pendingBlackjackAdvance = players[0].HasBlackjack;
             statuses[0] = pendingBlackjackAdvance ? "BLACKJACK" : "DIN TUR";
