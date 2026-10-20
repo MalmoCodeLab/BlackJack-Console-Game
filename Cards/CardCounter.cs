@@ -1,0 +1,24 @@
+class CardCounter
+{
+    public int RunningCount { get; private set; }
+    public double TrueCount { get; private set; }
+
+    public void Count(Card card, int cardsRemaining)
+    {
+        if (card.Rank <= Rank.Six)
+            RunningCount++;
+        else if (card.Rank >= Rank.Ten)
+            RunningCount--;
+
+        double decksRemaining = cardsRemaining / 52.0;
+        TrueCount = decksRemaining > 0
+            ? Math.Round(RunningCount / decksRemaining, 2, MidpointRounding.AwayFromZero)
+            : 0;
+    }
+
+    public void Reset()
+    {
+        RunningCount = 0;
+        TrueCount = 0;
+    }
+}

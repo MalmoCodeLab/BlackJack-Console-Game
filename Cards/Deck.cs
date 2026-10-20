@@ -1,3 +1,5 @@
+using System.Diagnostics.Metrics;
+
 class Deck
 {
     public RuleSet Rules { get; }
@@ -5,8 +7,8 @@ class Deck
     public List<Card> DiscardedCards { get; } = [];
     public int CutCardPosition { get; private set; }
     public bool CutCardReached { get; private set; }
-    public int RunningCount {get; private set;}
-    public double TrueCount {get; private set;}
+    public CardCounter Counter { get; } = new();
+ 
 
     public Deck(RuleSet? rules = null)
     {
@@ -36,21 +38,7 @@ class Deck
         CutCardPosition = Random.Shared.Next(min, max + 1);
         CutCardReached = false;
     }
-    public void CardCounter(Card card)
-    {
-        if (card.Rank <= Rank.Six)
-        {
-            RunningCount++;
-        }
-        else if (card.Rank >= Rank.Ten)
-        {
-            RunningCount--;
-        }
-        double decksRemaining = DeckCards.Count / 52.0;
-        double rawTrueCount = (double)RunningCount / decksRemaining;
-        TrueCount = Math.Round(rawTrueCount, 2, MidpointRounding.AwayFromZero);
-
-    }
+    
     public void ShuffleDeck()
     {
         if (DiscardedCards.Count > 0)
@@ -70,8 +58,7 @@ class Deck
             DeckCards[i] = TempCard;
         }
         PlaceCutCard();
-        RunningCount = 0;
-        TrueCount = 0;
+        Counter.Reset();
 
     }
     public void CheckIfNewShuffleIsNeeded(int cardsNeeded = 0)
@@ -94,7 +81,7 @@ class Deck
             CutCardReached = true;
         if (faceUp)
         {
-            CardCounter(dealCard);
+            Counter.Count(dealCard, DeckCards.Count);
         }
         return dealCard;
     }
