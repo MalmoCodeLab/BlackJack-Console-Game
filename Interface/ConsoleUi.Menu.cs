@@ -371,74 +371,20 @@ public partial class ConsoleUi
             sidebarRows.Add(new Align(new Markup("[grey]Esc  Öppna spelmenyn[/]"),
                 HorizontalAlignment.Center));
         }
-
-        sidebarRows.AddRange(BuildGameMenuInformation(players, playerStatuses,
-            focusedIndex, compact: true));
-
-        if (menuOpen)
-            sidebarRows.Add(new Align(new Markup(roundFinished
-                    ? "[grey]↑ ↓  Enter[/]"
-                    : "[grey]↑ ↓  Enter  Esc[/]"),
-                HorizontalAlignment.Center));
-
-        return new Panel(new Rows(sidebarRows))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1)
-            .Padding(1, 0, 1, 0)
-            .Expand();
-    }
-
-    // Shared score/statistics/chip rendering so narrow and wide menus show
-    // exactly the same game state without touching betting or round logic.
-    private List<IRenderable> BuildGameMenuInformation(
-        List<Player> players,
-        string[] playerStatuses,
-        int focusedIndex,
-        bool compact)
-    {
-        var rows = new List<IRenderable>
+        
+        content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
+        foreach (Player player in players)
         {
-            new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1),
-            new Markup("[grey]SPELARE     P  RESULTAT[/]")
-        };
+        content.Add(new Markup($"[bold]{Markup.Escape(player.Name)}[/]"));
+        content.Add(new Markup($"[green1]V: {player.Wins}[/]  [red]F: {player.Losses}[/]  [gold1]O: {player.Pushes}[/]  [blue]R: {player.GamesPlayed}[/]"));
 
-        for (int i = 0; i < players.Count; i++)
-        {
-            Player player = players[i];
-            string name = player.Name.Length > 10
-                ? player.Name[..9] + "…" : player.Name;
-            string status = i < playerStatuses.Length ? playerStatuses[i] : "";
-            string statusColor = status switch
-            {
-                "TJOCK" or "FÖRLORADE" => "red",
-                "DIN TUR" or "VANN" => "green1",
-                "SATSAR" => "gold1",
-                "SATSAT" => "green1",
-                "OAVGJORT" or "BLACKJACK" => "gold1",
-                _ => "grey"
-            };
-            string visibleStatus = status.Length > 9 ? status[..9] : status;
-            rows.Add(new Markup(
-                $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
-                $"[gold1]{player.Score.ToString().PadLeft(2)}[/]  " +
-                $"[{statusColor}]{Markup.Escape(visibleStatus)}[/]"));
+        if (player != players[^1])
+        content.Add(new Rule().RuleStyle(Color.Grey30));
         }
-
-        rows.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
-        if (players.Count > 0)
-        {
-            Player main = players[0];
-            rows.Add(new Markup(
-                $"[green1]V: {main.Wins}[/]  " +
-                $"[red]F: {main.Losses}[/]  " +
-                $"[gold1]O: {main.Pushes}[/]"));
-            if (!compact)
-                rows.Add(new Markup($"[grey]Rundor: {main.GamesPlayed}[/]"));
-        }
-
-        rows.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        rows.Add(new Markup("[grey]SPELARE      SALDO INSATS[/]"));
-        for (int i = 0; i < players.Count; i++)
+        
+        content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
+        content.Add(new Markup("[grey]SPELARE     SALDO INSATS[/]"));
+        foreach (Player player in players)
         {
             Player player = players[i];
             string name = player.Name.Length > 10
