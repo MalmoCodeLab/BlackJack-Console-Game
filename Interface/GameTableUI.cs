@@ -110,7 +110,7 @@ internal sealed class GameTableUI
             DrawDealFrame();
 
             // Order: each player, dealer, each player, dealer.
-            for (int card = 0; card < 2; card++)
+            for (int card = 0; card < Round.StartingHandSize; card++)
             {
                 for (int i = 0; i < players.Count; i++)
                 {

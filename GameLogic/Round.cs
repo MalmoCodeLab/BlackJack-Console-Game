@@ -9,7 +9,7 @@ class Round
     public Dealer Dealer { get; }
     public Deck Deck { get; }
     public RuleSet Rules { get; }
-    private const int StartingHandSize = 2;
+    public const int StartingHandSize = 2;
     private const int ThreeCardHandSize = 3;
     public IReadOnlyDictionary<Player, Outcome> Outcomes => outcomes;
 
