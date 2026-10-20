@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 // Other ConsoleUi methods are defined in the ConsoleUi.*.cs partial files.
 public partial class ConsoleUi
@@ -7,24 +9,37 @@ public partial class ConsoleUi
     // Displays a centered message and closes it with Esc.
     public void ShowCenteredMessage(string message)
     {
+        bool saveAndExit = string.Equals(message,
+            GameMessages.SaveStatisticsSuccess, StringComparison.Ordinal);
+
         bool backToMainMenu =
             string.Equals(message, GameMessages.NoSavedGames, StringComparison.Ordinal) ||
-            string.Equals(message, GameMessages.SaveStatisticsSuccess, StringComparison.Ordinal) ||
             string.Equals(message, GameMessages.AllPlayersOutOfChips, StringComparison.Ordinal);
 
-        string instruction = backToMainMenu
-            ? "Tryck Esc för att återgå till huvudmenyn."
-            : "Tryck Esc för att fortsätta.";
+        string instruction = saveAndExit
+            ? "Tryck Esc för att avsluta spelet."
+            : backToMainMenu
+                ? "Tryck Esc för att återgå till huvudmenyn."
+                : "Tryck Esc för att fortsätta.";
 
-        var content = new Rows(
+        List<IRenderable> rows = new()
+        {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
             new Text(""),
-            new Align(new Markup($"[white]{Markup.Escape(message)}[/]"), HorizontalAlignment.Center),
-            new Text(""),
-            new Align(new Markup($"[grey]{instruction}[/]"), HorizontalAlignment.Center)
-        );
+            new Align(new Markup($"[white]{Markup.Escape(message)}[/]"), HorizontalAlignment.Center)
+        };
 
-        ShowInformationPanel(content, ConsoleKey.Escape);
+        if (saveAndExit)
+        {
+            rows.Add(new Text(""));
+            rows.Add(new Align(new Markup("[bold gold1]Tack för att du spelade! Hej då! ♠[/]"),
+                HorizontalAlignment.Center));
+        }
+
+        rows.Add(new Text(""));
+        rows.Add(new Align(new Markup($"[grey]{instruction}[/]"), HorizontalAlignment.Center));
+
+        ShowInformationPanel(new Rows(rows), ConsoleKey.Escape);
     }
 
     // Shows the basic Blackjack rules from the main menu.
