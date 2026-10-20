@@ -7,6 +7,10 @@ class Deck
     public bool CutCardReached { get; private set; }
     public int RunningCount {get; private set;}
     public double TrueCount {get; private set;}
+    public const int CardsPerDeck = SuitCount * RanksPerSuit;   // 52
+    private const int SuitCount = 4;
+    private const int RanksPerSuit = 13;
+    private const int QuarterDivisor = 4;
 
     public Deck(RuleSet? rules = null)
     {
@@ -14,13 +18,13 @@ class Deck
         Rules.Validate();
     }
 
-    public void CreateDeck()
+     public void CreateDeck()
     {
         for (int i = 0; i < Rules.DeckCount; i++)
         {
-            for (int s = 0; s < 4; s++)
+            for (int s = 0; s < SuitCount; s++)
             {
-                for (int r = 0; r < 13; r++)
+                for (int r = 0; r < RanksPerSuit; r++)
                 {
                     Card card = new((Suit)s, (Rank)r);
                     DeckCards.Add(card);
@@ -28,9 +32,10 @@ class Deck
             }
         }
     }
+    
     private void PlaceCutCard()
     {
-        int lastQuarter = DeckCards.Count / 4;
+        int lastQuarter = DeckCards.Count / QuarterDivisor;
         int min = Math.Min(Rules.ReshuffleThreshold, DeckCards.Count);
         int max = Math.Max(min, lastQuarter);
         CutCardPosition = Random.Shared.Next(min, max + 1);
@@ -46,8 +51,8 @@ class Deck
         {
             RunningCount--;
         }
-        double decksRemaining = DeckCards.Count / 52.0;
-        double rawTrueCount = (double)RunningCount / decksRemaining;
+        double decksRemaining = DeckCards.Count / (double)CardsPerDeck;
+        double rawTrueCount = RunningCount / decksRemaining;
         TrueCount = Math.Round(rawTrueCount, 2, MidpointRounding.AwayFromZero);
 
     }
