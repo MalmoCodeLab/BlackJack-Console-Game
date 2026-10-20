@@ -104,14 +104,7 @@ public partial class ConsoleUi
     {
         if (player.Score != Player.BlackjackValue) return "";
         if (player.HasBlackjack) return "NATURAL BLACKJACK";
-        int total = 0, aces = 0;
-        foreach (Card card in player.Hand.CardsOnHand)
-        {
-            total += card.IndividualCardValue(card);
-            if (card.Rank == Rank.Ace) aces++;
-        }
-        while (total > Player.BlackjackValue && aces > 0) { total -= 10; aces--; }
-        return aces > 0 ? "MJUK BLACKJACK" : "HÅRD BLACKJACK";
+        return player.Hand.IsSoft ? "MJUK BLACKJACK" : "HÅRD BLACKJACK";
     }
     // Five equal 15-column seats (total 75 cells). Two 7-cell cards fit
     // next to each other in every seat, including the active player's seat.

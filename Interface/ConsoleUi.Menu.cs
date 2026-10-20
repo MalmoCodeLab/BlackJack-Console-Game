@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
+
+
 public partial class ConsoleUi
 {
+    private const int MaxPlayers = 5;
+    private const int ChipsNameWidth = 12;
     private readonly string[] menuOptions = GameMessages.MainMenuOptions;
 
     // Main menu with arrow-key navigation.
@@ -33,7 +37,6 @@ public partial class ConsoleUi
     // Choose 1–5 players. Esc returns 0 so Game can return to the main menu.
     public int AskPlayerCountCentered()
     {
-        const int maxPlayers = 5;
         int selectedOption = 0;
         int playerCount = 0;
         RunScreen(
@@ -41,9 +44,9 @@ public partial class ConsoleUi
             key =>
             {
                 if (key == ConsoleKey.UpArrow)
-                    selectedOption = (selectedOption - 1 + maxPlayers) % maxPlayers;
+                    selectedOption = (selectedOption - 1 + MaxPlayers) % MaxPlayers;
                 else if (key == ConsoleKey.DownArrow)
-                    selectedOption = (selectedOption + 1) % maxPlayers;
+                    selectedOption = (selectedOption + 1) % MaxPlayers;
                 else if (key == ConsoleKey.Enter)
                 {
                     playerCount = selectedOption + 1;
@@ -155,7 +158,7 @@ public partial class ConsoleUi
             new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < MaxPlayers; i++)
         {
             string text = string.Format(GameMessages.PlayerCountFormat, i + 1);
             string label = text.PadRight(17);
@@ -421,16 +424,18 @@ public partial class ConsoleUi
         }
 
         rows.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        rows.Add(new Markup("[grey]SPELARE     SALDO INSATS[/]"));
+        rows.Add(new Markup("[grey]" + "SPELARE".PadRight(ChipsNameWidth + 3) + "SALDO INSATS[/]"));
         for (int i = 0; i < players.Count; i++)
         {
             Player player = players[i];
-            string name = player.Name.Length > 9
-                ? player.Name[..8] + "…" : player.Name;
+            string insuredMark = player.InsuranceBet > 0 ? " (F)" : "";
+            int nameWidth = ChipsNameWidth - insuredMark.Length;
+            string name = player.Name.Length > nameWidth
+                ? player.Name[..(nameWidth - 1)] + "…" : player.Name;
             string selected = i == focusedIndex ? "[bold gold1]❯[/]" : " ";
             string style = i == focusedIndex ? "bold white" : "grey";
             rows.Add(new Markup(
-                $"{selected}[{style}]{Markup.Escape(name.PadRight(9))}[/] " +
+                $"{selected}[{style}]{Markup.Escape((name + insuredMark).PadRight(ChipsNameWidth))}[/] " +
                 $"[green1]{player.Chips.ToString().PadLeft(5)}[/] " +
                 $"[gold1]{player.CurrentBet.ToString().PadLeft(6)}[/]"));
         }
