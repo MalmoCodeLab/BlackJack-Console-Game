@@ -3,6 +3,7 @@ public class Game
     private readonly ConsoleUi ui = new();
     private readonly PlayerSessionService playerSessions;
     private readonly GameTableUI gameTable;
+    private bool exitRequested;
     private RuleSet rules;
     private readonly string? ruleConfigurationNotice;
 
@@ -19,7 +20,7 @@ public class Game
     {
         bool running = true;
         bool showRuleNotice = ruleConfigurationNotice is not null;
-        while (running)
+        while (running && !exitRequested)
         {
             string choice = ui.ShowMenu(
                 showRuleNotice ? ruleConfigurationNotice : null);
@@ -107,6 +108,12 @@ public class Game
 
                 action = gameTable.ShowRoundEndMenu(
                     round, summary, playerSessions.SaveGame);
+            }
+
+            if (action == GameTableAction.ExitGame)
+            {
+                exitRequested = true;
+                return;
             }
 
             if (action != GameTableAction.StartNewRound)

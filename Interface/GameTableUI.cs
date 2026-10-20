@@ -5,7 +5,8 @@ internal enum GameTableAction
 {
     RoundCompleted,
     StartNewRound,
-    ReturnToMainMenu
+    ReturnToMainMenu,
+    ExitGame
 }
 
 internal sealed class GameTableUI
@@ -357,7 +358,7 @@ internal sealed class GameTableUI
 
                 if (saveRequested && saveGame(players))
                 {
-                    action = GameTableAction.ReturnToMainMenu;
+                    action = GameTableAction.ExitGame;
                     playing = false;
                 }
             }
@@ -370,7 +371,8 @@ internal sealed class GameTableUI
         finally
         {
             // Avoid flicker between the end of the round and the result view.
-            if (action == GameTableAction.ReturnToMainMenu)
+            if (action == GameTableAction.ReturnToMainMenu ||
+                action == GameTableAction.ExitGame)
                 CloseTableScreen();
         }
 
@@ -456,7 +458,7 @@ internal sealed class GameTableUI
 
                 if (saveRequested && saveGame(players))
                 {
-                    action = GameTableAction.ReturnToMainMenu;
+                    action = GameTableAction.ExitGame;
                     finished = true;
                 }
             }
