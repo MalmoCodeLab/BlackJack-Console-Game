@@ -67,8 +67,7 @@ class CardRenderer
         };
     }
 
-    // Compact multiplayer cards: 7 columns x 5 rows.
-    // Both visible and hidden cards have exactly the same dimensions.
+    // 7 columns x 7 rows: same dimensions for EVERY player in multiplayer.
     public string[] RenderSmallCard(Card card)
     {
         string rank = GetRank(card.Rank);
@@ -78,8 +77,10 @@ class CardRenderer
         return new string[]
         {
             "╭─────╮",
-            $"│{rank.PadRight(3)} {suit}│",
+            $"│{rank.PadRight(5)}│",
+            $"│{suit.PadRight(5)}│",
             $"│  {center}  │",
+            $"│{suit.PadLeft(5)}│",
             $"│{rank.PadLeft(5)}│",
             "╰─────╯"
         };
@@ -90,6 +91,8 @@ class CardRenderer
         return new string[]
         {
             "╭─────╮",
+            "│◇♠◇♠◇│",
+            "│♠◇♠◇♠│",
             "│◇♠◇♠◇│",
             "│♠◇♠◇♠│",
             "│◇♠◇♠◇│",
