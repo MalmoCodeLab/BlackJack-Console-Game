@@ -51,8 +51,8 @@ public partial class ConsoleUi
 
         ShowInformationPanel(content, ConsoleKey.Escape);
     }
-    
-   // Displays team members and their individual features.
+
+    // Displays team members and their individual features.
     public void ShowCredits()
     {
         var credits = new Grid();
@@ -114,23 +114,39 @@ public partial class ConsoleUi
 
     // Clears only when entering or leaving an information screen,
     // not when navigating the menu with arrow keys.
-    private void ShowInformationPanel(Rows content, ConsoleKey exitKey = ConsoleKey.Enter)
+
+    private void ShowInformationPanel(
+        Rows content,
+        ConsoleKey returnKey = ConsoleKey.Enter)
     {
         AnsiConsole.Clear();
 
         var panel = new Panel(content)
             .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Gold1);
+            .BorderColor(Color.Gold1)
+            .Expand();
 
+        // Match the width of the main menu.
+        int terminalWidth = Math.Max(1, Console.WindowWidth);
+        int panelWidth = Math.Min(68, terminalWidth);
+        int leftPadding = (terminalWidth - panelWidth) / 2;
+
+        var centeredPanel = new Padder(panel)
+            .PadLeft(leftPadding)
+            .PadRight(terminalWidth - panelWidth - leftPadding);
+
+        // Center the panel vertically.
         AnsiConsole.Write(
-            new Align(panel, HorizontalAlignment.Center, VerticalAlignment.Middle)
-                .Height(Math.Max(1, Console.WindowHeight)));
+            new Align(
+                centeredPanel,
+                HorizontalAlignment.Center,
+                VerticalAlignment.Middle)
+            .Height(Math.Max(1, Console.WindowHeight)));
 
-        while (Console.ReadKey(true).Key != exitKey)
+        while (Console.ReadKey(true).Key != returnKey)
         {
         }
 
-        // Remove the information panel before the main menu draws again.
         AnsiConsole.Clear();
     }
 }
