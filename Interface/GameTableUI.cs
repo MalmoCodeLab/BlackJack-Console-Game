@@ -14,6 +14,8 @@ internal sealed class GameTableUI
     // Fit the table and the action buttons within the available terminal height.
     private static int TableHeight => Math.Max(4, Console.WindowHeight);
     private const int BlackjackNoticeDurationMs = 2400;
+    private const int CelebrationBlinkMs = 220;
+    private const int CelebrationBlinkCount = 3;
     private const int CardDealDelayMs = 180; // Shorter pause, while keeping the dealing animation.
 
     private readonly ConsoleUi ui;
@@ -85,6 +87,39 @@ internal sealed class GameTableUI
                 roundFinished: false, bettingMode: bettingMode,
                 cardsFaceDown: !betsComplete,
                 activePlayerIndex: currentPlayerIndex));
+        }
+
+        // Celebrate a natural Blackjack or a hit that reaches exactly 21.
+        // Flash the announcement only; never clear the table or modify the cards.
+        void FlashTwentyOne(Player player, bool naturalBlackjack)
+        {
+            if (TerminalTooSmall)
+                return;
+
+            string message = naturalBlackjack
+                ? NaturalBlackjackNotice(player)
+                : $"{player.Name.ToUpperInvariant()} – 21 POÄNG!";
+
+            for (int blink = 0; blink < CelebrationBlinkCount; blink++)
+            {
+                DrawTable(BuildTable(
+                    round, statuses, message, selectedGameOption,
+                    selectedMenuOption, sideMenuActive: false,
+                    roundFinished: false, bettingMode: false,
+                    cardsFaceDown: false,
+                    activePlayerIndex: currentPlayerIndex,
+                    celebrationFlash: true));
+                Thread.Sleep(CelebrationBlinkMs);
+
+                DrawTable(BuildTable(
+                    round, statuses, message, selectedGameOption,
+                    selectedMenuOption, sideMenuActive: false,
+                    roundFinished: false, bettingMode: false,
+                    cardsFaceDown: false,
+                    activePlayerIndex: currentPlayerIndex,
+                    celebrationFlash: false));
+                Thread.Sleep(CelebrationBlinkMs);
+            }
         }
 
         // Renders the already-dealt hands gradually. Round.StartRound has
@@ -163,6 +198,7 @@ internal sealed class GameTableUI
             {
                 notice = NaturalBlackjackNotice(players[0]);
                 noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
+                FlashTwentyOne(players[0], naturalBlackjack: true);
             }
         }
 
@@ -180,6 +216,7 @@ internal sealed class GameTableUI
                     notice = NaturalBlackjackNotice(nextPlayer);
                     noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                     pendingBlackjackAdvance = true;
+                    FlashTwentyOne(nextPlayer, naturalBlackjack: true);
                     return;
                 }
 
@@ -397,6 +434,10 @@ internal sealed class GameTableUI
                             {
                                 statuses[currentPlayerIndex] =
                                     GetTurnStatus(player, selectedGameOption);
+                                if (selectedGameOption == 0 &&
+                                    player.Score == Participant.BlackjackValue &&
+                                    !player.HasBlackjack)
+                                    FlashTwentyOne(player, naturalBlackjack: false);
                                 AdvancePlayer();
                             }
                             break;
@@ -702,14 +743,16 @@ internal sealed class GameTableUI
         bool cardsFaceDown = false,
         int activePlayerIndex = 0,
         int dealerCardsShown = -1,
-        int[]? playerCardsShown = null)
+        int[]? playerCardsShown = null,
+        bool celebrationFlash = false)
     {
         // The same game state is rendered again when the VS Code terminal
         // changes size. This does not reset bets, cards, or menu selection.
         rebuildLastTable = () => BuildTable(
             round, statuses, notice, selectedGameOption, selectedMenuOption,
             sideMenuActive, roundFinished, bettingMode, cardsFaceDown,
-            activePlayerIndex, dealerCardsShown, playerCardsShown);
+            activePlayerIndex, dealerCardsShown, playerCardsShown,
+            celebrationFlash);
 
         int width = Math.Max(1, Console.WindowWidth);
         int height = Math.Max(1, Console.WindowHeight);
@@ -783,7 +826,8 @@ internal sealed class GameTableUI
                 trueCount, activePlayerIndex,
                 showEmptyTable: false, // Display the backs during betting.
                 dealerCardsShown: dealerCardsShown,
-                playerCardsShown: playerCardsShown)));
+                playerCardsShown: playerCardsShown,
+                celebrationFlash: celebrationFlash)));
 
         // Render the action buttons WITHOUT a separate Panel top border.
         // Row 1 holds the buttons immediately below the table frame;

@@ -19,7 +19,8 @@ public partial class ConsoleUi
         int activePlayerIndex = 0,
         bool showEmptyTable = false,
         int dealerCardsShown = -1,
-        int[]? playerCardsShown = null)
+        int[]? playerCardsShown = null,
+        bool celebrationFlash = false)
     {
         List<IRenderable> tableContent = new();
 
@@ -27,8 +28,13 @@ public partial class ConsoleUi
         // when a message appears or the True Count changes.
         if (notice != null)
         {
+            // A winning hand flashes in gold; normal messages keep their red style.
+            // Only this header changes, never the card positions or table height.
+            string noticeStyle = celebrationFlash
+                ? "bold black on gold1"
+                : "bold white on #961923";
             tableContent.Add(new Align(
-                new Markup($"[bold white on #961923]  ★ {Markup.Escape(notice)} ★  [/]"),
+                new Markup($"[{noticeStyle}]  ★ {Markup.Escape(notice)} ★  [/]"),
                 HorizontalAlignment.Center));
         }
         else
