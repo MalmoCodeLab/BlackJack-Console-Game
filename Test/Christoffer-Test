@@ -1,7 +1,9 @@
+using System.Runtime.InteropServices;
+
 Deck deck = new();
 deck.CreateDeck();
 deck.ShuffleDeck();
-Hand hand1 = deck.CreateHand();
+Hand hand1 = new Hand ();
 for (int i = 0; i < deck.DeckCards.Count; i++)
 {
   Console.WriteLine(i + ". " + deck.DeckCards[i].Suit + "" + deck.DeckCards[i].Rank);
@@ -13,8 +15,8 @@ for (int i = 0; i < hand1.CardsOnHand.Count; i++)
 {
     System.Console.WriteLine(hand1.CardsOnHand[i].Rank + " " + hand1.CardsOnHand[i].Suit);
 }
-System.Console.WriteLine(deck.RunningCount);
-System.Console.WriteLine(deck.TrueCount);
+System.Console.WriteLine(deck.Counter.TrueCount);
+
 
 /*deck.ShuffleDeck();
 for (int i = 0; i < deck.DeckCards.Count; i++)

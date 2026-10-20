@@ -1,3 +1,5 @@
+using System.Diagnostics.Metrics;
+
 class Deck
 {
     public RuleSet Rules { get; }
@@ -5,12 +7,8 @@ class Deck
     public List<Card> DiscardedCards { get; } = [];
     public int CutCardPosition { get; private set; }
     public bool CutCardReached { get; private set; }
-    public int RunningCount {get; private set;}
-    public double TrueCount {get; private set;}
-    public const int CardsPerDeck = SuitCount * RanksPerSuit;   // 52
-    private const int SuitCount = 4;
-    private const int RanksPerSuit = 13;
-    private const int QuarterDivisor = 4;
+    public CardCounter Counter { get; } = new();
+
 
     public Deck(RuleSet? rules = null)
     {
@@ -18,13 +16,13 @@ class Deck
         Rules.Validate();
     }
 
-     public void CreateDeck()
+    public void CreateDeck()
     {
         for (int i = 0; i < Rules.DeckCount; i++)
         {
-            for (int s = 0; s < SuitCount; s++)
+            for (int s = 0; s < 4; s++)
             {
-                for (int r = 0; r < RanksPerSuit; r++)
+                for (int r = 0; r < 13; r++)
                 {
                     Card card = new((Suit)s, (Rank)r);
                     DeckCards.Add(card);
@@ -32,30 +30,16 @@ class Deck
             }
         }
     }
-    
+
     private void PlaceCutCard()
     {
-        int lastQuarter = DeckCards.Count / QuarterDivisor;
+        int lastQuarter = DeckCards.Count / 4;
         int min = Math.Min(Rules.ReshuffleThreshold, DeckCards.Count);
         int max = Math.Max(min, lastQuarter);
         CutCardPosition = Random.Shared.Next(min, max + 1);
         CutCardReached = false;
     }
-    public void CardCounter(Card card)
-    {
-        if (card.Rank <= Rank.Six)
-        {
-            RunningCount++;
-        }
-        else if (card.Rank >= Rank.Ten)
-        {
-            RunningCount--;
-        }
-        double decksRemaining = DeckCards.Count / (double)CardsPerDeck;
-        double rawTrueCount = RunningCount / decksRemaining;
-        TrueCount = Math.Round(rawTrueCount, 2, MidpointRounding.AwayFromZero);
 
-    }
     public void ShuffleDeck()
     {
         if (DiscardedCards.Count > 0)
@@ -75,8 +59,7 @@ class Deck
             DeckCards[i] = TempCard;
         }
         PlaceCutCard();
-        RunningCount = 0;
-        TrueCount = 0;
+        Counter.Reset();
 
     }
     public void CheckIfNewShuffleIsNeeded(int cardsNeeded = 0)
@@ -99,7 +82,7 @@ class Deck
             CutCardReached = true;
         if (faceUp)
         {
-            CardCounter(dealCard);
+            Counter.Count(dealCard, DeckCards.Count);
         }
         return dealCard;
     }

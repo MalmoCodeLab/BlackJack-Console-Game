@@ -73,7 +73,7 @@ class Round
             throw new InvalidOperationException("This round has already ended.");
 
         Dealer.ShowHoleCard();
-        Deck.CardCounter(Dealer.Hand.CardsOnHand[1]);
+        Deck.Counter.Count(Dealer.Hand.CardsOnHand[1], Deck.DeckCards.Count);
         bool anyPlayerStillIn = Players.Exists(player => !player.IsBust);
         if (anyPlayerStillIn)
         {
