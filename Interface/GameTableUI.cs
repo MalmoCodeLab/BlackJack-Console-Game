@@ -13,6 +13,7 @@ internal sealed class GameTableUI
     // Fit the table and the action buttons within the available terminal height.
     private static int TableHeight => Math.Max(4, Console.WindowHeight);
     private const int BlackjackNoticeDurationMs = 2400;
+    private const int CardDealDelayMs = 400; // Delay between cards during the initial deal.
 
     private readonly ConsoleUi ui;
     private bool tableScreenActive;
@@ -98,7 +99,7 @@ internal sealed class GameTableUI
                     activePlayerIndex: 0,
                     dealerCardsShown: visibleDealer,
                     playerCardsShown: visiblePlayers));
-                Thread.Sleep(220);
+                Thread.Sleep(CardDealDelayMs);
             }
 
             // First frame: table with no cards at all.
