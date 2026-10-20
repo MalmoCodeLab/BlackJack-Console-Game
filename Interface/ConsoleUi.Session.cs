@@ -163,7 +163,7 @@ public partial class ConsoleUi
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule(GameMessages.SavedPlayersTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
