@@ -2,6 +2,10 @@ using System.Diagnostics.Metrics;
 
 class Deck
 {
+    public const int CardsPerDeck = SuitCount * RanksPerSuit; // 52
+    private const int SuitCount = 4;
+    private const int RanksPerSuit = 13;
+    
     public RuleSet Rules { get; }
     public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
