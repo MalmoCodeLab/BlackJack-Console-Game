@@ -147,8 +147,15 @@ public partial class ConsoleUi
 
                 // Only Up/Down changes the selected menu option. Avoid
                 // rebuilding the entire screen for unrelated key presses.
-                if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
-                    Draw();
+
+                if (key is ConsoleKey.UpArrow
+                or ConsoleKey.DownArrow
+                or ConsoleKey.LeftArrow
+                or ConsoleKey.RightArrow
+                or ConsoleKey.Enter)
+                {
+                Draw();
+                }        
             }
         }
         finally
