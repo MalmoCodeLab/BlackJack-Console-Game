@@ -1,8 +1,6 @@
 // Builds only the card artwork. ConsoleUi.Table.cs adds color and positioning.
 class CardRenderer
 {
-    
-    // Converts the rank to a short text.
     public string GetRank(Rank rank)
     {
         return rank switch
@@ -69,7 +67,8 @@ class CardRenderer
         };
     }
 
-    // 7 columns x 7 rows: same dimensions for EVERY player in multiplayer.
+    // Wider and shorter multiplayer cards (8 columns x 5 rows).
+    // Rank and suit stay readable in opposite corners.
     public string[] RenderSmallCard(Card card)
     {
         string rank = GetRank(card.Rank);
@@ -78,13 +77,11 @@ class CardRenderer
 
         return new string[]
         {
-            "╭─────╮",
-            $"│{rank.PadRight(5)}│",
-            $"│{suit.PadRight(5)}│",
-            $"│  {center}  │",
-            $"│{suit.PadLeft(5)}│",
-            $"│{rank.PadLeft(5)}│",
-            "╰─────╯"
+            "╭──────╮",
+            $"│{(rank + suit).PadRight(6)}│",
+            $"│  {center}   │",
+            $"│{(suit + rank).PadLeft(6)}│",
+            "╰──────╯"
         };
     }
 
@@ -92,13 +89,11 @@ class CardRenderer
     {
         return new string[]
         {
-            "╭─────╮",
-            "│◇♠◇♠◇│",
-            "│♠◇♠◇♠│",
-            "│◇♠◇♠◇│",
-            "│♠◇♠◇♠│",
-            "│◇♠◇♠◇│",
-            "╰─────╯"
+            "╭──────╮",
+            "│◇♠◇♠◇♠│",
+            "│♠◇♠◇♠◇│",
+            "│◇♠◇♠◇♠│",
+            "╰──────╯"
         };
     }
 

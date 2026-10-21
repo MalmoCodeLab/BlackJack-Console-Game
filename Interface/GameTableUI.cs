@@ -14,16 +14,18 @@ internal sealed class GameTableUI
     // Fit the table and the action buttons within the available terminal height.
     private static int TableHeight => Math.Max(4, Console.WindowHeight);
     private const int BlackjackNoticeDurationMs = 2400;
-    private const int CardDealDelayMs = 400; // Delay between cards during the initial deal.
+    private const int CelebrationBlinkMs = 220;
+    private const int CelebrationBlinkCount = 3;
+    private const int CardDealDelayMs = 180; // Shorter pause, while keeping the dealing animation.
 
     private readonly ConsoleUi ui;
     private bool tableScreenActive;
+    private bool tableScreenEntered;
     private Func<Layout>? rebuildLastTable;
     private int lastWidth;
     private int lastHeight;
     private int builtWidth;
     private int builtHeight;
-    private readonly VisibleCardCounter visibleCardCounter = new();
     // Read-only observation: detect a refilled shoe without modifying Deck.
     private Deck? observedDeck;
     private int lowestCardsRemaining = int.MaxValue;
@@ -38,7 +40,6 @@ internal sealed class GameTableUI
     {
         CloseTableScreen();
         BettingUI.Reset();
-        visibleCardCounter.Reset();
         observedDeck = null;
         lowestCardsRemaining = int.MaxValue;
     }
@@ -86,6 +87,39 @@ internal sealed class GameTableUI
                 activePlayerIndex: currentPlayerIndex));
         }
 
+        // Celebrate a natural Blackjack or a hit that reaches exactly 21.
+        // Flash the announcement only; never clear the table or modify the cards.
+        void FlashTwentyOne(Player player, bool naturalBlackjack)
+        {
+            if (TerminalTooSmall)
+                return;
+
+            string message = naturalBlackjack
+                ? NaturalBlackjackNotice(player)
+                : $"{player.Name.ToUpperInvariant()} – 21 POÄNG!";
+
+            for (int blink = 0; blink < CelebrationBlinkCount; blink++)
+            {
+                DrawTable(BuildTable(
+                    round, statuses, message, selectedGameOption,
+                    selectedMenuOption, sideMenuActive: false,
+                    roundFinished: false, bettingMode: false,
+                    cardsFaceDown: false,
+                    activePlayerIndex: currentPlayerIndex,
+                    celebrationFlash: true));
+                Thread.Sleep(CelebrationBlinkMs);
+
+                DrawTable(BuildTable(
+                    round, statuses, message, selectedGameOption,
+                    selectedMenuOption, sideMenuActive: false,
+                    roundFinished: false, bettingMode: false,
+                    cardsFaceDown: false,
+                    activePlayerIndex: currentPlayerIndex,
+                    celebrationFlash: false));
+                Thread.Sleep(CelebrationBlinkMs);
+            }
+        }
+
         // Renders the already-dealt hands gradually. Round.StartRound has
         // created the cards before PlayRound; this does NOT deal again.
         void AnimateInitialDeal()
@@ -106,11 +140,10 @@ internal sealed class GameTableUI
                 Thread.Sleep(CardDealDelayMs);
             }
 
-            // First frame: table with no cards at all.
-            DrawDealFrame();
-
+            // Cards already sit face-down during betting. Flip their faces
+            // in place rather than erasing the board for the animation.
             // Order: each player, dealer, each player, dealer.
-            for (int card = 0; card < Round.StartingHandSize; card++)
+            for (int card = 0; card < 2; card++)
             {
                 for (int i = 0; i < players.Count; i++)
                 {
@@ -163,6 +196,7 @@ internal sealed class GameTableUI
             {
                 notice = NaturalBlackjackNotice(players[0]);
                 noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
+                FlashTwentyOne(players[0], naturalBlackjack: true);
             }
         }
 
@@ -180,6 +214,7 @@ internal sealed class GameTableUI
                     notice = NaturalBlackjackNotice(nextPlayer);
                     noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                     pendingBlackjackAdvance = true;
+                    FlashTwentyOne(nextPlayer, naturalBlackjack: true);
                     return;
                 }
 
@@ -199,7 +234,6 @@ internal sealed class GameTableUI
             bool shoeRefilled = DetectRefilledShoe(round.Deck);
             if (shoeRefilled)
             {
-                visibleCardCounter.Reset();
                 DrawTable(BuildTable(
                     round, statuses, "KORTLEKEN HAR BLANDATS OM INFÖR DEN NYA RUNDAN!",
                     selectedGameOption, selectedMenuOption, sideMenuActive,
@@ -288,6 +322,7 @@ internal sealed class GameTableUI
                     if (key == ConsoleKey.NoName)
                         continue;
 
+                    // Offer insurance to every player before normal turns begin.
                     if (insuranceMode)
                     {
                         Player insuredPlayer = players[currentPlayerIndex];
@@ -298,7 +333,7 @@ internal sealed class GameTableUI
                         else if (key == ConsoleKey.N)
                             statuses[currentPlayerIndex] = "EJ FÖRSÄKRAD";
                         else
-                            continue; // Ignore other keys.
+                            continue; // Ignore other keys while choosing insurance.
 
                         currentPlayerIndex++;
                         if (currentPlayerIndex < players.Count)
@@ -308,7 +343,7 @@ internal sealed class GameTableUI
                         }
                         else
                         {
-                            // Everyone has answered: start the game.
+                            // All players have answered; return to the regular turns.
                             insuranceMode = false;
                             StartPlaying();
                         }
@@ -396,6 +431,10 @@ internal sealed class GameTableUI
                             {
                                 statuses[currentPlayerIndex] =
                                     GetTurnStatus(player, selectedGameOption);
+                                if (selectedGameOption == 0 &&
+                                    player.Score == Participant.BlackjackValue &&
+                                    !player.HasBlackjack)
+                                    FlashTwentyOne(player, naturalBlackjack: false);
                                 AdvancePlayer();
                             }
                             break;
@@ -534,7 +573,6 @@ internal sealed class GameTableUI
         {
             observedDeck = deck;
             lowestCardsRemaining = remaining;
-            visibleCardCounter.Reset();
             return false; // Initial shoe is not a reshuffle.
         }
 
@@ -560,9 +598,10 @@ internal sealed class GameTableUI
         if (tableScreenActive)
             return;
 
-        Console.Write("\u001b[?1049h\u001b[?25l\u001b[H\u001b[2J");
-        Console.Out.Flush();
+        // Wait until the first complete frame is ready before switching to
+        // the alternate screen. Otherwise a blank screen can flash briefly.
         tableScreenActive = true;
+        tableScreenEntered = false;
     }
 
     private void CloseTableScreen()
@@ -570,8 +609,13 @@ internal sealed class GameTableUI
         if (!tableScreenActive)
             return;
 
-        Console.Write("\u001b[?25h\u001b[?1049l");
-        Console.Out.Flush();
+        // Do not send "leave alternate screen" if we never entered it.
+        if (tableScreenEntered)
+        {
+            Console.Write("\u001b[?25h\u001b[?1049l");
+            Console.Out.Flush();
+        }
+        tableScreenEntered = false;
         tableScreenActive = false;
     }
 
@@ -604,6 +648,10 @@ internal sealed class GameTableUI
             }
 
             var frame = new System.Text.StringBuilder();
+            // Switch screens and paint the first fully rendered frame in one
+            // write, rather than clearing the screen before rendering starts.
+            if (tableScreenActive && !tableScreenEntered)
+                frame.Append("\u001b[?1049h");
             frame.Append("\u001b[?2026h\u001b[?25l\u001b[H");
 
             int visibleRows = Math.Min(lines.Length, height);
@@ -624,6 +672,8 @@ internal sealed class GameTableUI
 
             Console.Write(frame.ToString());
             Console.Out.Flush();
+            if (tableScreenActive)
+                tableScreenEntered = true;
             lastWidth = width;
             lastHeight = height;
             return;
@@ -649,9 +699,9 @@ internal sealed class GameTableUI
         return writer.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
     }
 
-    // Five multiplayer seats need 75 cells plus the Blackjack table border.
+    // Five 17-column seats need 85 cells plus the Blackjack table border.
     // Reserve a sidebar only when the cards still fit without clipping.
-    private const int MinimumTableWidth = 80;
+    private const int MinimumTableWidth = 100; // Five 19-cell seats plus the table border.
     private const int MinimumTerminalHeight = 24;
     private const int SidebarMinimumWidth = 32;
     private const int SidebarMaximumWidth = 40;
@@ -689,14 +739,16 @@ internal sealed class GameTableUI
         bool cardsFaceDown = false,
         int activePlayerIndex = 0,
         int dealerCardsShown = -1,
-        int[]? playerCardsShown = null)
+        int[]? playerCardsShown = null,
+        bool celebrationFlash = false)
     {
         // The same game state is rendered again when the VS Code terminal
         // changes size. This does not reset bets, cards, or menu selection.
         rebuildLastTable = () => BuildTable(
             round, statuses, notice, selectedGameOption, selectedMenuOption,
             sideMenuActive, roundFinished, bettingMode, cardsFaceDown,
-            activePlayerIndex, dealerCardsShown, playerCardsShown);
+            activePlayerIndex, dealerCardsShown, playerCardsShown,
+            celebrationFlash);
 
         int width = Math.Max(1, Console.WindowWidth);
         int height = Math.Max(1, Console.WindowHeight);
@@ -752,21 +804,20 @@ internal sealed class GameTableUI
             lowestCardsRemaining = Math.Min(
                 lowestCardsRemaining, round.Deck.DeckCards.Count);
 
-        // An animation frame does not count cards that have not appeared yet.
-        if (playerCardsShown is null)
-            visibleCardCounter.Observe(
-                round.Deck, round.Players, round.Dealer, cardsFaceDown);
+        // Use the shared counter from Deck; only the game logic counts cards.
+        // The UI just displays the current Running Count and True Count.
 
         // Join the lower corners of the table to the footer borders.
         // The divider and both side borders now form one continuous frame.
         tableArea["BlackjackTable"].Update(
             new ConnectedTableBorder(ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses,
-                cardsFaceDown, visibleCardCounter.RunningCount,
-                visibleCardCounter.TrueCount, activePlayerIndex,
-                showEmptyTable: bettingMode && playerCardsShown is null,
+                cardsFaceDown, round.Deck.Counter.RunningCount,
+                round.Deck.Counter.TrueCount, activePlayerIndex,
+                showEmptyTable: false, // Display the backs during betting.
                 dealerCardsShown: dealerCardsShown,
-                playerCardsShown: playerCardsShown)));
+                playerCardsShown: playerCardsShown,
+                celebrationFlash: celebrationFlash)));
 
         // Render the action buttons WITHOUT a separate Panel top border.
         // Row 1 holds the buttons immediately below the table frame;
@@ -1012,67 +1063,4 @@ internal sealed class GameTableUI
 
     private static string NaturalBlackjackNotice(Player player) =>
         $"{player.Name.ToUpperInvariant()} – NATURAL BLACKJACK!";
-}
-
-// Read-only observer for the UI. It does not draw or change cards,
-// decide moves, change bets, or determine outcomes.
-internal sealed class VisibleCardCounter
-{
-    private readonly HashSet<Card> seenCards = new(ReferenceEqualityComparer.Instance);
-    private Deck? currentDeck;
-
-
-    public int RunningCount { get; private set; }
-    public double TrueCount { get; private set; }
-
-    public void Reset()
-    {
-        seenCards.Clear();
-        currentDeck = null;
-        RunningCount = 0;
-        TrueCount = 0;
-    }
-
-    public void Observe(Deck deck, List<Player> players, Dealer dealer, bool cardsFaceDown)
-    {
-        // The parent UI resets the counter on a detected shoe refill.
-        // A different Deck instance also starts a fresh count.
-        if (!ReferenceEquals(currentDeck, deck))
-        {
-            Reset();
-            currentDeck = deck;
-        }
-
-        if (!cardsFaceDown)
-        {
-            foreach (Player player in players)
-                foreach (Card card in player.Hand.CardsOnHand)
-                    CountIfFirstSeen(card);
-
-            // Never include the dealer's hidden hole card.
-            for (int i = 0; i < dealer.Hand.CardsOnHand.Count; i++)
-            {
-                if (i != 1 || dealer.HoleCardVisible)
-                    CountIfFirstSeen(dealer.Hand.CardsOnHand[i]);
-            }
-        }
-
-        // Recalculate even when no new card appears, since the remaining
-        // number of cards may have changed after the last render.
-        double remainingDecks = deck.DeckCards.Count / (double)Deck.CardsPerDeck;
-        TrueCount = remainingDecks > 0
-            ? Math.Round(RunningCount / remainingDecks, 1, MidpointRounding.AwayFromZero)
-            : 0;
-    }
-
-    private void CountIfFirstSeen(Card card)
-    {
-        if (!seenCards.Add(card))
-            return;
-
-        if (card.Rank >= Rank.Two && card.Rank <= Rank.Six)
-            RunningCount++;
-        else if (card.Rank >= Rank.Ten)
-            RunningCount--;
-    }
 }
