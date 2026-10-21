@@ -3,6 +3,7 @@ class Round
     private bool started;
     private bool ended;
     private readonly Dictionary<Player, Outcome> outcomes = new();
+    private readonly HashSet<Card> revealedCards = new();
 
     public int RoundNumber { get; }
     public List<Player> Players { get; }
@@ -53,14 +54,14 @@ class Round
         Dealer.NewRound(Deck);
 
         int participantCount = Players.Count + 1;   // all players + the dealer
-        
+
         Deck.CheckIfNewShuffleIsNeeded(StartingHandSize * participantCount);
 
         for (int cardNumber = 0; cardNumber < StartingHandSize; cardNumber++)
         {
             foreach (Player player in Players)
-                player.ReceiveCard(Deck);
-            Dealer.ReceiveCard(Deck, faceUp: cardNumber == 0);
+                player.ReceiveCard(Deck, faceUp: false);
+            Dealer.ReceiveCard(Deck, faceUp: false);
         }
 
         started = true;
@@ -73,7 +74,7 @@ class Round
             throw new InvalidOperationException("This round has already ended.");
 
         Dealer.ShowHoleCard();
-        Deck.Counter.Count(Dealer.Hand.CardsOnHand[1], Deck.DeckCards.Count);
+        RevealCard(Dealer.Hand.CardsOnHand[1]);
         bool anyPlayerStillIn = Players.Exists(player => !player.IsBust);
         if (anyPlayerStillIn)
         {
@@ -127,5 +128,20 @@ class Round
             player.SettleBet(outcome);
             outcomes[player] = outcome;
         }
+    }
+    // Counts a card the first time it becomes visible.
+    public void RevealCard(Card card)
+    {
+        if (revealedCards.Add(card))
+            Deck.Counter.Count(card, Deck.DeckCards.Count);
+    }
+    public void RevealInitialCards()
+    {
+        foreach (Player player in Players)
+            foreach (Card card in player.Hand.CardsOnHand)
+                RevealCard(card);
+
+        // Only the dealer's up card; the hole card is revealed in EndRound.
+        RevealCard(Dealer.Hand.CardsOnHand[0]);
     }
 }

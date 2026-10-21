@@ -150,12 +150,16 @@ internal sealed class GameTableUI
                     if (players[i].Hand.CardsOnHand.Count > card)
                     {
                         visiblePlayers[i]++;
+                        round.RevealCard(players[i].Hand.CardsOnHand[card]);
                         DrawDealFrame();
                     }
                 }
                 if (round.Dealer.Hand.CardsOnHand.Count > card)
                 {
                     visibleDealer++;
+                    // The second dealer card is the hole card: it stays face down.
+                    if (card == 0)
+                        round.RevealCard(round.Dealer.Hand.CardsOnHand[0]);
                     DrawDealFrame();
                 }
             }
@@ -170,6 +174,7 @@ internal sealed class GameTableUI
             for (int i = 0; i < players.Count; i++)
                 statuses[i] = "VÄNTAR";
             AnimateInitialDeal();
+            round.RevealInitialCards();   // no-op if the animation already counted them
             betsComplete = true;
 
             // The dealer shows an ace: ask every player about insurance first.
