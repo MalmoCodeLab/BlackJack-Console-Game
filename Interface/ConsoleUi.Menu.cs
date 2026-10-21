@@ -145,10 +145,15 @@ public partial class ConsoleUi
                 if (handleKey(key))
                     return;
 
-                // Only Up/Down changes the selected menu option. Avoid
-                // rebuilding the entire screen for unrelated key presses.
-                if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
+                // Redraw when navigating or changing a selected value.
+                if (key is ConsoleKey.UpArrow
+                    or ConsoleKey.DownArrow
+                    or ConsoleKey.LeftArrow
+                    or ConsoleKey.RightArrow
+                    or ConsoleKey.Enter)
+                {
                     Draw();
+                }
             }
         }
         finally

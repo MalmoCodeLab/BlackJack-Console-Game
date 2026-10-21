@@ -233,6 +233,7 @@ public partial class ConsoleUi
 
         rows.Add(new Rule().RuleStyle(Color.Gold1));
         int terminalWidth = Math.Max(1, Console.WindowWidth);
+        
         // Leave a spare column to prevent terminal auto-wrap at the right edge.
         int panelWidth = Math.Max(1, Math.Min(72, terminalWidth - 1));
         int left = Math.Max(0, (terminalWidth - panelWidth) / 2);

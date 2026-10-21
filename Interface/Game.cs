@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 public class Game
 {
     private readonly ConsoleUi ui = new();
@@ -85,10 +89,10 @@ public class Game
         while (true)
         {
             Round round = new(roundNumber++, players, dealer, deck, gameRules);
-            // Display an empty table before dealing. No cards are added yet.
+            // Display an empty table before betting. No cards have been dealt.
             ui.ShowEmptyTableBeforeDeal(players, dealer);
-            // Deal cards after Enter, keeping the existing round rules unchanged.
-            round.StartRound();
+
+            // PlayRound confirms all bets before calling round.StartRound().
             GameTableAction action = gameTable.PlayRound(
                 round, playerSessions.SaveGame);
             if (action != GameTableAction.RoundCompleted)

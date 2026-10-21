@@ -23,7 +23,7 @@ public partial class ConsoleUi
                 switch (key)
                 {
                     case ConsoleKey.UpArrow:
-                        selected = (selected + 3) % 4;
+                        selected = (selected - 1 + 4) % 4;
                         break;
                     case ConsoleKey.DownArrow:
                         selected = (selected + 1) % 4;
