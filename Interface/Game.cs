@@ -85,9 +85,7 @@ public class Game
         while (true)
         {
             Round round = new(roundNumber++, players, dealer, deck, gameRules);
-            // Display an empty table before dealing. No cards are added yet.
-            ui.ShowEmptyTableBeforeDeal(players, dealer);
-            // Deal cards after Enter, keeping the existing round rules unchanged.
+            // Create the initial hands; GameTableUI reveals the cards after betting.
             round.StartRound();
             GameTableAction action = gameTable.PlayRound(
                 round, playerSessions.SaveGame);

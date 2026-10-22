@@ -161,12 +161,6 @@ public partial class ConsoleUi
             for (int row = 0; row < lines.Length; row++)
                 lines[row] = new string(' ', SmallSeatWidth);
 
-            if (index < 0)
-            {
-                seatLines.Add(lines);
-                continue;
-            }
-
             Player player = players[index];
             bool isActive = index == activeIndex;
             bool dealing = playerCardsShown != null;
@@ -282,15 +276,6 @@ public partial class ConsoleUi
         }
 
         string status = playerStatuses is { Length: > 0 } ? playerStatuses[0] : "";
-        string style = status switch
-        {
-            "DIN TUR" => "bold black on gold1",
-            "TJOCK" or "FÖRLORADE" => "bold red",
-            "BLACKJACK" or "21 POÄNG" or "OAVGJORT" => "bold gold1",
-            "VANN" => "bold green1",
-            "STANNAT" => "bold white",
-            _ => "grey"
-        };
         // Show the current bet, not the remaining balance.
         string chipsLine = $"{status}   INSATS: {player.CurrentBet}".Trim();
         rows.Add(new Markup(CenterText(Markup.Escape(chipsLine),
@@ -369,13 +354,6 @@ public partial class ConsoleUi
         };
         return $"[{color} on white]{text}[/]";
     }
-    // Kept for compatibility with a previous Game.cs version.
-    // The screen is now rendered only by GameTableUI during betting.
-    internal void ShowEmptyTableBeforeDeal(List<Player> players, Dealer dealer)
-    {
-        // No standalone screen; avoids the earlier terminal conflict.
-    }
-
     internal void ShowBlackjackTable(List<Player> players, Dealer dealer)
     {
         AnsiConsole.Write(BuildBlackjackTable(players, dealer));
