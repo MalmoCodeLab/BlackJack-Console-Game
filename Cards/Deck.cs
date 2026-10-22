@@ -76,17 +76,16 @@ class Deck
     }
     // Guarantees DealCard never fails: first reuse the discard pile, and if every
     // remaining card is in play, add a fresh set of decks to the shoe.
+    // Never creates new cards: a real shoe is only refilled by reshuffling the discard pile.
     private void EnsureCardAvailable()
     {
         if (DeckCards.Count > 0)
             return;
-
+ 
         ShuffleDeck();
-        if (DeckCards.Count > 0)
-            return;
-
-        CreateDeck();
-        ShuffleDeck();
+        if (DeckCards.Count == 0)
+            throw new InvalidOperationException(
+                "The shoe is empty and every card is in play. Use more decks or fewer players.");
     }
 
     public Card DealCard(bool faceUp = true)

@@ -57,13 +57,14 @@ public partial class ConsoleUi
                 {
                     DeckCount = decks,
                     ReshuffleThreshold = Math.Min(rules.ReshuffleThreshold, decks * Deck.CardsPerDeck)
+                    
                 };
             case 2:
-                int maxThreshold = rules.DeckCount * Deck.CardsPerDeck;
+                int maxThreshold = rules.DeckCount * Deck.CardsPerDeck / 4;
                 int threshold = rules.ReshuffleThreshold + direction * ReshuffleStep;
                 return rules with
                 {
-                    ReshuffleThreshold = Math.Clamp(threshold, ReshuffleStep, maxThreshold)
+                    ReshuffleThreshold = Math.Clamp(threshold, RuleSet.DefaultReshuffleThreshold, maxThreshold)
                 };
             default:
                 return rules with
