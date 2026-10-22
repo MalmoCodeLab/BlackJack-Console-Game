@@ -98,13 +98,12 @@ public class HouseRulesGameplayTests
     // ---- Antal kortlekar ----
 
     [Theory]
-    [InlineData(1, 52)]
     [InlineData(2, 104)]
     [InlineData(6, 312)]
     [InlineData(8, 416)]
     public void CreateDeck_ProducesFiftyTwoCardsPerDeck(int deckCount, int expectedCards)
     {
-        Deck deck = new(new RuleSet { DeckCount = deckCount, ReshuffleThreshold = 15 });
+        Deck deck = new(new RuleSet { DeckCount = deckCount, ReshuffleThreshold = 25 });
 
         deck.CreateDeck();
 
@@ -112,13 +111,16 @@ public class HouseRulesGameplayTests
     }
 
     [Fact]
-    public void CreateDeck_OneDeckHasEveryCardExactlyOnce()
+    public void CreateDeck_TwoDecksHaveTwoCopiesOfEveryCard()
     {
-        Deck deck = new(new RuleSet { DeckCount = 1, ReshuffleThreshold = 15 });
+        Deck deck = new(new RuleSet { DeckCount = 2, ReshuffleThreshold = 25 });
 
         deck.CreateDeck();
 
         Assert.Equal(52, deck.DeckCards.Select(card => (card.Suit, card.Rank)).Distinct().Count());
+        Assert.All(
+            deck.DeckCards.GroupBy(card => (card.Suit, card.Rank)),
+            group => Assert.Equal(2, group.Count()));
     }
 
     [Fact]
@@ -174,9 +176,9 @@ public class HouseRulesGameplayTests
 
     // The cut card sits somewhere between the configured limit and a quarter of the shoe.
     [Theory]
-    [InlineData(1, 15, 15, 15)]
-    [InlineData(1, 30, 30, 30)]
-    [InlineData(6, 15, 15, 78)]
+    [InlineData(2, 25, 25, 26)]
+    [InlineData(2, 30, 30, 30)]
+    [InlineData(6, 25, 25, 78)]
     [InlineData(6, 100, 100, 100)]
     public void ShuffleDeck_PlacesCutCardWithinConfiguredRange(
         int deckCount, int threshold, int lowest, int highest)
@@ -194,7 +196,7 @@ public class HouseRulesGameplayTests
     [Fact]
     public void CutCard_IsReachedOnlyWhenShoeShrinksToItsPosition()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 25 };
         Deck deck = ShuffledDeck(rules);
 
         while (deck.DeckCards.Count > deck.CutCardPosition + 1)
@@ -208,17 +210,17 @@ public class HouseRulesGameplayTests
     [Fact]
     public void CheckIfNewShuffleIsNeeded_ReshufflesOnlyAfterCutCardIsReached()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 25 };
         Deck deck = ShuffledDeck(rules);
 
         deck.DiscardedCards.Add(deck.DealCard());
         deck.CheckIfNewShuffleIsNeeded();
-        Assert.Equal(51, deck.DeckCards.Count);
+        Assert.Equal(103, deck.DeckCards.Count);
 
         DealDownToCutCard(deck);
         deck.CheckIfNewShuffleIsNeeded();
 
-        Assert.Equal(52, deck.DeckCards.Count);
+        Assert.Equal(104, deck.DeckCards.Count);
         Assert.Empty(deck.DiscardedCards);
         Assert.False(deck.CutCardReached);
     }
@@ -226,19 +228,22 @@ public class HouseRulesGameplayTests
     [Fact]
     public void Reshuffle_KeepsEveryCard()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 20 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 30 };
         Deck deck = ShuffledDeck(rules);
         DealDownToCutCard(deck);
 
         deck.CheckIfNewShuffleIsNeeded();
 
-        Assert.Equal(52, deck.DeckCards.Select(card => (card.Suit, card.Rank)).Distinct().Count());
+        Assert.Equal(104, deck.DeckCards.Count);
+        Assert.All(
+            deck.DeckCards.GroupBy(card => (card.Suit, card.Rank)),
+            group => Assert.Equal(2, group.Count()));
     }
 
     [Fact]
     public void Round_ReshufflesAtStartWhenCutCardWasReached()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 40 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 40 };
         Deck deck = ShuffledDeck(rules);
         DealDownToCutCard(deck);
         Dealer dealer = new(rules);
@@ -246,79 +251,97 @@ public class HouseRulesGameplayTests
 
         round.StartRound();
 
-        // 52 cards back in the shoe, minus the 4 dealt to one player and the dealer.
-        Assert.Equal(48, deck.DeckCards.Count);
+        // 104 cards back in the shoe, minus the 4 dealt to one player and the dealer.
+        Assert.Equal(100, deck.DeckCards.Count);
     }
 
     [Fact]
     public void Round_DoesNotReshuffleBeforeCutCardIsReached()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 30 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 30 };
         Deck deck = ShuffledDeck(rules);
         Dealer dealer = new(rules);
         Round round = new(1, [new Player("Test")], dealer, deck, rules);
 
         round.StartRound();
 
-        Assert.Equal(48, deck.DeckCards.Count);
+        Assert.Equal(100, deck.DeckCards.Count);
         Assert.Empty(deck.DiscardedCards);
     }
 
     [Fact]
     public void CutCardReachedMidRound_DoesNotReshuffleUntilNextRound()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 30 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 30 };
         Deck deck = ShuffledDeck(rules);
-        while (deck.DeckCards.Count > deck.CutCardPosition + 3)
+        // Stop two cards before the cut card; the opening deal then crosses it.
+        while (deck.DeckCards.Count > deck.CutCardPosition + 2)
             deck.DiscardedCards.Add(deck.DealCard());
         Round round = new(1, [new Player("Test")], new Dealer(rules), deck, rules);
+        int shoeBeforeRound = deck.DeckCards.Count;
 
         round.StartRound();
         Assert.True(deck.CutCardReached);
-        int remaining = deck.DeckCards.Count;
         round.Players[0].ReceiveCard(deck);
 
-        Assert.Equal(remaining - 1, deck.DeckCards.Count);
+        // The opening deal (4) and one hit (1) came from the same shoe: no reshuffle mid-round.
+        Assert.Equal(shoeBeforeRound - 5, deck.DeckCards.Count);
     }
 
     [Fact]
-    public void DealCard_EmptyShoe_ReusesDiscardPile()
+    public void DealCard_EmptyShoe_ReshufflesDiscardPileOnly()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 25 };
         Deck deck = DeckWithRemaining(rules, 0);
 
         Card card = deck.DealCard();
 
         Assert.NotNull(card);
-        Assert.Equal(51, deck.DeckCards.Count);
+        Assert.Equal(103, deck.DeckCards.Count);
+        Assert.Empty(deck.DiscardedCards);
     }
 
     [Fact]
-    public void DealCard_AllCardsInPlay_AddsFreshDecksInsteadOfCrashing()
+    public void DealCard_AllCardsInPlay_NeverCreatesNewCards()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 25 };
         Deck deck = new(rules);
 
-        Card card = deck.DealCard();
-
-        Assert.NotNull(card);
-        Assert.Equal(51, deck.DeckCards.Count);
+        Assert.Throws<InvalidOperationException>(() => deck.DealCard());
+        Assert.Empty(deck.DeckCards);
+        Assert.Empty(deck.DiscardedCards);
     }
 
     [Fact]
-    public void Round_ManyPlayersAndLowThreshold_NeverRunsOutOfCards()
+    public void Round_ReservesWorstCaseCards_ReshufflesBeforeDealing()
     {
-        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 1 };
-        Deck deck = DeckWithRemaining(rules, 10);
-        List<Player> players = [new("A"), new("B"), new("C"), new("D"), new("E")];
-        Round round = new(1, players, new Dealer(rules), deck, rules);
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 25 };
+        // Two players and the dealer could need up to 3 x 11 = 33 cards; leave only 20.
+        Deck deck = DeckWithRemaining(rules, 20);
+        Round round = new(1, [new Player("A"), new Player("B")], new Dealer(rules), deck, rules);
 
         round.StartRound();
-        foreach (Player player in players)
-            for (int i = 0; i < 10; i++)
-                player.ReceiveCard(deck);
 
-        Assert.All(players, player => Assert.NotEmpty(player.Hand.CardsOnHand));
+        Assert.Equal(104 - 6, deck.DeckCards.Count);
+        Assert.Empty(deck.DiscardedCards);
+    }
+
+    [Fact]
+    public void Round_FivePlayersTwoDecks_NeverCreatesCardsAcrossManyRounds()
+    {
+        RuleSet rules = new() { DeckCount = 2, ReshuffleThreshold = 25 };
+        Deck deck = ShuffledDeck(rules);
+        List<Player> players = [new("A"), new("B"), new("C"), new("D"), new("E")];
+        Dealer dealer = new(rules);
+
+        for (int roundNumber = 1; roundNumber <= 20; roundNumber++)
+        {
+            Round round = new(roundNumber, players, dealer, deck, rules);
+            round.StartRound();
+
+            // 5 players + dealer hold 12 cards after the opening deal; nothing is lost or added.
+            Assert.Equal(104, deck.DeckCards.Count + deck.DiscardedCards.Count + 12);
+        }
     }
 
     // ---- Naturlig tjugoett ----
