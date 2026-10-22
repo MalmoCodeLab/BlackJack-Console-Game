@@ -429,15 +429,13 @@ internal sealed class GameTableUI
 
                             if (selectedGameOption == 0)
                                 player.ReceiveCard(round.Deck);
-
-                            if (selectedGameOption == 1 ||
-                                player.IsBust ||
-                                player.Score == Participant.BlackjackValue)
+                            
+                            if (selectedGameOption == 1 || !player.CanHit)
                             {
                                 statuses[currentPlayerIndex] =
                                     GetTurnStatus(player, selectedGameOption);
                                 if (selectedGameOption == 0 &&
-                                    player.Score == Participant.BlackjackValue &&
+                                    player.Score == Hand.BlackjackValue &&
                                     !player.HasBlackjack)
                                     FlashTwentyOne(player, naturalBlackjack: false);
                                 AdvancePlayer();
@@ -1053,7 +1051,7 @@ internal sealed class GameTableUI
             return "TJOCK";
         if (player.HasBlackjack)
             return "BLACKJACK";
-        if (player.Score == Participant.BlackjackValue)
+        if (player.Score == Hand.BlackjackValue)
             return "21 POÄNG";
         return selectedGameOption == 1 ? "STANNAT" : "KLAR";
     }
