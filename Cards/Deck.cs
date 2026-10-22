@@ -74,10 +74,24 @@ class Deck
             ShuffleDeck();
         }
     }
+    // Guarantees DealCard never fails: first reuse the discard pile, and if every
+    // remaining card is in play, add a fresh set of decks to the shoe.
+    private void EnsureCardAvailable()
+    {
+        if (DeckCards.Count > 0)
+            return;
+
+        ShuffleDeck();
+        if (DeckCards.Count > 0)
+            return;
+
+        CreateDeck();
+        ShuffleDeck();
+    }
+
     public Card DealCard(bool faceUp = true)
     {
-        if (DeckCards.Count == 0)
-            throw new InvalidOperationException("Leken är tom.");
+        EnsureCardAvailable();
         Card dealCard = DeckCards[0];
         DeckCards.RemoveAt(0);
         if (DeckCards.Count <= CutCardPosition)

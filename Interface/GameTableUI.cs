@@ -365,7 +365,10 @@ internal sealed class GameTableUI
                             key == ConsoleKey.Enter ||
                             key == ConsoleKey.Backspace)
                         {
+                            int betBefore = bettingPlayer.CurrentBet;
                             BettingUI.HandleKey(key, bettingPlayer);
+                            if (key == ConsoleKey.Enter && bettingPlayer.CurrentBet == betBefore)
+                                notice = "INTE TILLRÄCKLIGT MED MARKER. VÄLJ EN LÄGRE MARKER.";
                         }
                         else if (key == ConsoleKey.Spacebar)
                         {
