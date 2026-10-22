@@ -163,7 +163,7 @@ public partial class ConsoleUi
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule(GameMessages.SavedPlayersTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
@@ -182,9 +182,6 @@ public partial class ConsoleUi
                 : $"[white]    {escaped}[/]";
             rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
         }
-            rows.Add(new Align(
-                new Markup("[grey]    — Tom plats —[/]"),
-                HorizontalAlignment.Center));
 
         PlayerStatistics selectedStats = results[names[selected]];
         rows.Add(new Text(""));

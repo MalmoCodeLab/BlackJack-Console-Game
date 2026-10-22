@@ -3,6 +3,7 @@ public class Game
     private readonly ConsoleUi ui = new();
     private readonly PlayerSessionService playerSessions;
     private readonly GameTableUI gameTable;
+    private bool exitRequested;
     private RuleSet rules;
     private readonly string? ruleConfigurationNotice;
 
@@ -19,7 +20,7 @@ public class Game
     {
         bool running = true;
         bool showRuleNotice = ruleConfigurationNotice is not null;
-        while (running)
+        while (running && !exitRequested)
         {
             string choice = ui.ShowMenu(
                 showRuleNotice ? ruleConfigurationNotice : null);
@@ -51,11 +52,11 @@ public class Game
     private void StartNewGame()
     {
         int playerCount = ui.AskPlayerCountCentered();
-        while (playerCount == 0)
-        {
-            rules = ui.EditRules(rules);
-            playerCount = ui.AskPlayerCountCentered();
-        }
+
+        // Esc returns 0 and goes back to the main menu.
+        if (playerCount == 0)
+            return;
+
         List<Player>? players = playerSessions.CreateNewPlayers(playerCount);
         if (players is not null)
             PlayGame(players);
@@ -84,7 +85,7 @@ public class Game
         while (true)
         {
             Round round = new(roundNumber++, players, dealer, deck, gameRules);
-            // Deal cards now; the table shows only their backs until betting is confirmed.
+            // Create the initial hands; GameTableUI reveals the cards after betting.
             round.StartRound();
             GameTableAction action = gameTable.PlayRound(
                 round, playerSessions.SaveGame);
@@ -105,6 +106,12 @@ public class Game
 
                 action = gameTable.ShowRoundEndMenu(
                     round, summary, playerSessions.SaveGame);
+            }
+
+            if (action == GameTableAction.ExitGame)
+            {
+                exitRequested = true;
+                return;
             }
 
             if (action != GameTableAction.StartNewRound)

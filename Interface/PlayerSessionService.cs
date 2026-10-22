@@ -50,12 +50,8 @@ internal sealed class PlayerSessionService
 
             if (results.TryGetValue(playerName, out PlayerStatistics? stats))
             {
-                // A saved player without chips is not allowed to play.
-                if (stats.Chips <= 0)
-                {
-                    ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(playerName));
+                if (!HasChipsToPlay(playerName, stats))
                     return null;
-                }
                 players.Add(CreateSavedPlayer(playerName, stats));
             }
             else
@@ -96,15 +92,21 @@ internal sealed class PlayerSessionService
         {
             PlayerStatistics stats = results[selectedName];
 
-            // A saved player without chips is not allowed to play.
-            if (stats.Chips <= 0)
-            {
-                ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(selectedName));
+            if (!HasChipsToPlay(selectedName, stats))
                 return null;
-            }
             players.Add(CreateSavedPlayer(selectedName, stats));
         }
         return players;
+    }
+
+    // A saved player without chips is not allowed to play.
+    private bool HasChipsToPlay(string name, PlayerStatistics stats)
+    {
+        if (stats.Chips > 0)
+            return true;
+
+        ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(name));
+        return false;
     }
 
     // Creates a player from saved statistics, with the saved chips.
@@ -144,12 +146,7 @@ internal sealed class PlayerSessionService
     {
         try
         {
-            Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
-            if (!results.Remove(playerName))
-                return false;
-
-            gameStorage.SaveResults(results);
-            return true;
+            return gameStorage.DeletePlayer(playerName);
         }
         catch (Exception ex) when (
             ex is IOException ||

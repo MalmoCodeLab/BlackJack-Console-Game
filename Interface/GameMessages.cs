@@ -2,9 +2,7 @@ using System;
 
 internal static class GameMessages
 {
-    internal const string GameTitleMarkup = "[bold gold1]♠ BLACKJACK 21 ♠[/]";
-    internal const string GameSubtitleMarkup = "[italic green3]Tur kan inte kompileras.[/]";
-    internal const string MainMenuTitleMarkup = "[gold1]♠ HUVUDMENY ♠[/]";
+    internal const string GameTitleMarkup = "[bold gold1]♠ BLACKJACK 21 ♠[/]";    internal const string MainMenuTitleMarkup = "[gold1]♠ HUVUDMENY ♠[/]";
     internal const string PlayerCountTitleMarkup = "[gold1]♠ VÄLJ ANTAL SPELARE ♠[/]";
     internal const string MenuNavigationMarkup = "[grey]↑ ↓ Navigera  •  Enter Välj[/]";
     internal const string PlayerCountFormat = "{0} spelare";
@@ -55,7 +53,7 @@ internal static class GameMessages
         "♠ Ny runda",
         "♣ Huvudmeny",
         GameControls,
-        "♦ Spara och avsluta"
+        "♦ Avsluta"
     };
 
     internal static readonly string[] RoundEndMenuOptions = InGameMenuOptions;
@@ -159,7 +157,7 @@ internal static class GameMessages
     internal static string AppendSaveResultsSuccess(
         string summary, IEnumerable<string> names) =>
         $"{summary}{Environment.NewLine}Sparat i databasen: {string.Join(", ", names)}. " +
-        "Pågående runda sparas inte om du lämnar.";
+        "Pågående runda sparas om du lämnar.";
 
     internal static string AppendSaveResultsError(string summary) =>
         $"{summary}{Environment.NewLine}{SaveResultsError}";

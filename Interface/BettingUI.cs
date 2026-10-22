@@ -6,7 +6,7 @@ public static class BettingUI
 {
     private static readonly int[] chipValues = { 5, 25, 100, 500 };
     private static readonly string[] chipColors = { "red", "green3", "deepskyblue1", "gold1" };
-    public static int Balance { get; private set; } = 1000;
+    public static int Balance { get; private set; } = Wallet.StartingChips;
     public static int CurrentBet { get; private set; }
     public static int SelectedChip { get; private set; }
 
@@ -18,9 +18,16 @@ public static class BettingUI
     }
 
     internal static IRenderable Create(Player player)
+    // Keep the public overload without Player for existing callers.
+    public static IRenderable Create() => Create(null);
+
+    // Player may be internal in the project, so this overload is internal too.
+    internal static IRenderable Create(Player? player)
     {
         var chips = new Grid();
-        for (int i = 0; i < chipValues.Length; i++) chips.AddColumn(new GridColumn().PadRight(2));
+        for (int i = 0; i < chipValues.Length; i++)
+            chips.AddColumn(new GridColumn().PadRight(2));
+
         IRenderable[] chipRow = new IRenderable[chipValues.Length];
         for (int i = 0; i < chipValues.Length; i++)
         {
@@ -32,6 +39,14 @@ public static class BettingUI
             chipRow[i] = new Markup(chip);
         }
         chips.AddRow(chipRow);
+
+        // Show the active player's actual chips/bet instead of a global total.
+        string title = player is null
+            ? "[bold gold1]♠ SPELMARKER ♠[/]"
+            : $"[bold gold1]♠ SPELMARKER ♠[/] " +
+              $"[white]{Markup.Escape(player.Name.Length > 12 ? player.Name[..11] + "…" : player.Name)}[/] " +
+              $"[green1]Saldo: {player.Chips}[/]  [gold1]Insats: {player.CurrentBet}[/]";
+
         return new Rows(
             new Align(new Markup("[bold gold1]♠ SPELMARKER ♠[/]"), HorizontalAlignment.Center),
             new Align(chips, HorizontalAlignment.Center),
@@ -41,19 +56,27 @@ public static class BettingUI
                     $"[green1]{player.Chips} kr[/]  " +
                     $"[white]Insats: [/][gold1]{player.CurrentBet} kr[/]"),
                 HorizontalAlignment.Center));
+            new Align(new Markup(title), HorizontalAlignment.Center),
+            new Align(chips, HorizontalAlignment.Center));
     }
 
-    public static IRenderable CreateInfoPanel()
+    // Keep the original public method signature for compatibility.
+    public static IRenderable CreateInfoPanel() => CreateInfoPanel(null);
+
+    internal static IRenderable CreateInfoPanel(Player? player)
     {
+        string balance = player is null ? Balance.ToString() : player.Chips.ToString();
+        string currentBet = player is null ? CurrentBet.ToString() : player.CurrentBet.ToString();
         return new Panel(new Rows(
             new Markup("[bold gold1]SPELMARKER[/]"),
             new Text(""),
-            new Markup($"[white]Saldo:[/] [green1]{Balance}[/]"),
-            new Markup($"[white]Nuvarande insats:[/] [gold1]{CurrentBet}[/]"),
+            new Markup($"[white]Saldo:[/] [green1]{balance}[/]"),
+            new Markup($"[white]Nuvarande insats:[/] [gold1]{currentBet}[/]"),
             new Text(""),
             new Markup("[grey]← / →: Välj[/]"),
             new Markup("[grey]Enter: Lägg insats[/]"),
-            new Markup("[grey]Esc: Tillbaka[/]")))
+            new Markup("[grey]Mellanslag: Bekräfta[/]"),
+            new Markup("[grey]Esc: Spelmeny[/]")))
             .Border(BoxBorder.Rounded).BorderColor(Color.Gold1);
     }
 
@@ -69,7 +92,7 @@ public static class BettingUI
                 SelectedChip = Math.Min(chipValues.Length - 1, SelectedChip + 1);
                 return true;
             case ConsoleKey.Enter:
-                // The player checks that the bet is allowed (not zero, not more than the chips).
+                // The Player class validates that the bet is affordable.
                 player.TryPlaceBet(chipValues[SelectedChip]);
                 return true;
             case ConsoleKey.Backspace:
@@ -85,4 +108,5 @@ public static class BettingUI
     public static void ResetSelection() => SelectedChip = 0;
 
     public static void Reset() => LoadBalance(1000);
+    public static void Reset() => LoadBalance(Wallet.StartingChips);
 }

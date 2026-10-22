@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 public partial class ConsoleUi
@@ -15,35 +16,59 @@ public partial class ConsoleUi
         bool cardsFaceDown = false,
         int? runningCount = null,
         double? trueCount = null,
-        int activePlayerIndex = 0)
+        int activePlayerIndex = 0,
+        bool showEmptyTable = false,
+        int dealerCardsShown = -1,
+        int[]? playerCardsShown = null,
+        bool celebrationFlash = false)
     {
         List<IRenderable> tableContent = new();
+
+        // Always reserve two rows above the dealer, so the cards don't move
+        // when a message appears or the True Count changes.
         if (notice != null)
         {
-            tableContent.Add(new Align(new Markup($"[bold white on #961923]  ★ {Markup.Escape(notice)} ★  [/]"), HorizontalAlignment.Center));
-            tableContent.Add(new Align(new Markup("[gold1]╰──── ♠ BLACKJACK 21 ♠ ────╯[/]"), HorizontalAlignment.Center));
-        }
-        else if (runningCount.HasValue && trueCount.HasValue)
-        {
-            // Use the same two lines that previously displayed the marker stand.
-            // This keeps the overall table height and card positions unchanged.
-            string running = runningCount.Value.ToString("+0;-0;0");
-            string actual = trueCount.Value.ToString("+0.0;-0.0;0.0", System.Globalization.CultureInfo.GetCultureInfo("sv-SE"));
-            string label = trueCount.Value >= 1 ? "Gynnsamt" :
-                trueCount.Value <= -1 ? "Ogynnsamt" : "Neutralt";
-            string labelColor = trueCount.Value >= 1 ? "green1" :
-                trueCount.Value <= -1 ? "red" : "gold1";
+            // A winning hand flashes in gold; normal messages keep their red style.
+            // Only this header changes, never the card positions or table height.
+            string noticeStyle = celebrationFlash
+                ? "bold black on gold1"
+                : "bold white on #961923";
+            tableContent.Add(new Align(
+                new Markup($"[{noticeStyle}]  ★ {Markup.Escape(notice)} ★  [/]"),
+                HorizontalAlignment.Center));
         }
         else
         {
-            tableContent.Add(new Align(new Markup("[gold1]╭──────── MARKERSTÄLL ────────╮[/]"), HorizontalAlignment.Center));
-            tableContent.Add(new Align(new Markup("[white]● ●[/]  [red]● ●[/]  [green]● ●[/]  [blue]● ●[/]  [yellow]● ●[/]"), HorizontalAlignment.Center));
+            tableContent.Add(new Align(
+                new Markup("[gold1]╭──────── MARKERSTÄLL ────────╮[/]"),
+                HorizontalAlignment.Center));
         }
+
+        // Show the current True Count throughout the game, including notices.
+        if (trueCount.HasValue)
+        {
+            string actual = trueCount.Value.ToString(
+                "+0.0;-0.0;0.0",
+                System.Globalization.CultureInfo.GetCultureInfo("sv-SE"));
+            string valueColor = trueCount.Value >= 1 ? "green1" :
+                trueCount.Value <= -1 ? "red" : "gold1";
+
+            tableContent.Add(new Align(
+                new Markup($"[gold1]Fördel:[/] [{valueColor}]{actual}[/]"),
+                HorizontalAlignment.Center));
+        }
+        else
+        {
+            tableContent.Add(new Align(
+                new Markup("[gold1]Fördel:[/] [grey]–[/]"),
+                HorizontalAlignment.Center));
+        }
+
         // Reserve extra vertical space only when it fits inside the table.
         // This prevents the bottom action buttons from being pushed off screen.
         int innerHeight = tableHeight > 0 ? Math.Max(1, tableHeight - 2) : 0;
         const int coreRows = 19; // Givare (1), cards (7), players (9), chips (2).
-        int headerRows = notice is not null || !(runningCount.HasValue && trueCount.HasValue) ? 2 : 0;
+        const int headerRows = 2;
         int extraRows = Math.Max(0, innerHeight - coreRows - headerRows);
 
         // The largest gap belongs between the dealer's cards and the players.
@@ -61,7 +86,23 @@ public partial class ConsoleUi
         for (int i = 0; i < dealerCardGap; i++)
             tableContent.Add(new Text(" "));
 
-        AddRenderedCards(tableContent, dealer.Hand.CardsOnHand, !dealer.HoleCardVisible, cardsFaceDown);
+        // Display the backs from the start of betting. The animation turns
+        // visible card faces over; it never removes cards from a hand or deck.
+        if (showEmptyTable)
+        {
+            for (int r = 0; r < CardDisplayRows; r++)
+                tableContent.Add(new Text(" "));
+        }
+        else
+        {
+            List<Card> dealerCards = dealer.Hand.CardsOnHand;
+            if (players.Count > 1)
+                AddSmallDealerCards(tableContent, dealerCards,
+                    !dealer.HoleCardVisible, cardsFaceDown, dealerCardsShown);
+            else
+                AddRenderedCards(tableContent, dealerCards,
+                    !dealer.HoleCardVisible, cardsFaceDown, dealerCardsShown);
+        }
 
         for (int i = 0; i < playerGap; i++)
             tableContent.Add(new Text(" "));
@@ -70,6 +111,10 @@ public partial class ConsoleUi
         // 75-cell seating center, no matter how many players join.
         tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown, activePlayerIndex));
         tableContent.Add(BettingUI.Create(players[activePlayerIndex]));
+        // Solo uses full-size cards; multiplayer uses equally-sized compact cards.
+        tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown,
+            activePlayerIndex, showEmptyTable, playerCardsShown));
+        tableContent.Add(BettingUI.Create());
         var greenTable = new GreenTableBackground(new Rows(tableContent), TableGreen, innerHeight);
         return new Panel(greenTable)
             .Header("[gold1] ♠ BLACKJACK ♠ [/]")
@@ -90,115 +135,127 @@ public partial class ConsoleUi
         while (total > 21 && aces > 0) { total -= 10; aces--; }
         return aces > 0 ? "MJUK BLACKJACK" : "HÅRD BLACKJACK";
     }
-    private const int SideSeatWidth = 10;
-    private const int CenterSeatWidth = 35;
-    private const int SeatingWidth = 4 * SideSeatWidth + CenterSeatWidth;
-    private IRenderable BuildPlayerRow(List<Player> players, string[]? playerStatuses, bool cardsFaceDown, int activePlayerIndex)
-    {
-        // In solo mode, center each card line in the same table width as the dealer.
-        // The five-seat grid is only needed for multiplayer.
-        if (players.Count == 1)
-            return BuildSoloPlayerRow(players[0], playerStatuses, cardsFaceDown);
+    // Fixed player seats: two 8-cell cards and a 2-cell gap fit in 19 cells.
+    // Shorter cards still use 7 reserved rows to keep the table from jumping.
+    private const int SmallSeatWidth = 19;
+    private const int SeatingWidth = 5 * SmallSeatWidth;
+    private const int SmallCardWidth = 8;
+    private const int SmallCardGap = 2;
+    private const int CardArtHeight = 5;
+    private const int CardDisplayRows = 7;
 
-        // The player whose turn it is always gets the full-size center seat.
-        // All other players use compact cards in the remaining side seats.
+    private IRenderable BuildPlayerRow(List<Player> players, string[]? playerStatuses,
+        bool cardsFaceDown, int activePlayerIndex, bool showEmptyTable,
+        int[]? playerCardsShown)
+    {
+        if (players.Count == 1)
+            return BuildSoloPlayerRow(players[0], playerStatuses, cardsFaceDown,
+                showEmptyTable, playerCardsShown);
+
         int activeIndex = Math.Clamp(activePlayerIndex, 0, players.Count - 1);
-        int[] order = { -1, -1, activeIndex, -1, -1 };
-        int[] widths = { SideSeatWidth, SideSeatWidth, CenterSeatWidth,
-                         SideSeatWidth, SideSeatWidth };
-        int[] sideSeats = players.Count switch
+
+        // Keep player order fixed so changing turns never moves the hands.
+        // The spacing is added after the card rows have been built.
+        int[] order = Enumerable.Range(0, players.Count).ToArray();
+
+        List<string[]> seatLines = new();
+        foreach (int index in order)
         {
-            2 => new[] { 1 },
-            3 => new[] { 1, 3 },
-            4 => new[] { 0, 1, 3 },
-            _ => new[] { 0, 1, 3, 4 }
-        };
-        int nextSideSeat = 0;
-        for (int playerIndex = 0; playerIndex < players.Count; playerIndex++)
-        {
-            if (playerIndex != activeIndex)
-                order[sideSeats[nextSideSeat++]] = playerIndex;
-        }
-        List<string[]> columns = new();
-        for (int seat = 0; seat < order.Length; seat++)
-        {
-            int index = order[seat];
-            int width = widths[seat];
-            string[] lines = new string[8];
-            for (int r = 0; r < lines.Length; r++)
-                lines[r] = new string(' ', width);
-            if (index >= 0 && index < players.Count)
+            string[] lines = new string[9]; // name + 7 card rows + status
+            for (int row = 0; row < lines.Length; row++)
+                lines[row] = new string(' ', SmallSeatWidth);
+
+            Player player = players[index];
+            bool isActive = index == activeIndex;
+            bool dealing = playerCardsShown != null;
+            int numberRevealed = dealing && index < playerCardsShown!.Length
+                ? Math.Clamp(playerCardsShown[index], 0, player.Hand.CardsOnHand.Count)
+                : player.Hand.CardsOnHand.Count;
+            List<Card> visibleCards = player.Hand.CardsOnHand;
+
+            string name = player.Name.ToUpperInvariant();
+        
+            // With very large hands the fan displays the latest nine cards.
+            if (visibleCards.Count > 9)
+                name += $" +{visibleCards.Count - 9}";
+            if (name.Length > SmallSeatWidth)
+                name = name[..SmallSeatWidth];
+            // Highlight the player's name only during their turn. Do not
+            // change seat order, card layout or colors for other players.
+            string turnStatus = playerStatuses != null && index < playerStatuses.Length
+                ? playerStatuses[index] : "";
+            bool isCurrentTurn = isActive && (turnStatus is
+                "DIN TUR" or "SATSAR" or "FÖRSÄKRING?" or "BLACKJACK");
+            lines[0] = CenterText(Markup.Escape(name), name.Length,
+                SmallSeatWidth, isCurrentTurn ? "bold black on green1" : "white");
+
+            if (!showEmptyTable && visibleCards.Count > 0)
             {
-                Player player = players[index];
-                string name = player.Name.ToUpperInvariant();
-                string handType = cardsFaceDown ? "" : GetHandType(player);
-                string label = index == activeIndex && handType.Length > 0 ? $"{name} · {handType}" : name;
-                if (label.Length > width) label = label[..width];
-                lines[0] = CenterText(Markup.Escape(label), label.Length, width, "bold gold1");
-                if (index == activeIndex)
-                {
-                    List<string> fan = BuildFanCardLines(player.Hand.CardsOnHand, cardsFaceDown);
-                    for (int r = 0; r < 7; r++)
-                        lines[r + 1] = CenterMarkup(fan[r], GetFanWidth(player.Hand.CardsOnHand.Count), width);
-                }
-                else
-                {
-                    string cards = BuildCompactCards(player.Hand.CardsOnHand, width, cardsFaceDown);
-                    lines[1] = CenterMarkup(cards, CompactVisibleWidth(player.Hand.CardsOnHand, width, cardsFaceDown), width);
-                    if (handType.Length > 0)
-                    {
-                        string shortType = player.HasBlackjack ? "NATURAL BJ" :
-                            handType.StartsWith("MJUK") ? "MJUK BJ" : "HÅRD BJ";
-                        lines[2] = CenterText(shortType, shortType.Length, width, "bold gold1");
-                    }
-                }
+                bool[] hidden = visibleCards.Select((_, cardIndex) =>
+                    cardsFaceDown || (dealing && cardIndex >= numberRevealed)).ToArray();
+                List<string> cardLines = BuildSmallCardLines(
+                    visibleCards, hidden, SmallSeatWidth, out int visibleWidth);
+                for (int row = 0; row < CardArtHeight; row++)
+                    lines[row + 1] = CenterMarkup(cardLines[row], visibleWidth, SmallSeatWidth);
             }
-            columns.Add(lines);
-        }
-        List<IRenderable> output = new();
-        for (int r = 0; r < 8; r++)
-        {
-            string line = "";
-            for (int seat = 0; seat < columns.Count; seat++)
-                line += columns[seat][r];
-            output.Add(new Markup(line));
-        }
-        // Status is shown under each player's cards, without moving the seats.
-        string statusRow = "";
-        for (int seat = 0; seat < order.Length; seat++)
-        {
-            int index = order[seat];
-            int width = widths[seat];
-            string status = playerStatuses != null && index >= 0 && index < players.Count && index < playerStatuses.Length
-                ? playerStatuses[index]
-                : "";
-            if (status.Length > width) status = status[..width];
+
+            string status = playerStatuses != null && index < playerStatuses.Length
+                ? playerStatuses[index] : "";
             string style = status switch
             {
                 "DIN TUR" => "bold black on gold1",
-                "TJOCK" => "bold red",
-                "FÖRLORADE" => "bold red",
+                "TJOCK" or "FÖRLORADE" => "bold red",
                 "STANNAT" => "bold white",
-                "BLACKJACK" => "bold gold1",
-                "21 POÄNG" => "bold gold1",
+                "BLACKJACK" or "21 POÄNG" or "OAVGJORT" => "bold gold1",
                 "VANN" => "bold green1",
-                "OAVGJORT" => "bold gold1",
-                "KLAR" => "grey",
                 _ => "grey"
             };
-            statusRow += CenterText(Markup.Escape(status), status.Length, width, style);
+            if (isActive)
+            {
+                // Keep the bet visible without exceeding the equal-width seat.
+                string bet = $"{player.CurrentBet} kr";
+                status = string.IsNullOrEmpty(status) ? $"INSATS {bet}" : $"{status} · {bet}";
+                style = "bold gold1";
+            }
+            if (status.Length > SmallSeatWidth)
+                status = status[..SmallSeatWidth];
+            lines[8] = CenterText(Markup.Escape(status), status.Length, SmallSeatWidth, style);
+            seatLines.Add(lines);
         }
-        output.Add(new Markup(statusRow));
 
+        // Keep all players closer together while centering them as a group.
+        // Five players use the full table width; fewer players get equal gaps.
+        int preferredGap = players.Count switch
+        {
+            2 => 20,
+            3 => 10,
+            4 => 4,
+            _ => 0
+        };
+        int gapCount = Math.Max(1, seatLines.Count - 1);
+        int availableGap = Math.Max(0,
+            (SeatingWidth - seatLines.Count * SmallSeatWidth) / gapCount);
+        int playerGap = Math.Min(preferredGap, availableGap);
+        string spacing = new string(' ', playerGap);
+
+        List<IRenderable> output = new();
+        for (int row = 0; row < 9; row++)
+        {
+            string line = string.Join(spacing, seatLines.Select(seat => seat[row]));
+            output.Add(new Markup(line));
+        }
         return new Align(new Rows(output), HorizontalAlignment.Center);
     }
-    private IRenderable BuildSoloPlayerRow(Player player, string[]? playerStatuses, bool cardsFaceDown)
+
+    private IRenderable BuildSoloPlayerRow(Player player, string[]? playerStatuses,
+        bool cardsFaceDown, bool showEmptyTable, int[]? playerCardsShown)
     {
         // Both the dealer and the focused player are centered in SeatingWidth.
         // This stays aligned in solo mode and with up to five players.
 
         string name = player.Name.ToUpperInvariant();
-        string handType = cardsFaceDown ? "" : GetHandType(player);
+        string handType = cardsFaceDown || showEmptyTable || playerCardsShown is not null
+            ? "" : GetHandType(player);
         string label = handType.Length > 0 ? $"{name} · {handType}" : name;
 
         List<IRenderable> rows = new()
@@ -206,21 +263,27 @@ public partial class ConsoleUi
             new Markup(CenterText(Markup.Escape(label), label.Length, SeatingWidth, "bold gold1"))
         };
 
-        int cardWidth = GetFanWidth(player.Hand.CardsOnHand.Count);
-        foreach (string line in BuildFanCardLines(player.Hand.CardsOnHand, cardsFaceDown))
-            rows.Add(new Markup(CenterMarkup(line, cardWidth, SeatingWidth)));
+        int revealedCount = playerCardsShown is { Length: > 0 }
+            ? Math.Clamp(playerCardsShown[0], 0, player.Hand.CardsOnHand.Count)
+            : -1;
+        List<Card> visibleHand = player.Hand.CardsOnHand;
+        if (showEmptyTable || visibleHand.Count == 0)
+        {
+            for (int row = 0; row < 7; row++)
+                rows.Add(new Text(" "));
+        }
+        else
+        {
+            int cardWidth = GetFanWidth(visibleHand.Count);
+            foreach (string line in BuildFanCardLines(visibleHand, cardsFaceDown, revealedCount))
+                rows.Add(new Markup(CenterMarkup(line, cardWidth, SeatingWidth)));
+        }
 
         string status = playerStatuses is { Length: > 0 } ? playerStatuses[0] : "";
-        string style = status switch
-        {
-            "DIN TUR" => "bold black on gold1",
-            "TJOCK" or "FÖRLORADE" => "bold red",
-            "BLACKJACK" or "21 POÄNG" or "OAVGJORT" => "bold gold1",
-            "VANN" => "bold green1",
-            "STANNAT" => "bold white",
-            _ => "grey"
-        };
-        rows.Add(new Markup(CenterText(Markup.Escape(status), status.Length, SeatingWidth, style)));
+        // Show the current bet, not the remaining balance.
+        string chipsLine = $"{status}   INSATS: {player.CurrentBet}".Trim();
+        rows.Add(new Markup(CenterText(Markup.Escape(chipsLine),
+            chipsLine.Length, SeatingWidth, "bold gold1")));
         return new Align(new Rows(rows), HorizontalAlignment.Center);
     }
 
@@ -232,62 +295,10 @@ public partial class ConsoleUi
     }
     private static string CenterText(string text, int visibleWidth, int width, string style) =>
         CenterMarkup($"[{style}]{text}[/]", visibleWidth, width);
-    // Other players use small card labels. Keep the line within 13 cells.
-    private string BuildCompactCards(List<Card> cards, int width, bool cardsFaceDown = false)
-    {
-        if (cards.Count == 0)
-            return "[grey]Inga kort[/]";
-        List<string> labels = new();
-        int used = 0;
-        for (int i = 0; i < cards.Count; i++)
-        {
-            string label = cardsFaceDown ? "▣" : GetCardLabel(cards[i]);
-            int extra = label.Length + (used > 0 ? 1 : 0);
-            if (used + extra > width - (i < cards.Count - 1 ? 3 : 0))
-                break;
-            if (used > 0)
-            {
-                labels.Add(" ");
-                used++;
-            }
-            labels.Add(cardsFaceDown ? "[gold1 on #172A60]▣[/]" : $"[{GetCardColor(cards[i])} on white]{label}[/]");
-            used += label.Length;
-        }
-        int displayed = 0;
-        foreach (Card card in cards)
-        {
-            int next = (cardsFaceDown ? 1 : GetCardLabel(card).Length) + (displayed > 0 ? 1 : 0);
-            if (CompactPrefixWidth(cards, displayed + 1, cardsFaceDown) > used)
-                break;
-            displayed++;
-        }
-        if (displayed < cards.Count)
-            labels.Add($" [gold1]+{cards.Count - displayed}[/]");
-        return string.Concat(labels);
-    }
-    private int CompactVisibleWidth(List<Card> cards, int width, bool cardsFaceDown = false)
-    {
-        if (cards.Count == 0) return 8;
-        int used = 0, count = 0;
-        foreach (Card card in cards)
-        {
-            int add = (cardsFaceDown ? 1 : GetCardLabel(card).Length) + (count > 0 ? 1 : 0);
-            if (used + add > width - (count < cards.Count - 1 ? 3 : 0)) break;
-            used += add;
-            count++;
-        }
-        return used + (count < cards.Count ? 2 + (cards.Count - count).ToString().Length : 0);
-    }
-    private int CompactPrefixWidth(List<Card> cards, int count, bool cardsFaceDown = false)
-    {
-        int result = 0;
-        for (int i = 0; i < count; i++)
-            result += (cardsFaceDown ? 1 : GetCardLabel(cards[i]).Length) + (i > 0 ? 1 : 0);
-        return result;
-    }
     // Two full-size cards. Later cards overlap horizontally with a thin
     // dark border at each visible edge; the newest card is full-size.
-    private List<string> BuildFanCardLines(List<Card> cards, bool cardsFaceDown = false)
+    private List<string> BuildFanCardLines(List<Card> cards, bool cardsFaceDown = false,
+        int revealedCount = -1)
     {
         List<string> result = new();
         if (cards.Count == 0)
@@ -297,21 +308,28 @@ public partial class ConsoleUi
             return result;
         }
         CardRenderer renderer = new();
-        int start = Math.Max(0, cards.Count - 5);
+        int start = Math.Max(0, cards.Count - 10);
         List<string[]> rendered = new();
+        bool IsHidden(int index) => cardsFaceDown ||
+            (revealedCount >= 0 && index >= revealedCount);
         for (int i = start; i < cards.Count; i++)
-            rendered.Add(cardsFaceDown ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));
+            rendered.Add(IsHidden(i) ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));
         for (int row = 0; row < 7; row++)
         {
-            string line = rendered[0][row];
+            // Build each visual row from left to right. Colors are added here,
+            // not inside CardRenderer, so changing the card art does not affect rules.
+            string line = StyleCardRow(rendered[0][row], cards[start], IsHidden(start), row);
             if (rendered.Count == 2)
-                line += "  " + rendered[1][row];
+            {
+                line += "  " + StyleCardRow(rendered[1][row], cards[start + 1], IsHidden(start + 1), row);
+            }
             else if (rendered.Count > 2)
             {
                 line += "  ";
                 for (int i = 1; i < rendered.Count - 1; i++)
-                    line += cardsFaceDown ? "[gold1 on #172A60]│◇ [/]" : BuildCardEdge(cards[start + i], row);
-                line += rendered[rendered.Count - 1][row];
+                    line += IsHidden(start + i) ? "[gold1 on #172A60]│◇ [/]" : BuildCardEdge(cards[start + i], row);
+                int last = rendered.Count - 1;
+                line += StyleCardRow(rendered[last][row], cards[start + last], IsHidden(start + last), row);
             }
             result.Add(line);
         }
@@ -344,7 +362,116 @@ public partial class ConsoleUi
     {
         AnsiConsole.Write(BuildBlackjackTable(players, dealer));
     }
-    private void AddRenderedCards(List<IRenderable> content, List<Card> cards, bool hideSecondCard, bool hideAllCards = false)
+    // Shorter cards share a seven-row area with full-sized solo dealer cards.
+    private void AddSmallDealerCards(List<IRenderable> content, List<Card> cards,
+        bool hideSecondCard, bool hideAllCards, int revealedCount = -1)
+    {
+        if (cards.Count == 0)
+        {
+            for (int row = 0; row < CardDisplayRows; row++)
+                content.Add(new Text(" "));
+            return;
+        }
+
+        bool[] hidden = cards.Select((_, index) =>
+            hideAllCards || (revealedCount >= 0 && index >= revealedCount) ||
+            (hideSecondCard && index == 1)).ToArray();
+        List<string> artwork = BuildSmallCardLines(cards, hidden,
+            SeatingWidth, out int renderedWidth);
+        List<IRenderable> rows = new();
+        foreach (string line in artwork)
+            rows.Add(new Markup(CenterMarkup(line, renderedWidth, SeatingWidth)));
+        while (rows.Count < CardDisplayRows)
+            rows.Add(new Text(" "));
+        content.Add(new Align(new Rows(rows), HorizontalAlignment.Center));
+    }
+
+    // The renderers supply only geometry; all color stays in ConsoleUi.
+    // The two initial cards are shown in full, side by side. With 3+ cards,
+    // older cards become narrow visible edges while the newest stays full.
+    private List<string> BuildSmallCardLines(List<Card> cards,
+        IReadOnlyList<bool> hidden, int maxWidth, out int renderedWidth)
+    {
+        int count = cards.Count;
+        int fullRowWidth = count * SmallCardWidth + Math.Max(0, count - 1) * SmallCardGap;
+        bool showFullCards = fullRowWidth <= maxWidth;
+        int edgeWidth = 0;
+        int start = 0;
+
+        if (showFullCards)
+        {
+            renderedWidth = fullRowWidth;
+        }
+        else
+        {
+            // Two cells per older card when possible; one for large hands.
+            edgeWidth = 2 * (count - 1) + SmallCardWidth <= maxWidth ? 2 : 1;
+            int numberToShow = Math.Min(count, 1 + (maxWidth - SmallCardWidth) / edgeWidth);
+            start = count - numberToShow;
+            renderedWidth = SmallCardWidth + (numberToShow - 1) * edgeWidth;
+        }
+
+        CardRenderer renderer = new();
+        List<string[]> art = new();
+        for (int index = start; index < count; index++)
+            art.Add(hidden[index]
+                ? renderer.RenderSmallHiddenCard()
+                : renderer.RenderSmallCard(cards[index]));
+
+        List<string> result = new();
+        for (int row = 0; row < CardArtHeight; row++)
+        {
+            if (showFullCards)
+            {
+                List<string> pieces = new();
+                for (int index = 0; index < count; index++)
+                    pieces.Add(StyleCardRow(art[index][row], cards[index], hidden[index], row));
+                result.Add(string.Join(new string(' ', SmallCardGap), pieces));
+            }
+            else
+            {
+                string line = "";
+                for (int index = start; index < count - 1; index++)
+                    line += BuildSmallCardEdge(cards[index], hidden[index], row, edgeWidth);
+                line += StyleCardRow(art[^1][row], cards[^1], hidden[^1], row);
+                result.Add(line);
+            }
+        }
+        return result;
+    }
+
+    private string BuildSmallCardEdge(Card card, bool hidden, int row, int width)
+    {
+        string text;
+        if (width == 1)
+        {
+            text = row switch
+            {
+                0 => "╭",
+                1 => hidden ? "◇" : GetRankLabel(card)[..1],
+                3 => hidden ? "◇" : GetSuitLabel(card),
+                4 => "╰",
+                _ => "│"
+            };
+        }
+        else
+        {
+            text = row switch
+            {
+                0 => "╭─",
+                1 => hidden ? "│◇" : GetRankLabel(card).PadRight(2)[..2],
+                3 => hidden ? "│◇" : "│" + GetSuitLabel(card),
+                4 => "╰─",
+                _ => "│ "
+            };
+        }
+        return hidden
+            ? $"[gold1 on #172A60]{Markup.Escape(text)}[/]"
+            : $"[{GetCardColor(card)} on white]{Markup.Escape(text)}[/]";
+    }
+
+    private void AddRenderedCards(List<IRenderable> content, List<Card> cards,
+        bool hideSecondCard, bool hideAllCards = false, int revealedCount = -1)
     {
         if (cards.Count == 0)
         {
@@ -353,32 +480,115 @@ public partial class ConsoleUi
         }
         CardRenderer renderer = new();
         List<string[]> renderedCards = new();
+        List<bool> hiddenCards = new();
         for (int i = 0; i < cards.Count; i++)
-            renderedCards.Add(hideAllCards || (hideSecondCard && i == 1)
-                ? renderer.RenderHiddenCard()
-                : renderer.RenderCard(cards[i]));
-        // Match the fixed 75-cell player seating grid so the dealer's
-        // first and second cards line up with the focused player's cards.
-        int cardsWidth = renderedCards.Count * 11 + Math.Max(0, renderedCards.Count - 1) * 2;
+        {
+            bool hidden = hideAllCards || (revealedCount >= 0 && i >= revealedCount) ||
+                (hideSecondCard && i == 1);
+            hiddenCards.Add(hidden);
+            renderedCards.Add(hidden ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));
+        }
+
+        // Cards always remain 11 by 7 characters. The dealer's typical hand
+        // uses full cards and never gets resized when the terminal changes.
+        // Six cards fit with one space; very large hands use the fixed fan.
+        if (cards.Count >= 7)
+        {
+            List<string> fanRows = BuildDealerFanCardLines(cards, hiddenCards);
+            int fanWidth = GetFanWidth(cards.Count);
+            var fanRenderables = new List<IRenderable>();
+            foreach (string line in fanRows)
+                fanRenderables.Add(new Markup(CenterMarkup(line, fanWidth, SeatingWidth)));
+            content.Add(new Align(new Rows(fanRenderables), HorizontalAlignment.Center));
+            return;
+        }
+
+        int gap = cards.Count == 6 ? 1 : 2;
+        int cardsWidth = renderedCards.Count * 11 + Math.Max(0, renderedCards.Count - 1) * gap;
         List<IRenderable> alignedRows = new();
         for (int row = 0; row < 7; row++)
         {
-            string cardLine = string.Join("  ", renderedCards.Select(card => card[row]));
+            List<string> pieces = new();
+            for (int i = 0; i < renderedCards.Count; i++)
+                pieces.Add(StyleCardRow(renderedCards[i][row], cards[i], hiddenCards[i], row));
+
+            string cardLine = string.Join(new string(' ', gap), pieces);
             alignedRows.Add(new Markup(CenterMarkup(cardLine, cardsWidth, SeatingWidth)));
         }
         content.Add(new Align(new Rows(alignedRows), HorizontalAlignment.Center));
     }
+
+    // Extra-large dealer hands keep the original 11x7 card art. Middle cards
+    // are represented by narrow edges instead of deforming the card graphics.
+    private List<string> BuildDealerFanCardLines(List<Card> cards, List<bool> hidden)
+    {
+        CardRenderer renderer = new();
+        int start = Math.Max(0, cards.Count - 5);
+        List<string[]> shapes = new();
+        for (int i = start; i < cards.Count; i++)
+            shapes.Add(hidden[i] ? renderer.RenderHiddenCard() : renderer.RenderCard(cards[i]));
+
+        List<string> rows = new();
+        for (int row = 0; row < 7; row++)
+        {
+            string line = StyleCardRow(shapes[0][row], cards[start], hidden[start], row);
+            line += "  ";
+            for (int i = 1; i < shapes.Count - 1; i++)
+            {
+                int originalIndex = start + i;
+                line += hidden[originalIndex]
+                    ? "[gold1 on #172A60]│◇ [/]"
+                    : BuildCardEdge(cards[originalIndex], row);
+            }
+            int last = shapes.Count - 1;
+            line += StyleCardRow(shapes[last][row], cards[start + last], hidden[start + last], row);
+            rows.Add(line);
+        }
+        return rows;
+    }
+
+    // Own the colors in ConsoleUi: the renderer supplies only plain card rows.
+    // Works for both the full-size and 7-cell multiplayer cards.
+    private string StyleCardRow(string rawRow, Card card, bool hidden, int rowIndex)
+    {
+        if (hidden)
+            return $"[gold1 on #172A60]{Markup.Escape(rawRow)}[/]";
+
+        if (rowIndex == 0 || rawRow.StartsWith("╰", StringComparison.Ordinal))
+            return $"[grey on white]{Markup.Escape(rawRow)}[/]";
+
+        string color = GetCardColor(card);
+        string leftBorder = Markup.Escape(rawRow[..1]);
+        string middle = Markup.Escape(rawRow[1..^1]);
+        string rightBorder = Markup.Escape(rawRow[^1..]);
+        return $"[grey on white]{leftBorder}[/]" +
+               $"[{color} on white]{middle}[/]" +
+               $"[grey on white]{rightBorder}[/]";
+    }
     private string GetRankLabel(Card card) => card.Rank switch
     {
-        Rank.Ace => "A", Rank.King => "K", Rank.Queen => "Q", Rank.Jack => "J",
-        Rank.Ten => "10", Rank.Nine => "9", Rank.Eight => "8", Rank.Seven => "7",
-        Rank.Six => "6", Rank.Five => "5", Rank.Four => "4", Rank.Three => "3",
-        Rank.Two => "2", _ => "?"
+        Rank.Ace => "A",
+        Rank.King => "K",
+        Rank.Queen => "Q",
+        Rank.Jack => "J",
+        Rank.Ten => "10",
+        Rank.Nine => "9",
+        Rank.Eight => "8",
+        Rank.Seven => "7",
+        Rank.Six => "6",
+        Rank.Five => "5",
+        Rank.Four => "4",
+        Rank.Three => "3",
+        Rank.Two => "2",
+        _ => "?"
     };
     private string GetSuitLabel(Card card) => card.Suit switch
     {
-        Suit.Hearts => "♥", Suit.Diamonds => "♦", Suit.Clubs => "♣",
-        Suit.Spades => "♠", _ => "?"
+        Suit.Hearts => "♥",
+        Suit.Diamonds => "♦",
+        Suit.Clubs => "♣",
+        Suit.Spades => "♠",
+        _ => "?"
     };
     private string GetCardLabel(Card card) => GetRankLabel(card) + GetSuitLabel(card);
     private string GetCardColor(Card card) =>

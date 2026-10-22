@@ -80,6 +80,18 @@ public class GameStorage
         SaveReadableResults(results);
     }
 
+    // Deletes a player's statistics from the saved results and readable report.
+    // Returns false when the player does not exist.
+    public bool DeletePlayer(string playerName)
+    {
+        Dictionary<string, PlayerStatistics> results = LoadResults();
+        if (!results.Remove(playerName))
+            return false;
+
+        SaveResults(results);
+        return true;
+    }
+
     private void SaveJsonResults(IReadOnlyDictionary<string, PlayerStatistics> results)
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(_filePath))!;
@@ -159,5 +171,5 @@ public class PlayerStatistics
     public int Pushes { get; set; }
 
     // Gets or sets the player's chips. Old saves without chips get the starting amount.
-    public int Chips { get; set; } = Player.StartingChips;
+    public int Chips { get; set; } = Wallet.StartingChips;
 }

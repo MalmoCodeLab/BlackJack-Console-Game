@@ -22,12 +22,13 @@ public partial class ConsoleUi
             {
                 switch (key)
                 {
+
                     case ConsoleKey.UpArrow:
-                        selected = (selected + 3) % 4;
-                        break;
+                    selected = (selected - 1 + 4) % 4;
+                    break;
                     case ConsoleKey.DownArrow:
-                        selected = (selected + 1) % 4;
-                        break;
+                    selected = (selected + 1) % 4;
+                    break;
                     case ConsoleKey.LeftArrow:
                         rules = ChangeRule(rules, selected, -1);
                         break;
@@ -51,14 +52,14 @@ public partial class ConsoleUi
             case 0:
                 return rules with { DealerHitsSoft17 = !rules.DealerHitsSoft17 };
             case 1:
-                int decks = Math.Clamp(rules.DeckCount + direction, 1, 8);
+                int decks = Math.Clamp(rules.DeckCount + direction, RuleSet.MinDeckCount, RuleSet.MaxDeckCount);
                 return rules with
                 {
                     DeckCount = decks,
-                    ReshuffleThreshold = Math.Min(rules.ReshuffleThreshold, decks * 52)
+                    ReshuffleThreshold = Math.Min(rules.ReshuffleThreshold, decks * RuleSet.CardsPerDeck)
                 };
             case 2:
-                int maxThreshold = rules.DeckCount * 52;
+                int maxThreshold = rules.DeckCount * RuleSet.CardsPerDeck;
                 int threshold = rules.ReshuffleThreshold + direction * ReshuffleStep;
                 return rules with
                 {
@@ -78,7 +79,7 @@ public partial class ConsoleUi
         {
             ("Givare vid mjuk 17", rules.DealerHitsSoft17 ? "Tar kort" : "Stannar"),
             ("Antal kortlekar", rules.DeckCount.ToString()),
-            ("Omblandning", $"Under {rules.ReshuffleThreshold} kort kvar"),
+            ("Blandkort", $"Minst {rules.ReshuffleThreshold} kort kvar"),
             ("Naturlig Blackjack",
                 rules.NaturalBlackjackBeatsThreeCard21 ? "Slår vanlig 21" : "Samma värde som vanlig 21")
         };
@@ -86,7 +87,7 @@ public partial class ConsoleUi
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule("[gold1]♦ INSTÄLLNINGAR ♦[/]").RuleStyle(Color.Gold1),
             new Text("")

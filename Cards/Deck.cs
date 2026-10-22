@@ -1,23 +1,19 @@
- class Deck
+using System.Diagnostics.Metrics;
+
+class Deck
 {
-     public RuleSet Rules { get; }
-     public List<Card> DeckCards { get; } = [];
+    public RuleSet Rules { get; }
+    public List<Card> DeckCards { get; } = [];
     public List<Card> DiscardedCards { get; } = [];
-    public List<Hand> ListOfHands { get; } = [];
-    public int RunningCount;
-    public double TrueCount;
+    public int CutCardPosition { get; private set; }
+    public bool CutCardReached { get; private set; }
+    public CardCounter Counter { get; } = new();
+
 
     public Deck(RuleSet? rules = null)
     {
         Rules = rules ?? RuleSet.Default;
         Rules.Validate();
-    }
-
-    public Hand CreateHand()
-    {
-        Hand hand = new Hand();
-        ListOfHands.Add(hand);
-        return hand;
     }
 
     public void CreateDeck()
@@ -33,24 +29,17 @@
                 }
             }
         }
-
     }
-    public void CardCounter()
+
+    private void PlaceCutCard()
     {
-        Rank rank = DeckCards[0].Rank;
-        if (rank <= Rank.Six)
-        {
-            RunningCount++;
-        }
-        else if (rank >= Rank.Ten)
-        {
-            RunningCount--;
-        }
-        double decksRemaining = DeckCards.Count / 52.0;
-        double rawTrueCount = (double)RunningCount / decksRemaining;
-        TrueCount = Math.Round(rawTrueCount, 2, MidpointRounding.AwayFromZero);
-
+        int lastQuarter = DeckCards.Count / 4;
+        int min = Math.Min(Rules.ReshuffleThreshold, DeckCards.Count);
+        int max = Math.Max(min, lastQuarter);
+        CutCardPosition = Random.Shared.Next(min, max + 1);
+        CutCardReached = false;
     }
+
     public void ShuffleDeck()
     {
         if (DiscardedCards.Count > 0)
@@ -69,8 +58,8 @@
             DeckCards[number] = DeckCards[i];
             DeckCards[i] = TempCard;
         }
-        RunningCount = 0;
-        TrueCount = 0;
+        PlaceCutCard();
+        Counter.Reset();
 
     }
     public void CheckIfNewShuffleIsNeeded(int cardsNeeded = 0)
@@ -78,7 +67,7 @@
         if (cardsNeeded < 0)
             throw new ArgumentOutOfRangeException(nameof(cardsNeeded));
 
-        if (DeckCards.Count < Math.Max(Rules.ReshuffleThreshold, cardsNeeded))
+        if (CutCardReached || DeckCards.Count < cardsNeeded)
         {
             ShuffleDeck();
         }
@@ -102,27 +91,18 @@
     {
         EnsureCardAvailable();
         CardCounter();
+    public Card DealCard(bool faceUp = true)
+    {
+        if (DeckCards.Count == 0)
+            throw new InvalidOperationException("Leken är tom.");
         Card dealCard = DeckCards[0];
         DeckCards.RemoveAt(0);
+        if (DeckCards.Count <= CutCardPosition)
+            CutCardReached = true;
+        if (faceUp)
+        {
+            Counter.Count(dealCard, DeckCards.Count);
+        }
         return dealCard;
     }
-    public void ForceRetriveAllCards()
-    {
-        for (int i = 0; i < ListOfHands.Count; i++)
-        {
-            ReciveDiscardedCard(ListOfHands[i]);
-        }
-    }
-    public void ReciveDiscardedCard(Hand hand)
-    {
-        List<Card> recievedDiscardedCard = hand.DiscardCards();
-        int numberOfCards = recievedDiscardedCard.Count();
-        for (int i = 0; i < numberOfCards; i++)
-        {
-            DiscardedCards.Add(recievedDiscardedCard[0]);
-            recievedDiscardedCard.RemoveAt(0);
-        }
-    }
-
-
 }

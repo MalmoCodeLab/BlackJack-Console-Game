@@ -3,12 +3,15 @@ class Round
     private bool started;
     private bool ended;
     private readonly Dictionary<Player, Outcome> outcomes = new();
+    private readonly HashSet<Card> revealedCards = new();
 
     public int RoundNumber { get; }
     public List<Player> Players { get; }
     public Dealer Dealer { get; }
     public Deck Deck { get; }
     public RuleSet Rules { get; }
+    public const int StartingHandSize = 2;
+    private const int ThreeCardHandSize = 3;
     public IReadOnlyDictionary<Player, Outcome> Outcomes => outcomes;
 
     public Round(
@@ -49,18 +52,20 @@ class Round
         foreach (Player player in Players)
             player.NewRound(Deck);
         Dealer.NewRound(Deck);
-        Deck.CheckIfNewShuffleIsNeeded(2 * (Players.Count + 1));
 
-        for (int cardNumber = 0; cardNumber < 2; cardNumber++)
+        int participantCount = Players.Count + 1;   // all players + the dealer
+
+        Deck.CheckIfNewShuffleIsNeeded(StartingHandSize * participantCount);
+
+        for (int cardNumber = 0; cardNumber < StartingHandSize; cardNumber++)
         {
             foreach (Player player in Players)
-                player.ReceiveCard(Deck);
-            Dealer.ReceiveCard(Deck);
+                player.ReceiveCard(Deck, faceUp: false);
+            Dealer.ReceiveCard(Deck, faceUp: false);
         }
 
         started = true;
     }
-
     public void EndRound()
     {
         if (!started)
@@ -69,6 +74,7 @@ class Round
             throw new InvalidOperationException("This round has already ended.");
 
         Dealer.ShowHoleCard();
+        RevealCard(Dealer.Hand.CardsOnHand[1]);
         bool anyPlayerStillIn = Players.Exists(player => !player.IsBust);
         if (anyPlayerStillIn)
         {
@@ -88,24 +94,24 @@ class Round
             bool playerHasNatural = player.HasBlackjack;
             bool dealerHasNatural = Dealer.HasBlackjack;
             bool playerHasThreeCard21 =
-                player.Hand.CardsOnHand.Count == 3 &&
+                player.Hand.CardsOnHand.Count == ThreeCardHandSize &&
                 player.Score == Hand.BlackjackValue;
             bool dealerHasThreeCard21 =
-                Dealer.Hand.CardsOnHand.Count == 3 &&
+                Dealer.Hand.CardsOnHand.Count == ThreeCardHandSize &&
                 Dealer.Score == Hand.BlackjackValue;
 
             if (player.IsBust)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else if ((playerHasNatural && dealerHasThreeCard21) ||
                      (dealerHasNatural && playerHasThreeCard21))
             {
                 if (Rules.NaturalBlackjackBeatsThreeCard21)
-                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Lose;
+                    outcome = playerHasNatural ? Outcome.Blackjack : Outcome.Loss;
                 else
                     outcome = Outcome.Push;
             }
             else if (dealerHasNatural && !playerHasNatural)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             // A natural blackjack is checked before a dealer bust so it always pays 3:2.
             else if (playerHasNatural && !dealerHasNatural)
                 outcome = Outcome.Blackjack;
@@ -114,12 +120,28 @@ class Round
             else if (player.Score > Dealer.Score)
                 outcome = Outcome.Win;
             else if (player.Score < Dealer.Score)
-                outcome = Outcome.Lose;
+                outcome = Outcome.Loss;
             else
                 outcome = Outcome.Push;
 
+            player.SettleInsurance(dealerHasNatural);
             player.SettleBet(outcome);
             outcomes[player] = outcome;
         }
+    }
+    // Counts a card the first time it becomes visible.
+    public void RevealCard(Card card)
+    {
+        if (revealedCards.Add(card))
+            Deck.Counter.Count(card, Deck.DeckCards.Count);
+    }
+    public void RevealInitialCards()
+    {
+        foreach (Player player in Players)
+            foreach (Card card in player.Hand.CardsOnHand)
+                RevealCard(card);
+
+        // Only the dealer's up card; the hole card is revealed in EndRound.
+        RevealCard(Dealer.Hand.CardsOnHand[0]);
     }
 }

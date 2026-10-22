@@ -1,7 +1,6 @@
 abstract class Participant
 {
-    public const int BlackjackValue = Hand.BlackjackValue;
-
+    private const int NaturalBlackjackCards = 2;
     public string Name { get; }
     public Hand Hand { get; } = new Hand();
 
@@ -15,16 +14,15 @@ abstract class Participant
         Name = name.Trim();
     }
 
-    public void ReceiveCard(Deck deck)
+    public void ReceiveCard(Deck deck, bool faceUp = true)
     {
         ArgumentNullException.ThrowIfNull(deck);
-        Hand.ReceiveCard(deck);
+        Hand.ReceiveCard(deck, faceUp);
     }
 
     public int Score => Hand.Score;
-
-    public bool IsBust => Score > BlackjackValue;
-    public bool HasBlackjack => Hand.CardsOnHand.Count == 2 && Score == BlackjackValue;
+    public bool IsBust => Score > Hand.BlackjackValue;
+    public bool HasBlackjack => Hand.CardsOnHand.Count == NaturalBlackjackCards && Score == Hand.BlackjackValue;
 
     public override string ToString()
     {
@@ -36,10 +34,5 @@ abstract class Participant
         ArgumentNullException.ThrowIfNull(deck);
         List<Card> discarded = Hand.DiscardCards();
         deck.DiscardedCards.AddRange(discarded);
-    }
-
-    public void NewRound()
-    {
-        Hand.DiscardCards();
     }
 }

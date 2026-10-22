@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
+
+
 public partial class ConsoleUi
 {
+    private const int MaxPlayers = 5;
+    private const int ChipsNameWidth = 12;
     private readonly string[] menuOptions = GameMessages.MainMenuOptions;
 
     // Main menu with arrow-key navigation.
@@ -30,71 +34,104 @@ public partial class ConsoleUi
         return choice;
     }
 
-    // Player count selection, 1–5 players. Returns 0 when the player chose Inställningar.
+    // Choose 1–5 players. Esc returns 0 so Game can return to the main menu.
     public int AskPlayerCountCentered()
     {
         int selectedOption = 0;
-        int playerCount = 1;
+        int playerCount = 0;
         RunScreen(
             () => CreatePlayerCountMenu(selectedOption),
             key =>
             {
                 if (key == ConsoleKey.UpArrow)
-                    selectedOption = (selectedOption + 5) % 6;
+                    selectedOption = (selectedOption - 1 + MaxPlayers) % MaxPlayers;
                 else if (key == ConsoleKey.DownArrow)
-                    selectedOption = (selectedOption + 1) % 6;
+                    selectedOption = (selectedOption + 1) % MaxPlayers;
                 else if (key == ConsoleKey.Enter)
                 {
-                    playerCount = selectedOption == 5 ? 0 : selectedOption + 1;
+                    playerCount = selectedOption + 1;
+                    return true;
+                }
+                else if (key == ConsoleKey.Escape)
+                {
                     return true;
                 }
                 return false;
             });
-        // Hide the cursor before entering the first name prompt.
-        Console.Write("\u001b[?25l");
+        // Hide the cursor before entering the name prompt, but not on Esc.
+        if (playerCount > 0)
+            Console.Write("\u001b[?25l");
         return playerCount;
+    }
+
+    // Keep the full-screen menus away from the shell's scrollback buffer.
+    // GameTableUI uses a separate alternate screen for gameplay as well.
+    private static void EnterMenuScreen()
+    {
+        Console.Write("\u001b[0m\u001b[?1049h\u001b[?25l\u001b[H");
+        Console.Out.Flush();
+    }
+
+    private static void LeaveMenuScreen()
+    {
+        Console.Write("\u001b[0m\u001b[?25h\u001b[?1049l");
+        Console.Out.Flush();
+    }
+
+    // Only clear when transitioning between views or on a resize.
+    // Do not clear for each arrow key; that makes the menus flash.
+    private static void ClearMenuTransition()
+    {
+        Console.Write("\u001b[0m\u001b[?25l\u001b[2J\u001b[H");
+        Console.Out.Flush();
     }
 
     // Shows a menu screen in the middle of the window and redraws it when the
     // window changes size. handleKey returns true when the menu should close.
     private void RunScreen(Func<IRenderable> build, Func<ConsoleKey, bool> handleKey)
     {
-        int shownWidth = -1;
-        int shownHeight = -1;
+        int shownWidth = Math.Max(1, Console.WindowWidth);
+        int shownHeight = Math.Max(1, Console.WindowHeight);
 
         void Draw()
         {
-            // Fill the whole window so nothing old is left on the screen.
-            int height = Math.Max(1, Console.WindowHeight);
+            // Reserve two rows so the Spectre renderer cannot scroll the buffer
+            // when it writes its final newline.
+            int height = Math.Max(1, Console.WindowHeight - 2);
             var screen = new Align(build(), HorizontalAlignment.Center, VerticalAlignment.Middle)
                 .Height(height);
-            Console.Write("\u001b[H\u001b[?25l");
-            int windowHeight = AnsiConsole.Profile.Height;
+            int previousHeight = AnsiConsole.Profile.Height;
             AnsiConsole.Profile.Height = height;
             try
             {
+                // On terminals that support synchronized updates, present the
+                // whole redraw at once instead of showing intermediate frames.
+                // Unsupported terminals simply ignore these ANSI sequences.
+                Console.Write("\u001b[?2026h\u001b[0m\u001b[H\u001b[?25l");
                 AnsiConsole.Write(screen);
             }
             finally
             {
-                AnsiConsole.Profile.Height = windowHeight;
+                AnsiConsole.Profile.Height = previousHeight;
+                Console.Write("\u001b[?2026l");
                 Console.Out.Flush();
             }
         }
 
-        // Stay on the same screen as the other menus; switching screens made
-        // the terminal flash black between the menus.
-        Console.Write("\u001b[?25l");
+        // Keep navigation on an isolated terminal screen. This prevents
+        // fragments of previous menus being mixed into the name prompt.
+        EnterMenuScreen();
         try
         {
+            Draw();
             while (true)
             {
-                // Redraw from scratch when the window is resized.
+                // A resize can leave remnants at old positions; clear only then.
                 if (Console.WindowWidth != shownWidth || Console.WindowHeight != shownHeight)
                 {
-                    shownWidth = Console.WindowWidth;
-                    shownHeight = Console.WindowHeight;
-                    Console.Write("\u001b[2J");
+                    shownWidth = Math.Max(1, Console.WindowWidth);
+                    shownHeight = Math.Max(1, Console.WindowHeight);
+                    ClearMenuTransition();
                     Draw();
                 }
 
@@ -104,14 +141,26 @@ public partial class ConsoleUi
                     continue;
                 }
 
-                if (handleKey(Console.ReadKey(true).Key))
+                ConsoleKey key = Console.ReadKey(true).Key;
+                if (handleKey(key))
                     return;
+
+                // Redraw only for navigation and selection keys
+                // to avoid unnecessary screen updates.
+
+                if (key is ConsoleKey.UpArrow
+                or ConsoleKey.DownArrow
+                or ConsoleKey.LeftArrow
+                or ConsoleKey.RightArrow
+                or ConsoleKey.Enter)
+                {
                 Draw();
+                }        
             }
         }
         finally
         {
-            Console.Out.Flush();
+            LeaveMenuScreen();
         }
     }
 
@@ -120,16 +169,14 @@ public partial class ConsoleUi
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < MaxPlayers; i++)
         {
-            string text = i == 5
-                ? GameMessages.Settings
-                : string.Format(GameMessages.PlayerCountFormat, i + 1);
+            string text = string.Format(GameMessages.PlayerCountFormat, i + 1);
             string label = text.PadRight(17);
             string line = i == selectedOption
                 ? $"[bold white on #961923] ❯ {label} [/]"
@@ -138,7 +185,7 @@ public partial class ConsoleUi
             rows.Add(new Text(""));
         }
         rows.Add(new Rule().RuleStyle(Color.Gold1));
-        rows.Add(new Align(new Markup(GameMessages.MenuNavigationMarkup), HorizontalAlignment.Center));
+        rows.Add(new Align(new Markup("[grey]↑ ↓ Navigera  •  Enter Välj  •  Esc Tillbaka[/]"), HorizontalAlignment.Center));
         return CenterMenuPanel(rows);
     }
 
@@ -147,7 +194,7 @@ public partial class ConsoleUi
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule(GameMessages.MainMenuTitleMarkup).RuleStyle(Color.Gold1),
             new Text("")
@@ -205,14 +252,14 @@ public partial class ConsoleUi
                             !roundFinished && i == selectedOption &&
                             !(bettingMode && i == 0);
 
-            // Only Hit changes color: yellow during betting, green afterwards.
+            // Hit cannot be used during betting, so keep it unhighlighted.
             if (i == 0 && !roundFinished)
             {
-                string hitStyle = bettingMode
-                    ? "bold white on black"
-                    : "bold white on green3";
-                buttons[i] = new Markup(
-                    $"[{hitStyle}] {(selected ? "❯" : " ")} {label} [/]");
+                buttons[i] = bettingMode
+                    ? new Markup($"[grey]   {label}[/]")
+                    : new Markup(selected
+                        ? $"[bold white on green3] ❯ {label} [/]"
+                        : $"[white]   {label}[/]");
                 continue;
             }
 
@@ -232,6 +279,9 @@ public partial class ConsoleUi
     }
 
     // Shows the menu, saved statistics, live bet and controls on the right.
+    // Builds the in-game menu in two responsive layouts.
+    // A compact sidebar is used when the table has enough horizontal space;
+    // otherwise the menu opens as a centered, two-column screen.
     internal Panel BuildGameMenu(
         string[] menuOptions,
         int selectedOption,
@@ -240,20 +290,159 @@ public partial class ConsoleUi
         bool roundFinished,
         string[] playerStatuses,
         bool cardsFaceDown)
+        int activePlayerIndex = 0,
+        bool forceSidebar = false)
     {
-        var content = new List<Spectre.Console.Rendering.IRenderable>
+        bool menuOpen = sideMenuActive || roundFinished;
+        // At a normal terminal width the menu is always on the right. Esc
+        // changes selection focus; it does not hide the player overview.
+        bool useFullScreen = menuOpen && !forceSidebar;
+
+        int focusedIndex = players.Count > 0
+            ? Math.Clamp(activePlayerIndex, 0, players.Count - 1)
+            : 0;
+
+        // On narrow screens Esc opens a separate menu while the game waits.
+        if (useFullScreen)
         {
-            new Align(new Markup(GameMessages.GameMenuTitleMarkup), HorizontalAlignment.Center)
+            var actionRows = new List<IRenderable>
+            {
+                new Align(new Markup("[bold gold1]VÄLJ HANDLING[/]"),
+                    HorizontalAlignment.Center),
+                new Text("")
+            };
+
+            for (int i = 0; i < menuOptions.Length; i++)
+            {
+                string option = Markup.Escape(menuOptions[i]);
+                string line = i == selectedOption
+                    ? $"[bold white on #961923] ❯ {option.PadRight(23)} [/]"
+                    : $"[white]   {option}[/]";
+                actionRows.Add(new Markup(line));
+            }
+
+            actionRows.Add(new Text(""));
+            actionRows.Add(new Rule().RuleStyle(Color.Gold1));
+            actionRows.Add(new Align(new Markup("[grey]↑ ↓  Navigera[/]"),
+                HorizontalAlignment.Center));
+            actionRows.Add(new Align(new Markup(roundFinished
+                    ? "[grey]Enter  Välj[/]"
+                    : "[grey]Enter  Välj  •  Esc  Tillbaka[/]"),
+                HorizontalAlignment.Center));
+
+            var actionPanel = new Panel(new Rows(actionRows))
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Gold1)
+                .Padding(1, 0, 1, 0);
+
+            var infoRows = BuildGameMenuInformation(players, playerStatuses,
+                focusedIndex, compact: Console.WindowWidth < 116 || Console.WindowHeight < 32);
+            infoRows.Insert(0, new Align(
+                new Markup("[bold gold1]SPELARÖVERSIKT[/]"),
+                HorizontalAlignment.Center));
+            var infoPanel = new Panel(new Rows(infoRows))
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Gold1)
+                .Padding(1, 0, 1, 0);
+
+            var columns = new Grid();
+            columns.AddColumn(new GridColumn().NoWrap());
+            columns.AddColumn(new GridColumn().NoWrap());
+            columns.AddColumn(new GridColumn().NoWrap());
+            columns.AddRow(actionPanel, new Text("   "), infoPanel);
+
+            var main = new Rows(
+                new Align(new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
+                    HorizontalAlignment.Center),
+                new Align(new Markup("[grey]BLACKJACK 21[/]"),
+                    HorizontalAlignment.Center),
+                new Text(""),
+                new Align(columns, HorizontalAlignment.Center));
+
+            // Center the menu vertically instead of leaving a large empty area
+            // below the content. The outer gold border still fills the screen.
+            int innerHeight = Math.Max(1, Console.WindowHeight - 2);
+            return new Panel(new Align(main,
+                    HorizontalAlignment.Center, VerticalAlignment.Middle)
+                    .Height(innerHeight))
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Gold1)
+                .Expand();
+        }
+
+        // Always show the menu choices, player stats, balance and bets.
+        // The selected option is highlighted only when Esc has focused it.
+        var sidebarRows = new List<IRenderable>
+        {
+            new Align(new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
+                HorizontalAlignment.Center),
+            new Align(new Markup(menuOpen
+                ? "[gold1]↑ ↓ Välj   Enter Bekräfta[/]"
+                : "[grey]Esc: Aktivera menyn[/]"),
+                HorizontalAlignment.Center),
+            new Rule("[gold1]VAL[/]").RuleStyle(Color.Gold1)
         };
+
         for (int i = 0; i < menuOptions.Length; i++)
         {
-            string label = Markup.Escape(menuOptions[i]);
-            content.Add(new Markup((sideMenuActive || roundFinished) && i == selectedOption
-                ? $"[bold white on #961923] ❯ {label} [/]"
-                : $"[white]   {label}[/]"));
+            string option = Markup.Escape(menuOptions[i]);
+            sidebarRows.Add(new Markup(menuOpen && i == selectedOption
+                ? $"[bold white on #961923] ❯ {option} [/]"
+                : $"[white]   {option}[/]"));
         }
-        content.Add(new Rule("[gold1]POÄNG[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup("[grey]SPELARE     P   RESULTAT[/]"));
+
+        sidebarRows.AddRange(BuildGameMenuInformation(players, playerStatuses,
+            focusedIndex, compact: true));
+
+        return new Panel(new Rows(sidebarRows))
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Gold1)
+            .Expand();
+    }
+
+    // Detailed information is used in the full-screen fallback. The compact
+    // sidebar uses one line per player so five players fit in the terminal.
+    private static List<IRenderable> BuildGameMenuInformation(
+        List<Player> players,
+        string[] playerStatuses,
+        int focusedIndex,
+        bool compact)
+    {
+        var rows = new List<IRenderable>();
+        rows.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
+
+        if (compact)
+        {
+            rows.Add(new Markup("[grey]Spelare   V / F / O / R[/]"));
+            foreach (Player player in players)
+            {
+                string name = player.Name.Length > 8
+                    ? player.Name[..7] + "…" : player.Name;
+                rows.Add(new Markup(
+                    $"[white]{Markup.Escape(name.PadRight(8))}[/] " +
+                    $"[green1]{player.Wins}[/]/[red]{player.Losses}[/]/" +
+                    $"[gold1]{player.Pushes}[/]/[deepskyblue1]{player.GamesPlayed}[/]"));
+            }
+        }
+        else
+        {
+            for (int i = 0; i < players.Count; i++)
+            {
+                Player player = players[i];
+                rows.Add(new Markup($"[bold]{Markup.Escape(player.Name)}[/]"));
+                rows.Add(new Markup(
+                    $"[green1]V: {player.Wins}[/]  [red]F: {player.Losses}[/]  " +
+                    $"[gold1]O: {player.Pushes}[/]  [blue]R: {player.GamesPlayed}[/]"));
+                if (i < playerStatuses.Length &&
+                    !string.IsNullOrWhiteSpace(playerStatuses[i]))
+                    rows.Add(new Markup($"[grey]{Markup.Escape(playerStatuses[i])}[/]"));
+                if (i < players.Count - 1)
+                    rows.Add(new Rule().RuleStyle(Color.Grey30));
+            }
+        }
+
+        rows.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
+        rows.Add(new Markup("[grey]" + "SPELARE".PadRight(ChipsNameWidth + 3) + "SALDO INSATS[/]"));
         for (int i = 0; i < players.Count; i++)
         {
             Player player = players[i];
@@ -267,22 +456,24 @@ public partial class ConsoleUi
                 $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
                 $"[gold1]{score.PadLeft(2)}[/] " +
                 $"[{statusColor}]{Markup.Escape(status.PadLeft(9))}[/]"));
+            string insuredMark = player.InsuranceBet > 0 ? " (F)" : "";
+            int nameWidth = ChipsNameWidth - insuredMark.Length;
+            string name = player.Name.Length > nameWidth
+                ? player.Name[..(nameWidth - 1)] + "…" : player.Name;
+            string selected = i == focusedIndex ? "[bold gold1]❯[/]" : " ";
+            string style = i == focusedIndex ? "bold white" : "grey";
+            rows.Add(new Markup(
+                $"{selected}[{style}]{Markup.Escape((name + insuredMark).PadRight(ChipsNameWidth))}[/] " +
+                $"[green1]{player.Chips.ToString().PadLeft(5)}[/] " +
+                $"[gold1]{player.CurrentBet.ToString().PadLeft(6)}[/]"));
         }
-        Player main = players[0];
-        content.Add(new Rule("[gold1]STATISTIK[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup($"[green1]V: {main.Wins}[/]  [red]F: {main.Losses}[/]  [gold1]O: {main.Pushes}[/]"));
-        content.Add(new Markup($"[white]Rundor: {main.GamesPlayed}[/]"));
-        content.Add(new Rule("[gold1]SPELMARKER[/]").RuleStyle(Color.Gold1));
-        content.Add(new Markup($"[white]Saldo:[/] [green1]{main.Chips} kr[/]"));
-        content.Add(new Markup($"[white]Aktuell insats:[/] [gold1]{main.CurrentBet} kr[/]"));
-        return new Panel(new Rows(content))
-            .Border(BoxBorder.Rounded).BorderColor(Color.Gold1).Expand();
+        return rows;
     }
 
     // Shows controls on a separate screen without changing the current game state.
     public void ShowGameControls()
     {
-        AnsiConsole.Clear();
+        ClearMenuTransition();
 
         var rows = new List<IRenderable>
         {
@@ -300,17 +491,19 @@ public partial class ConsoleUi
             new Markup("[white]← →[/]  Välj marker"),
             new Markup("[white]Enter[/]  Lägg till marker"),
             new Markup("[white]Mellanslag[/]  Bekräfta insats"),
+            new Markup("[white]Esc[/]  Öppna spelmenyn"),
             new Markup("[white]Backspace[/]  Ta bort marker"),
             new Markup("[white]Inställningar[/]  Ändras från huvudmenyn före spelstart"),
+            new Markup("[grey]Inställningar ändras i huvudmenyn[/]"),
             new Text(""),
-            new Align(new Markup("[grey]Tryck Enter för att återgå till spelet.[/]"), HorizontalAlignment.Center)
+            new Align(new Markup("[grey]Tryck Esc för att återgå till spelet.[/]"), HorizontalAlignment.Center)
         };
 
         AnsiConsole.Write(CenterMenuPanel(rows));
-        while (Console.ReadKey(true).Key != ConsoleKey.Enter)
+        while (Console.ReadKey(true).Key != ConsoleKey.Escape)
         {
         }
-        AnsiConsole.Clear();
+        ClearMenuTransition();
     }
 
     // Returns null if the player presses Esc.
@@ -331,10 +524,12 @@ public partial class ConsoleUi
             Console.Write("\u001b[?25l");
         }
 
-        // Hide the cursor before the first clear and keep it hidden afterwards.
+        // The name prompt must not share scrollback with the previous menu.
+        // It also uses cursor-positioning commands, so isolate its screen.
+        EnterMenuScreen();
         HideInputCursor();
-        AnsiConsole.Clear();
-        HideInputCursor();
+        int previousPromptWidth = Math.Max(1, Console.WindowWidth);
+        int previousPromptHeight = Math.Max(1, Console.WindowHeight);
 
         try
         {
@@ -342,6 +537,14 @@ public partial class ConsoleUi
             {
                 int width = Math.Max(1, Console.WindowWidth);
                 int height = Math.Max(1, Console.WindowHeight);
+                // The prompt moves on resize; remove it from its old position.
+                if (width != previousPromptWidth || height != previousPromptHeight)
+                {
+                    previousPromptWidth = width;
+                    previousPromptHeight = height;
+                    ClearMenuTransition();
+                    HideInputCursor();
+                }
                 string prompt = $"Ange namn för spelare {playerNumber}:";
                 int top = Math.Max(0, height / 2 - 2);
                 int left = Math.Max(0, (width - 44) / 2);
@@ -401,8 +604,14 @@ public partial class ConsoleUi
         }
         finally
         {
-            // The menus also use a hidden cursor.
-            HideInputCursor();
+            LeaveMenuScreen();
+            try
+            {
+                if (!Console.IsOutputRedirected)
+                    Console.CursorVisible = true;
+            }
+            catch (IOException) { }
+            catch (PlatformNotSupportedException) { }
         }
     }
 
@@ -413,7 +622,7 @@ public partial class ConsoleUi
         var rows = new List<Spectre.Console.Rendering.IRenderable>
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
-            new Align(new Markup(GameMessages.GameSubtitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
             new Text(""),
             new Rule("[bold gold1]♠ LADDA SPEL ♠[/]").RuleStyle(Color.Gold1),
             new Align(new Markup($"[grey]SPARADE SPELARE  ({names.Count}/3)[/]"), HorizontalAlignment.Center),
