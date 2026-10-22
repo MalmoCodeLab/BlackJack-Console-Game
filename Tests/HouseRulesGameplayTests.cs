@@ -226,6 +226,46 @@ public class HouseRulesGameplayTests
         Assert.Equal(26, deck.DeckCards.Count);
     }
 
+    [Fact]
+    public void DealCard_EmptyShoe_ReusesDiscardPile()
+    {
+        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        Deck deck = DeckWithRemaining(rules, 0);
+
+        Card card = deck.DealCard();
+
+        Assert.NotNull(card);
+        Assert.Equal(51, deck.DeckCards.Count);
+    }
+
+    [Fact]
+    public void DealCard_AllCardsInPlay_AddsFreshDecksInsteadOfCrashing()
+    {
+        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        Deck deck = new(rules);
+
+        Card card = deck.DealCard();
+
+        Assert.NotNull(card);
+        Assert.Equal(51, deck.DeckCards.Count);
+    }
+
+    [Fact]
+    public void Round_ManyPlayersAndLowThreshold_NeverRunsOutOfCards()
+    {
+        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 1 };
+        Deck deck = DeckWithRemaining(rules, 10);
+        List<Player> players = [new("A"), new("B"), new("C"), new("D"), new("E")];
+        Round round = new(1, players, new Dealer(rules), deck, rules);
+
+        round.StartRound();
+        foreach (Player player in players)
+            for (int i = 0; i < 10; i++)
+                player.ReceiveCard(deck);
+
+        Assert.All(players, player => Assert.NotEmpty(player.Hand.CardsOnHand));
+    }
+
     // ---- Naturlig tjugoett ----
 
     // Player natural (A + K) against a dealer 21 built from three cards (5 + 9 + 7).
