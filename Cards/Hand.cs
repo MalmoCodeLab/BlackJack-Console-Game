@@ -1,7 +1,7 @@
 class Hand
 {
     public const int BlackjackValue = 21;
-    private const int AceReduction = 10;
+    public const int AceReduction = 10;
     public List<Card> CardsOnHand { get; } = [];
 
     public void ReceiveCard(Deck deck, bool faceUp = true)

@@ -3,7 +3,6 @@ using System.Text.Json;
 public sealed record RuleSet
 {
     public const string FileName = "blackjack-rules.json";
-    public const int CardsPerDeck = 52;
     public const int MinDeckCount = 1;
     public const int MaxDeckCount = 8;
     private const int DefaultDeckCount = 6;
@@ -97,7 +96,7 @@ public sealed record RuleSet
             throw new ArgumentOutOfRangeException(
                 nameof(DeckCount),
                 $"Antalet kortlekar måste vara mellan {MinDeckCount} och {MaxDeckCount}.");
-        if (ReshuffleThreshold < 1 || ReshuffleThreshold > DeckCount * CardsPerDeck)
+        if (ReshuffleThreshold < 1 || ReshuffleThreshold > DeckCount * Deck.CardsPerDeck)
             throw new ArgumentOutOfRangeException(
                 nameof(ReshuffleThreshold),
                 "Blandningsgränsen måste vara minst 1 och får inte överstiga det totala antalet kort.");
