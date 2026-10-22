@@ -1,8 +1,7 @@
-using System.Diagnostics.Metrics;
 
 class Deck
 {
-    public const int CardsPerDeck = SuitCount * RanksPerSuit; // 52
+    public const int CardsPerDeck = 52;
     private const int SuitCount = 4;
     private const int RanksPerSuit = 13;
     

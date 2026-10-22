@@ -10,7 +10,7 @@ class CardCounter
         else if (card.Rank >= Rank.Ten)
             RunningCount--;
 
-        double decksRemaining = cardsRemaining / 52.0;
+        double decksRemaining = (double)cardsRemaining / Deck.CardsPerDeck;
         TrueCount = decksRemaining > 0
             ? Math.Round(RunningCount / decksRemaining, 2, MidpointRounding.AwayFromZero)
             : 0;
