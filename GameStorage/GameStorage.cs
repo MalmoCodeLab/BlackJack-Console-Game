@@ -171,5 +171,5 @@ public class PlayerStatistics
     public int Pushes { get; set; }
 
     // Gets or sets the player's chips. Old saves without chips get the starting amount.
-    public int Chips { get; set; } = Player.StartingChips;
+    public int Chips { get; set; } = Wallet.StartingChips;
 }

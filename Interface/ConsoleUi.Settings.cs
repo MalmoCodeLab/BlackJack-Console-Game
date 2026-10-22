@@ -22,12 +22,13 @@ public partial class ConsoleUi
             {
                 switch (key)
                 {
+
                     case ConsoleKey.UpArrow:
-                        selected = (selected + 3) % 4;
-                        break;
+                    selected = (selected - 1 + 4) % 4;
+                    break;
                     case ConsoleKey.DownArrow:
-                        selected = (selected + 1) % 4;
-                        break;
+                    selected = (selected + 1) % 4;
+                    break;
                     case ConsoleKey.LeftArrow:
                         rules = ChangeRule(rules, selected, -1);
                         break;
