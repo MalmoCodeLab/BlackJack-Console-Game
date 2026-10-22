@@ -23,7 +23,7 @@ public sealed class RuleSetConfigurationTests : IDisposable
     {
         Assert.False(rules.DealerHitsSoft17);
         Assert.Equal(6, rules.DeckCount);
-        Assert.Equal(15, rules.ReshuffleThreshold);
+        Assert.Equal(25, rules.ReshuffleThreshold);
         Assert.True(rules.NaturalBlackjackBeatsThreeCard21);
     }
 
@@ -69,12 +69,12 @@ public sealed class RuleSetConfigurationTests : IDisposable
     [Fact]
     public void PropertyNames_AreCaseInsensitive()
     {
-        string path = WriteRulesFile("""{ "deckcount": 3, "reshufflethreshold": 20 }""");
+        string path = WriteRulesFile("""{ "deckcount": 3, "reshufflethreshold": 40 }""");
 
         RuleSet rules = RuleSet.LoadFromFile(path);
 
         Assert.Equal(3, rules.DeckCount);
-        Assert.Equal(20, rules.ReshuffleThreshold);
+        Assert.Equal(40, rules.ReshuffleThreshold);
     }
 
     [Fact]
@@ -86,12 +86,12 @@ public sealed class RuleSetConfigurationTests : IDisposable
 
         Assert.True(rules.DealerHitsSoft17);
         Assert.Equal(6, rules.DeckCount);
-        Assert.Equal(15, rules.ReshuffleThreshold);
+        Assert.Equal(25, rules.ReshuffleThreshold);
         Assert.True(rules.NaturalBlackjackBeatsThreeCard21);
     }
 
     [Fact]
-    public void ShippedRulesFile_IsValidAndEqualsDefaults()
+    public void ShippedRulesFile_LoadsAndIsValid()
     {
         string? folder = AppContext.BaseDirectory;
         string? shipped = null;
@@ -107,7 +107,12 @@ public sealed class RuleSetConfigurationTests : IDisposable
         }
 
         Assert.NotNull(shipped);
-        Assert.Equal(RuleSet.Default, RuleSet.Load(shipped!));
+        List<string> notices = new();
+
+        RuleSet rules = RuleSet.LoadFromFile(shipped!, notices.Add);
+
+        rules.Validate();
+        Assert.Empty(notices);
     }
 
     [Theory]
@@ -125,7 +130,8 @@ public sealed class RuleSetConfigurationTests : IDisposable
     [InlineData("{ \"DeckCount\": -1 }")]
     [InlineData("{ \"ReshuffleThreshold\": 0 }")]
     [InlineData("{ \"ReshuffleThreshold\": -5 }")]
-    [InlineData("{ \"DeckCount\": 1, \"ReshuffleThreshold\": 53 }")]
+    [InlineData("{ \"DeckCount\": 1 }")]
+    [InlineData("{ \"DeckCount\": 2, \"ReshuffleThreshold\": 105 }")]
     [InlineData("{ \"ReshuffleThreshold\": 313 }")]
     public void InvalidFile_UsesDefaultsAndNotifiesWithoutThrowing(string content)
     {
@@ -154,10 +160,10 @@ public sealed class RuleSetConfigurationTests : IDisposable
     }
 
     [Theory]
-    [InlineData(1, 1)]
-    [InlineData(1, 52)]
+    [InlineData(2, 25)]
+    [InlineData(2, 104)]
     [InlineData(8, 416)]
-    [InlineData(6, 15)]
+    [InlineData(6, 25)]
     public void Validate_AcceptsBoundaryValues(int deckCount, int threshold)
     {
         RuleSet rules = new() { DeckCount = deckCount, ReshuffleThreshold = threshold };
@@ -166,10 +172,11 @@ public sealed class RuleSetConfigurationTests : IDisposable
     }
 
     [Theory]
-    [InlineData(0, 15)]
-    [InlineData(9, 15)]
-    [InlineData(1, 0)]
-    [InlineData(1, 53)]
+    [InlineData(0, 25)]
+    [InlineData(1, 25)]
+    [InlineData(9, 25)]
+    [InlineData(2, 24)]
+    [InlineData(2, 105)]
     public void Validate_RejectsOutOfRangeValues(int deckCount, int threshold)
     {
         RuleSet rules = new() { DeckCount = deckCount, ReshuffleThreshold = threshold };
