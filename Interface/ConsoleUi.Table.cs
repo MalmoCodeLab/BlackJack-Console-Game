@@ -107,10 +107,6 @@ public partial class ConsoleUi
         for (int i = 0; i < playerGap; i++)
             tableContent.Add(new Text(" "));
 
-        // Both the dealer and current player's large cards use one shared
-        // 75-cell seating center, no matter how many players join.
-        tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown, activePlayerIndex));
-        tableContent.Add(BettingUI.Create(players[activePlayerIndex]));
         // Solo uses full-size cards; multiplayer uses equally-sized compact cards.
         tableContent.Add(BuildPlayerRow(players, playerStatuses, cardsFaceDown,
             activePlayerIndex, showEmptyTable, playerCardsShown));

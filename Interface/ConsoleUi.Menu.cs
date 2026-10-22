@@ -278,7 +278,6 @@ public partial class ConsoleUi
             .Expand();
     }
 
-    // Shows the menu, saved statistics, live bet and controls on the right.
     // Builds the in-game menu in two responsive layouts.
     // A compact sidebar is used when the table has enough horizontal space;
     // otherwise the menu opens as a centered, two-column screen.
@@ -289,7 +288,6 @@ public partial class ConsoleUi
         bool sideMenuActive,
         bool roundFinished,
         string[] playerStatuses,
-        bool cardsFaceDown)
         int activePlayerIndex = 0,
         bool forceSidebar = false)
     {
@@ -446,16 +444,6 @@ public partial class ConsoleUi
         for (int i = 0; i < players.Count; i++)
         {
             Player player = players[i];
-            string name = player.Name.Length > 10 ? player.Name[..9] + "…" : player.Name;
-            string status = playerStatuses[i];
-            string statusColor = status == "TJOCK" || status == "FÖRLORADE" ? "red" :
-                status == "DIN TUR" || status == "VANN" ? "green1" :
-                status == "OAVGJORT" ? "gold1" : "grey";
-            string score = cardsFaceDown ? "--" : player.Score.ToString();
-            content.Add(new Markup(
-                $"[white]{Markup.Escape(name.PadRight(10))}[/] " +
-                $"[gold1]{score.PadLeft(2)}[/] " +
-                $"[{statusColor}]{Markup.Escape(status.PadLeft(9))}[/]"));
             string insuredMark = player.InsuranceBet > 0 ? " (F)" : "";
             int nameWidth = ChipsNameWidth - insuredMark.Length;
             string name = player.Name.Length > nameWidth
@@ -493,7 +481,6 @@ public partial class ConsoleUi
             new Markup("[white]Mellanslag[/]  Bekräfta insats"),
             new Markup("[white]Esc[/]  Öppna spelmenyn"),
             new Markup("[white]Backspace[/]  Ta bort marker"),
-            new Markup("[white]Inställningar[/]  Ändras från huvudmenyn före spelstart"),
             new Markup("[grey]Inställningar ändras i huvudmenyn[/]"),
             new Text(""),
             new Align(new Markup("[grey]Tryck Esc för att återgå till spelet.[/]"), HorizontalAlignment.Center)
