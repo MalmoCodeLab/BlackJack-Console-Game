@@ -72,7 +72,6 @@ internal sealed class GameTableUI
         DateTime noticeUntil = DateTime.MinValue;
         DateTime lastBetConfirmation = DateTime.MinValue;
         statuses[0] = "SATSAR";
-        BettingUI.ResetSelection();
 
         // Always redraw with the current round, selection and terminal size.
         void RedrawCurrentRound()
@@ -291,33 +290,6 @@ internal sealed class GameTableUI
                             // Settings are available from the main menu only.
                             switch (selectedMenuOption)
                             {
-                                int betBefore = bettingPlayer.CurrentBet;
-                                BettingUI.HandleKey(key, bettingPlayer);
-                                if (key == ConsoleKey.Enter &&
-                                    bettingPlayer.CurrentBet == betBefore)
-                                {
-                                    notice =
-                                        $"{bettingPlayer.Name.ToUpperInvariant()}: INTE TILLRÄCKLIGT MED MARKER FÖR {BettingUI.SelectedChipValue} KR. VÄLJ EN LÄGRE MARKER.";
-                                }
-                            }
-                            else if (key == ConsoleKey.Spacebar)
-                            {
-                                // Confirm the current player's bet before proceeding.
-                                if (bettingPlayer.CurrentBet > 0)
-                                {
-                                    statuses[currentPlayerIndex] = "SATSAT";
-                                    currentPlayerIndex++;
-                                    if (currentPlayerIndex == players.Count)
-                                        FinishBetting();
-                                    else
-                                    {
-                                        BettingUI.ResetSelection();
-                                        statuses[currentPlayerIndex] = "SATSAR";
-                                        notice = $"{players[currentPlayerIndex].Name.ToUpperInvariant()}: SATSA FÖRST – ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
-                                    }
-                                }
-                                else
-                                    notice = "DU MÅSTE SATSA MINST EN MARKER FÖRST!";
                                 case 0: // Ny runda
                                     action = GameTableAction.StartNewRound;
                                     playing = false;
@@ -393,7 +365,10 @@ internal sealed class GameTableUI
                             key == ConsoleKey.Enter ||
                             key == ConsoleKey.Backspace)
                         {
+                            int betBefore = bettingPlayer.CurrentBet;
                             BettingUI.HandleKey(key, bettingPlayer);
+                            if (key == ConsoleKey.Enter && bettingPlayer.CurrentBet == betBefore)
+                                notice = "INTE TILLRÄCKLIGT MED MARKER. VÄLJ EN LÄGRE MARKER.";
                         }
                         else if (key == ConsoleKey.Spacebar)
                         {
@@ -843,19 +818,6 @@ internal sealed class GameTableUI
         tableArea["BlackjackTable"].Update(
             new ConnectedTableBorder(ui.BuildBlackjackTable(
                 round.Players, round.Dealer, tableHeight, notice, statuses,
-                cardsFaceDown, visibleCardCounter.RunningCount,
-                visibleCardCounter.TrueCount, activePlayerIndex));
-        layout["PlayerActions"].Update(ui.BuildPlayerActions(
-            GameMessages.GameOptions, selectedGameOption,
-            sideMenuActive, roundFinished, bettingMode));
-
-        layout["Menu"].SplitRows(
-            new Layout("MenuContent").Size(TableHeight - 3),
-            new Layout("MenuSpace").Ratio(1));
-        layout["MenuContent"].Update(ui.BuildGameMenu(
-            GameMessages.InGameMenuOptions, selectedMenuOption,
-            round.Players, sideMenuActive, roundFinished, statuses, cardsFaceDown));
-        layout["MenuSpace"].Update(new Text(""));
                 cardsFaceDown, round.Deck.Counter.RunningCount,
                 round.Deck.Counter.TrueCount, activePlayerIndex,
                 showEmptyTable: false, // Display the backs during betting.

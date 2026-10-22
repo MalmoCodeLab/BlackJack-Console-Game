@@ -87,14 +87,9 @@ class Deck
         ShuffleDeck();
     }
 
-    public Card DealCard()
-    {
-        EnsureCardAvailable();
-        CardCounter();
     public Card DealCard(bool faceUp = true)
     {
-        if (DeckCards.Count == 0)
-            throw new InvalidOperationException("Leken är tom.");
+        EnsureCardAvailable();
         Card dealCard = DeckCards[0];
         DeckCards.RemoveAt(0);
         if (DeckCards.Count <= CutCardPosition)

@@ -145,6 +145,20 @@ public class HouseRulesGameplayTests
 
     // ---- Blandningsgräns ----
 
+    private static Deck ShuffledDeck(RuleSet rules)
+    {
+        Deck deck = new(rules);
+        deck.CreateDeck();
+        deck.ShuffleDeck();
+        return deck;
+    }
+
+    private static void DealDownToCutCard(Deck deck)
+    {
+        while (!deck.CutCardReached)
+            deck.DiscardedCards.Add(deck.DealCard());
+    }
+
     // Leaves exactly `remaining` cards in the shoe and the rest in the discard pile.
     private static Deck DeckWithRemaining(RuleSet rules, int remaining)
     {
@@ -158,41 +172,63 @@ public class HouseRulesGameplayTests
         return deck;
     }
 
+    // The cut card sits somewhere between the configured limit and a quarter of the shoe.
     [Theory]
-    [InlineData(1, 15, 14, true)]   // one below the limit: reshuffle
-    [InlineData(1, 15, 15, false)]  // exactly at the limit: no reshuffle yet
-    [InlineData(1, 15, 30, false)]
-    [InlineData(1, 30, 29, true)]   // a different configured limit
-    [InlineData(1, 30, 30, false)]
-    [InlineData(1, 10, 14, false)]  // lower limit: 14 cards is still fine
-    [InlineData(6, 100, 99, true)]
-    [InlineData(6, 100, 100, false)]
-    public void CheckIfNewShuffleIsNeeded_UsesConfiguredThreshold(
-        int deckCount, int threshold, int remaining, bool expectReshuffle)
+    [InlineData(1, 15, 15, 15)]
+    [InlineData(1, 30, 30, 30)]
+    [InlineData(6, 15, 15, 78)]
+    [InlineData(6, 100, 100, 100)]
+    public void ShuffleDeck_PlacesCutCardWithinConfiguredRange(
+        int deckCount, int threshold, int lowest, int highest)
     {
         RuleSet rules = new() { DeckCount = deckCount, ReshuffleThreshold = threshold };
-        Deck deck = DeckWithRemaining(rules, remaining);
-        int total = deckCount * 52;
 
+        for (int i = 0; i < 50; i++)
+        {
+            Deck deck = ShuffledDeck(rules);
+            Assert.InRange(deck.CutCardPosition, lowest, highest);
+            Assert.False(deck.CutCardReached);
+        }
+    }
+
+    [Fact]
+    public void CutCard_IsReachedOnlyWhenShoeShrinksToItsPosition()
+    {
+        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        Deck deck = ShuffledDeck(rules);
+
+        while (deck.DeckCards.Count > deck.CutCardPosition + 1)
+            deck.DiscardedCards.Add(deck.DealCard());
+        Assert.False(deck.CutCardReached);
+
+        deck.DiscardedCards.Add(deck.DealCard());
+        Assert.True(deck.CutCardReached);
+    }
+
+    [Fact]
+    public void CheckIfNewShuffleIsNeeded_ReshufflesOnlyAfterCutCardIsReached()
+    {
+        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 15 };
+        Deck deck = ShuffledDeck(rules);
+
+        deck.DiscardedCards.Add(deck.DealCard());
+        deck.CheckIfNewShuffleIsNeeded();
+        Assert.Equal(51, deck.DeckCards.Count);
+
+        DealDownToCutCard(deck);
         deck.CheckIfNewShuffleIsNeeded();
 
-        if (expectReshuffle)
-        {
-            Assert.Equal(total, deck.DeckCards.Count);
-            Assert.Empty(deck.DiscardedCards);
-        }
-        else
-        {
-            Assert.Equal(remaining, deck.DeckCards.Count);
-            Assert.Equal(total - remaining, deck.DiscardedCards.Count);
-        }
+        Assert.Equal(52, deck.DeckCards.Count);
+        Assert.Empty(deck.DiscardedCards);
+        Assert.False(deck.CutCardReached);
     }
 
     [Fact]
     public void Reshuffle_KeepsEveryCard()
     {
         RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 20 };
-        Deck deck = DeckWithRemaining(rules, 10);
+        Deck deck = ShuffledDeck(rules);
+        DealDownToCutCard(deck);
 
         deck.CheckIfNewShuffleIsNeeded();
 
@@ -200,10 +236,11 @@ public class HouseRulesGameplayTests
     }
 
     [Fact]
-    public void Round_ReshufflesAtStartWhenShoeIsBelowThreshold()
+    public void Round_ReshufflesAtStartWhenCutCardWasReached()
     {
         RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 40 };
-        Deck deck = DeckWithRemaining(rules, 30);
+        Deck deck = ShuffledDeck(rules);
+        DealDownToCutCard(deck);
         Dealer dealer = new(rules);
         Round round = new(1, [new Player("Test")], dealer, deck, rules);
 
@@ -214,16 +251,34 @@ public class HouseRulesGameplayTests
     }
 
     [Fact]
-    public void Round_DoesNotReshuffleWhenShoeIsAtThreshold()
+    public void Round_DoesNotReshuffleBeforeCutCardIsReached()
     {
         RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 30 };
-        Deck deck = DeckWithRemaining(rules, 30);
+        Deck deck = ShuffledDeck(rules);
         Dealer dealer = new(rules);
         Round round = new(1, [new Player("Test")], dealer, deck, rules);
 
         round.StartRound();
 
-        Assert.Equal(26, deck.DeckCards.Count);
+        Assert.Equal(48, deck.DeckCards.Count);
+        Assert.Empty(deck.DiscardedCards);
+    }
+
+    [Fact]
+    public void CutCardReachedMidRound_DoesNotReshuffleUntilNextRound()
+    {
+        RuleSet rules = new() { DeckCount = 1, ReshuffleThreshold = 30 };
+        Deck deck = ShuffledDeck(rules);
+        while (deck.DeckCards.Count > deck.CutCardPosition + 3)
+            deck.DiscardedCards.Add(deck.DealCard());
+        Round round = new(1, [new Player("Test")], new Dealer(rules), deck, rules);
+
+        round.StartRound();
+        Assert.True(deck.CutCardReached);
+        int remaining = deck.DeckCards.Count;
+        round.Players[0].ReceiveCard(deck);
+
+        Assert.Equal(remaining - 1, deck.DeckCards.Count);
     }
 
     [Fact]
@@ -315,7 +370,7 @@ public class HouseRulesGameplayTests
 
     [Fact]
     public void DealerNatural_BeatsPlayerThreeCard21_WhenRuleIsOn() =>
-        Assert.Equal(Outcome.Lose, ThreeCard21PlayerAgainstDealerNatural(true));
+        Assert.Equal(Outcome.Loss, ThreeCard21PlayerAgainstDealerNatural(true));
 
     [Fact]
     public void DealerNatural_PushesPlayerThreeCard21_WhenRuleIsOff() =>
