@@ -1,9 +1,9 @@
-
 class Deck
 {
     public const int CardsPerDeck = 52;
     private const int SuitCount = 4;
     private const int RanksPerSuit = 13;
+    private const int QuarterDivisor = 4;
     
     public RuleSet Rules { get; }
     public List<Card> DeckCards { get; } = [];
@@ -11,7 +11,6 @@ class Deck
     public int CutCardPosition { get; private set; }
     public bool CutCardReached { get; private set; }
     public CardCounter Counter { get; } = new();
-
 
     public Deck(RuleSet? rules = null)
     {
@@ -23,9 +22,9 @@ class Deck
     {
         for (int i = 0; i < Rules.DeckCount; i++)
         {
-            for (int s = 0; s < 4; s++)
+            for (int s = 0; s < SuitCount; s++)
             {
-                for (int r = 0; r < 13; r++)
+                for (int r = 0; r < RanksPerSuit; r++)
                 {
                     Card card = new((Suit)s, (Rank)r);
                     DeckCards.Add(card);
@@ -36,7 +35,7 @@ class Deck
 
     private void PlaceCutCard()
     {
-        int lastQuarter = DeckCards.Count / 4;
+        int lastQuarter = DeckCards.Count / QuarterDivisor;
         int min = Math.Min(Rules.ReshuffleThreshold, DeckCards.Count);
         int max = Math.Max(min, lastQuarter);
         CutCardPosition = Random.Shared.Next(min, max + 1);

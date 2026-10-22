@@ -4,9 +4,7 @@ class Player : Participant
     public int Losses { get; private set; }
     public int Pushes { get; private set; }
 
-    public const int StartingChips = Wallet.StartingChips;
-
-    public Wallet Wallet { get; }
+    private Wallet Wallet { get; }
 
     public int Chips => Wallet.Chips;
     public int CurrentBet => Wallet.CurrentBet;
@@ -16,9 +14,9 @@ class Player : Participant
 
     public int GamesPlayed => Wins + Losses + Pushes;
 
-    public bool CanHit => !IsBust && Score < BlackjackValue;
+    public bool CanHit => !IsBust && Score < Hand.BlackjackValue;
 
-    public Player(string name, int wins = 0, int losses = 0, int pushes = 0, int chips = StartingChips) : base(name)
+    public Player(string name, int wins = 0, int losses = 0, int pushes = 0, int chips = Wallet.StartingChips) : base(name)
     {
         if (wins < 0 || losses < 0 || pushes < 0)
             throw new ArgumentException("Statistiken kan inte vara negativ.");
@@ -29,7 +27,7 @@ class Player : Participant
         Wallet = new Wallet(chips);
     }
 
-    public void RecordResult(Outcome outcome)
+    private void RecordResult(Outcome outcome)
     {
         switch (outcome)
         {
