@@ -30,12 +30,16 @@ classDiagram
         +EditRules(current) RuleSet
         +ShowRules()
         +ShowCredits()
+        +ShowRules(rules)
+        +ShowGameControls()
         +ShowCenteredMessage(message)
-        +ShowEmptyTableBeforeDeal(players, dealer)
+        +ShowBlackjackTable(players, dealer)
+        +ShowBettingMode(...)
     }
     class GameTableUI {
         -ConsoleUi ui
-        -VisibleCardCounter visibleCardCounter
+        -Deck observedDeck
+        +GameTableUI(ui)
         +ResetSession()
         +PlayRound(round, saveGame) GameTableAction
         +ShowRoundEndMenu(round, summary, saveGame) GameTableAction
@@ -58,6 +62,7 @@ classDiagram
     }
     class GameStorage {
         -string filePath
+        +GameStorage(filePath)
         +LoadResults() Dictionary
         +SaveResults(results)
         +DeletePlayer(playerName) bool
@@ -69,6 +74,10 @@ classDiagram
         +int Chips
     }
     class RuleSet {
+        <<record>>
+        +string FileName$
+        +int MinDeckCount$
+        +int MaxDeckCount$
         +bool DealerHitsSoft17
         +int DeckCount
         +int ReshuffleThreshold
@@ -86,7 +95,10 @@ classDiagram
         +Deck Deck
         +RuleSet Rules
         +IReadOnlyDictionary Outcomes
+        +int StartingHandSize$
         +StartRound()
+        +RevealInitialCards()
+        +RevealCard(card)
         +EndRound()
         -DetermineWinners()
     }
@@ -102,15 +114,18 @@ classDiagram
         +bool HasBlackjack
         +ReceiveCard(deck, faceUp)
         +NewRound(deck)
+        +ToString() string
     }
     class Player {
         +int Wins
         +int Losses
         +int Pushes
-        +Wallet Wallet
+        +int GamesPlayed
+        -Wallet Wallet
         +int Chips
         +int CurrentBet
         +int InsuranceBet
+        +int InsuranceCost
         +bool IsOutOfChips
         +bool CanHit
         +TryPlaceBet(amount) bool
@@ -118,11 +133,14 @@ classDiagram
         +SettleBet(outcome)
         +SettleInsurance(dealerHasBlackjack)
         +CancelBet()
+        -RecordResult(outcome)
     }
     class Wallet {
+        +int StartingChips$
         +int Chips
         +int CurrentBet
         +int InsuranceBet
+        +int InsuranceCost
         +bool IsOutOfChips
         +TryPlaceBet(amount) bool
         +TryTakeInsurance() bool
@@ -136,12 +154,16 @@ classDiagram
         +bool ShowsAce
         +ShowHoleCard()
         +ShouldHit() bool
+        +NewRound(deck)
     }
     class Deck {
         +RuleSet Rules
         +List~Card~ DeckCards
         +List~Card~ DiscardedCards
+        +int CutCardPosition
+        +bool CutCardReached
         +CardCounter Counter
+        +int CardsPerDeck$
         +CreateDeck()
         +ShuffleDeck()
         +CheckIfNewShuffleIsNeeded(cardsNeeded)
@@ -154,6 +176,8 @@ classDiagram
         +Reset()
     }
     class Hand {
+        +int BlackjackValue$
+        +int AceReduction$
         +List~Card~ CardsOnHand
         +int Score
         +bool IsSoft
@@ -197,22 +221,25 @@ classDiagram
     }
     class BettingUI {
         <<static>>
-        +Create(player) IRenderable
-        +CreateInfoPanel(player) IRenderable
-        +HandleKey(key, player) bool
-        +Reset()
+        +int Balance$
+        +int CurrentBet$
+        +int SelectedChip$
+        +LoadBalance(balance)$
+        +Create(player)$ IRenderable
+        +CreateInfoPanel(player)$ IRenderable
+        +HandleKey(key, player)$ bool
+        +Reset()$
     }
     class CardRenderer {
+        +GetRank(rank) string
+        +GetSuit(suit) string
         +RenderCard(card) string[]
         +RenderHiddenCard() string[]
         +RenderSmallCard(card) string[]
         +RenderSmallHiddenCard() string[]
     }
-    class VisibleCardCounter {
-        +int RunningCount
-        +double TrueCount
-        +Observe(deck, players, dealer, cardsFaceDown)
-        +Reset()
+    class GameMessages {
+        <<static>>
     }
 
     Program ..> Game : creates and runs
@@ -232,6 +259,9 @@ classDiagram
     ConsoleUi ..> Dealer : displays dealer and table state
     ConsoleUi ..> BettingUI : renders betting controls
     ConsoleUi ..> CardRenderer : renders cards
+    ConsoleUi ..> GameMessages : shows texts
+    Game ..> GameMessages : shows texts
+    PlayerSessionService ..> GameMessages : shows texts
     PlayerSessionService --> GameStorage : loads, saves, deletes
     PlayerSessionService --> ConsoleUi : prompts and notifications
     PlayerSessionService ..> PlayerStatistics : maps persisted totals
@@ -240,7 +270,7 @@ classDiagram
     GameTableUI --> ConsoleUi : draws table and menus
     GameTableUI ..> Round : handles round interaction
     GameTableUI ..> BettingUI : handles bets
-    GameTableUI *-- VisibleCardCounter : tracks visible cards
+    GameTableUI ..> CardCounter : shows running and true count
     GameTableUI ..> GameTableAction : returns action
     Round --> "1..5" Player : resolves outcomes for
     Round --> Dealer : plays against
@@ -261,9 +291,10 @@ classDiagram
     Round ..> Outcome : determines
     RoundResultFormatter ..> Round : formats
     RoundResultFormatter ..> Outcome : describes
-    VisibleCardCounter ..> Deck : observes
-    VisibleCardCounter ..> Player : observes
-    VisibleCardCounter ..> Dealer : observes
+    Round ..> CardCounter : counts revealed cards
+    BettingUI ..> Player : places bets through
+    BettingUI ..> Wallet : uses StartingChips
+    PlayerStatistics ..> Wallet : uses StartingChips
 ```
 
 ## Responsibility boundaries
@@ -273,24 +304,24 @@ classDiagram
 | `Program` | Entry point; creates and runs `Game`. | Game rules, persistence, or console flow. |
 | `Game` | Loads rules, routes main-menu choices, creates players and game objects, coordinates rounds, saves results, and decides when a session ends. | Low-level terminal rendering or JSON serialization. |
 | `ConsoleUi` | Displays menus, prompts, rules, messages, and table content; reads user input. | Game flow, round resolution, or file access. |
-| `GameTableUI` | Handles table interactions such as betting, insurance, player turns, and round-end choices; reports the next action to `Game`. | Persisting results or deciding round outcomes. |
+| `GameTableUI` | Handles table interactions such as betting, insurance, player turns, and round-end choices; shows the deck's card count and reports the next action to `Game`. | Persisting results or deciding round outcomes. |
 | `PlayerSessionService` | Creates and loads players, maps saved statistics, and coordinates save/delete operations and related messages. | JSON file details or rendering menus. |
 | `GameStorage` | Reads and writes player statistics in JSON, maintains the readable text report, and deletes saved players. | Player creation or game logic. |
 | `PlayerStatistics` | Represents persisted wins, losses, pushes, and chips. | Game behavior or file operations. |
 | `RuleSet` | Loads and validates house rules from `blackjack-rules.json` and provides defaults. | Running a game or displaying the settings menu. |
-| `Round` | Deals starting cards, plays the dealer turn, determines outcomes, and settles bets and insurance. | Terminal interaction or persistence. |
+| `Round` | Deals starting cards, reveals cards to the card counter, plays the dealer turn, determines outcomes, and settles bets and insurance. | Terminal interaction or persistence. |
 | `RoundResultFormatter` | Formats a completed round's outcomes for display. | Determining outcomes or saving them. |
 | `Participant` | Shares a name and hand, card receiving, scoring state, and round reset behavior. | Player statistics or dealer strategy. |
-| `Player` | Tracks a player's results and exposes player actions through its wallet. | Console interaction or saved-file management. |
+| `Player` | Tracks a player's results and forwards chips, bets, and insurance to its private `Wallet`. | Console interaction or saved-file management. |
 | `Wallet` | Tracks chips, bets, and insurance and settles them based on an outcome. | Statistics, console interaction, or deciding the outcome. |
 | `Dealer` | Represents the dealer, reveals the hole card, and decides whether to hit based on the rules. | Choosing player actions or rendering cards. |
 | `Deck` | Creates, shuffles, and deals cards, manages discards and cut-card behavior, and owns the card counter. | Hand scoring or deciding winners. |
-| `CardCounter` | Tracks running and true counts of cards dealt from the deck. | Changing game outcomes or displaying the count. |
-| `Hand` | Holds cards and calculates hand score and softness. | Deciding who wins. |
+| `CardCounter` | Tracks running and true counts of cards that have become visible. | Changing game outcomes or displaying the count. |
+| `Hand` | Holds cards, calculates hand score and softness, and owns `BlackjackValue` and `AceReduction`. | Deciding who wins. |
 | `Card` | Stores suit and rank and provides a card's base value. | Scoring a complete hand. |
 | `BettingUI` | Renders betting controls and applies betting key input through `Player`. | Owning player balances or resolving payouts. |
 | `CardRenderer` | Produces the text representation of visible and hidden cards. | Game logic or card ownership. |
-| `VisibleCardCounter` | Tracks counts visible to players during a game-table session. | Changing the deck's internal card count. |
+| `GameMessages` | Holds the texts and formats shown to the player. | Game logic or deciding when a message is shown. |
 
 ## Runtime flow
 
@@ -300,10 +331,11 @@ classDiagram
 3. The player chooses a new or saved game in `ConsoleUi`. `PlayerSessionService` loads saved
    statistics through `GameStorage` and creates the selected `Player` objects.
 4. For a game, `Game` creates a `Deck` and `Dealer` with the same rules. For each round it
-   creates a `Round`, displays the empty table, and starts the round, which resets hands,
-   checks the shoe, and deals the initial cards.
-5. `GameTableUI` handles betting, optional insurance, and player choices, using `ConsoleUi`
-   and `BettingUI` to display the table and process input.
+   creates a `Round` and starts the round, which resets hands, checks the shoe, and deals the
+   initial cards face down.
+5. `GameTableUI` handles betting, then flips the cards and calls `Round.RevealInitialCards()`
+   so the card counter only counts visible cards. It then handles optional insurance and
+   player choices, using `ConsoleUi` and `BettingUI` to display the table and process input.
 6. When the table reports that the round is complete, `Game` calls `Round.EndRound()` to play
    the dealer and settle outcomes. `RoundResultFormatter` prepares the summary, and
    `PlayerSessionService` saves updated statistics through `GameStorage`.
