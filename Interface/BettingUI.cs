@@ -17,6 +17,7 @@ public static class BettingUI
         SelectedChip = 0;
     }
 
+    internal static IRenderable Create(Player player)
     // Keep the public overload without Player for existing callers.
     public static IRenderable Create() => Create(null);
 
@@ -47,6 +48,14 @@ public static class BettingUI
               $"[green1]Saldo: {player.Chips}[/]  [gold1]Insats: {player.CurrentBet}[/]";
 
         return new Rows(
+            new Align(new Markup("[bold gold1]♠ SPELMARKER ♠[/]"), HorizontalAlignment.Center),
+            new Align(chips, HorizontalAlignment.Center),
+            new Align(
+                new Markup(
+                    $"[white]{Markup.Escape(player.Name)} · Saldo: [/]" +
+                    $"[green1]{player.Chips} kr[/]  " +
+                    $"[white]Insats: [/][gold1]{player.CurrentBet} kr[/]"),
+                HorizontalAlignment.Center));
             new Align(new Markup(title), HorizontalAlignment.Center),
             new Align(chips, HorizontalAlignment.Center));
     }
@@ -94,5 +103,10 @@ public static class BettingUI
         }
     }
 
+    public static int SelectedChipValue => chipValues[SelectedChip];
+
+    public static void ResetSelection() => SelectedChip = 0;
+
+    public static void Reset() => LoadBalance(1000);
     public static void Reset() => LoadBalance(Wallet.StartingChips);
 }

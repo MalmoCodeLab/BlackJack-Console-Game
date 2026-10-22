@@ -72,6 +72,25 @@ class Deck
             ShuffleDeck();
         }
     }
+    // Guarantees DealCard never fails: first reuse the discard pile, and if every
+    // remaining card is in play, add a fresh set of decks to the shoe.
+    private void EnsureCardAvailable()
+    {
+        if (DeckCards.Count > 0)
+            return;
+
+        ShuffleDeck();
+        if (DeckCards.Count > 0)
+            return;
+
+        CreateDeck();
+        ShuffleDeck();
+    }
+
+    public Card DealCard()
+    {
+        EnsureCardAvailable();
+        CardCounter();
     public Card DealCard(bool faceUp = true)
     {
         if (DeckCards.Count == 0)
