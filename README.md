@@ -64,7 +64,7 @@ See [HouseRules.md](HouseRules.md).
 
 See [BettingAndMarkers.md](BettingAndMarkers.md).
 
-### 5. Shoe and card counting – Christoffer Nilsson
+### 5. Shoe and card counting – Christoffer
 
 **GitHub:** [@Mr-Christoffer](https://github.com/Mr-Christoffer)
 
