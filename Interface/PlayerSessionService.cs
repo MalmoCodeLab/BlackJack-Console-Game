@@ -102,7 +102,7 @@ internal sealed class PlayerSessionService
     // A saved player without chips is not allowed to play.
     private bool HasChipsToPlay(string name, PlayerStatistics stats)
     {
-        if (stats.Chips > 0)
+        if (stats.Chips >= Wallet.MinimumBet)
             return true;
 
         ui.ShowCenteredMessage(GameMessages.SavedPlayerOutOfChips(name));
