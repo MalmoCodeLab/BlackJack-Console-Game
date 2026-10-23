@@ -68,7 +68,7 @@ See [BettingAndMarkers.md](BettingAndMarkers.md).
 
 **GitHub:** [@Mr-Christoffer](https://github.com/Mr-Christoffer)
 
-See [Wallet.md](Wallet.md).
+See [Cardcounting.md](Cardcounting.md).
 
 
 ## Run
