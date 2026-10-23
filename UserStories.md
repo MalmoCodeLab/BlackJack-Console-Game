@@ -26,7 +26,7 @@
 
 ## Dealer’s turn and outcome
 
-10. As a player, I want the dealer to reveal the hole card and follow the fixed rule, so that the outcome is predictable and fair. The dealer hits on 16 or lower and stands on 17 or higher, including soft 17.
+10. As a player, I want the dealer to reveal the hole card and follow a fixed rule, so that the outcome is predictable and fair. The dealer hits on 16 or lower and stands on 17 or higher. Whether the dealer hits on a soft 17 is a house rule (default: stands).
 
 11. As a player, I want each hand settled against the dealer according to the rules table, with the result shown clearly. For example, a busted player always loses, and a natural beats 21 made with three or more cards.
 
@@ -34,7 +34,7 @@
 
 12. As a player, I want invalid input to show an error message and ask again instead of crashing.
 
-13. As a player, I want to play many rounds in a row, with a new shuffled deck brought in when fewer than 15 cards remain.
+13. As a player, I want to play many rounds in a row, with the shoe reshuffled between rounds when the cut card has been reached, so that the game never runs out of cards.
 
 14. As a player, I want the deck properly shuffled, using Fisher–Yates with one shared Random, so that every round is unpredictable.
 
