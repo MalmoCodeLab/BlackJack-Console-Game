@@ -58,11 +58,11 @@ See [ComputerPlayerStrategy.md](ComputerPlayerStrategy.md).
 
 See [HouseRules.md](HouseRules.md).
 
-### 4. Betting and chips – Niclas
+### 4. Player, Dealer and Betting – Niclas
 
 **GitHub:** [@n1cl4s](https://github.com/n1cl4s)
 
-See [BettingAndMarkers.md](BettingAndMarkers.md).
+See [Participant.md](Participant.md).
 
 ### 5. Shoe and card counting – Christoffer
 
