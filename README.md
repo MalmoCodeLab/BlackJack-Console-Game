@@ -41,7 +41,9 @@ The project's detailed requirements and user stories are in [UserStories.md](Use
 
 Each group member describes their own part in a separate file and links to it here.
 
-### 1. Interface (Alice)
+### 1. Interface – Alice
+
+**GitHub:** [@Chocolatesand14](https://github.com/Chocolatesand14)
 
 See [Interface.md](Interface.md).
 
@@ -50,15 +52,21 @@ See [Interface.md](Interface.md).
 Note! Not implemented.
 See [ComputerPlayerStrategy.md](ComputerPlayerStrategy.md).
 
-### 3. House rules and configuration (Sofia)
+### 3. House rules and configuration – Sofia
+
+**GitHub:** [@sofiauhrbom73](https://github.com/sofiauhrbom73)
 
 See [HouseRules.md](HouseRules.md).
 
-### 4. Betting and chips (Christoffer)
+### 4. Betting and chips – Niclas
+
+**GitHub:** [@n1cl4s](https://github.com/n1cl4s)
 
 See [BettingAndMarkers.md](BettingAndMarkers.md).
 
-### 5. Shoe and card counting (Niclas)
+### 5. Shoe and card counting – Christoffer
+
+**GitHub:** [@Mr-Christoffer](https://github.com/Mr-Christoffer)
 
 See [Wallet.md](Wallet.md).
 
