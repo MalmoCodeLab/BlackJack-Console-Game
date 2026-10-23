@@ -6,12 +6,14 @@ class Wallet
     private const int BlackjackPayoutDenominator = 2;
     private const int InsuranceCostDivisor = 2;         // insurance costs half the bet
     private const int InsuranceMultiplier = 3;          // insurance back + 2:1
+    public const int MinimumBet = 5; 
 
     public int Chips { get; private set; }
     public int CurrentBet { get; private set; }
     public int InsuranceBet { get; private set; }
     public int InsuranceCost => CurrentBet / InsuranceCostDivisor;
-    public bool IsOutOfChips => Chips <= 0;
+  
+    public bool IsOutOfChips => Chips < MinimumBet;
 
     public Wallet(int chips = StartingChips)
     {
