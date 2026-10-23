@@ -120,7 +120,7 @@ public partial class ConsoleUi
     }
     private static string GetHandType(Player player)
     {
-        if (player.Score != 21) return "";
+        if (player.Score != Hand.BlackjackValue) return "";
         if (player.HasBlackjack) return "NATURAL BLACKJACK";
         int total = 0, aces = 0;
         foreach (Card card in player.Hand.CardsOnHand)
@@ -128,7 +128,7 @@ public partial class ConsoleUi
             total += card.IndividualCardValue(card);
             if (card.Rank == Rank.Ace) aces++;
         }
-        while (total > 21 && aces > 0) { total -= 10; aces--; }
+        while (total > Hand.BlackjackValue && aces > 0) { total -= Hand.AceReduction; aces--; }
         return aces > 0 ? "MJUK BLACKJACK" : "HÅRD BLACKJACK";
     }
     // Fixed player seats: two 8-cell cards and a 2-cell gap fit in 19 cells.

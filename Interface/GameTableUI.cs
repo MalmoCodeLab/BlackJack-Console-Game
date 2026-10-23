@@ -143,7 +143,7 @@ internal sealed class GameTableUI
             // Cards already sit face-down during betting. Flip their faces
             // in place rather than erasing the board for the animation.
             // Order: each player, dealer, each player, dealer.
-            for (int card = 0; card < 2; card++)
+            for (int card = 0; card < Round.StartingHandSize; card++)
             {
                 for (int i = 0; i < players.Count; i++)
                 {
@@ -365,7 +365,10 @@ internal sealed class GameTableUI
                             key == ConsoleKey.Enter ||
                             key == ConsoleKey.Backspace)
                         {
+                            int betBefore = bettingPlayer.CurrentBet;
                             BettingUI.HandleKey(key, bettingPlayer);
+                            if (key == ConsoleKey.Enter && bettingPlayer.CurrentBet == betBefore)
+                                notice = "INTE TILLRÄCKLIGT MED MARKER. VÄLJ EN LÄGRE MARKER.";
                         }
                         else if (key == ConsoleKey.Spacebar)
                         {

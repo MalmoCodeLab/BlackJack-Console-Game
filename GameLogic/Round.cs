@@ -11,7 +11,9 @@ class Round
     public Deck Deck { get; }
     public RuleSet Rules { get; }
     public const int StartingHandSize = 2;
+    private const int MaxCardsPerHand = 11;
     private const int ThreeCardHandSize = 3;
+    
     public IReadOnlyDictionary<Player, Outcome> Outcomes => outcomes;
 
     public Round(
@@ -55,7 +57,7 @@ class Round
 
         int participantCount = Players.Count + 1;   // all players + the dealer
 
-        Deck.CheckIfNewShuffleIsNeeded(StartingHandSize * participantCount);
+        Deck.CheckIfNewShuffleIsNeeded(MaxCardsPerHand * participantCount);
 
         for (int cardNumber = 0; cardNumber < StartingHandSize; cardNumber++)
         {

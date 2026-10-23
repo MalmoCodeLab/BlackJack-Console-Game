@@ -9,6 +9,7 @@ public static class BettingUI
     public static int Balance { get; private set; } = Wallet.StartingChips;
     public static int CurrentBet { get; private set; }
     public static int SelectedChip { get; private set; }
+    private const int MaxNameLength = 12;
 
     public static void LoadBalance(int balance)
     {
@@ -43,7 +44,7 @@ public static class BettingUI
         string title = player is null
             ? "[bold gold1]♠ SPELMARKER ♠[/]"
             : $"[bold gold1]♠ SPELMARKER ♠[/] " +
-              $"[white]{Markup.Escape(player.Name.Length > 12 ? player.Name[..11] + "…" : player.Name)}[/] " +
+              $"[white]{Markup.Escape(player.Name.Length > MaxNameLength ? player.Name[..(MaxNameLength - 1)] + "…" : player.Name)}[/] " +
               $"[green1]Saldo: {player.Chips}[/]  [gold1]Insats: {player.CurrentBet}[/]";
 
         return new Rows(

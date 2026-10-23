@@ -2,6 +2,7 @@ class CardCounter
 {
     public int RunningCount { get; private set; }
     public double TrueCount { get; private set; }
+    private const  int TrueCountDecimals = 2;
 
     public void Count(Card card, int cardsRemaining)
     {
@@ -10,9 +11,9 @@ class CardCounter
         else if (card.Rank >= Rank.Ten)
             RunningCount--;
 
-        double decksRemaining = cardsRemaining / 52.0;
+        double decksRemaining = (double)cardsRemaining / Deck.CardsPerDeck;
         TrueCount = decksRemaining > 0
-            ? Math.Round(RunningCount / decksRemaining, 2, MidpointRounding.AwayFromZero)
+            ? Math.Round(RunningCount / decksRemaining, TrueCountDecimals, MidpointRounding.AwayFromZero)
             : 0;
     }
 

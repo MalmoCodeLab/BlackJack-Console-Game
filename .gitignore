@@ -1,4 +1,6 @@
 /bin
 /obj
+/Tests/bin
+/Tests/obj
 player-results.json
 player-results.txt

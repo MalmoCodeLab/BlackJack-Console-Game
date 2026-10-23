@@ -12,10 +12,11 @@ statistics between program runs.
 - Save cumulative player statistics as JSON for the game and as a readable `player-results.txt`
   report for players.
 
-See [HouseRules.md](HouseRules.md) for details about the rule settings, the `RuleSet` class,
-and the `blackjack-rules.json` configuration file.
+## Scrum board
 
-This is the basic game: it does not use insurance, doubling down, or splitting pairs.
+See Trello for our work process : https://trello.com/b/oAcGF39l/group1-blackjack
+
+This game uses chips and betting, with insurance. It does not support doubling down or splitting pairs.
 
 ## Project responsibilities
 
@@ -31,8 +32,36 @@ This is the basic game: it does not use insurance, doubling down, or splitting p
 application-data folder.
 On macOS, the save will typically be under ~/Library/Application Support/Mai26ma-Grupp1-BlackJack; on Windows, it’s under %LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack.
 
+### Class diagram
+
 See [Uml.md](Uml.md) for the class diagram and more detail about each class's responsibility.
 The project's detailed requirements and user stories are in [UserStories.md](UserStories.md).
+
+## Individual assignments
+
+Each group member describes their own part in a separate file and links to it here.
+
+### 1. Interface (Alice)
+
+See [Interface.md](Interface.md).
+
+### 2. Computer strategy
+
+Note! Not implemented.
+See [ComputerPlayerStrategy.md](ComputerPlayerStrategy.md).
+
+### 3. House rules and configuration (Sofia)
+
+See [HouseRules.md](HouseRules.md).
+
+### 4. Betting and chips (Christoffer)
+
+See [BettingAndMarkers.md](BettingAndMarkers.md).
+
+### 5. Shoe and card counting (Niclas)
+
+See [Wallet.md](Wallet.md).
+
 
 ## Run
 
@@ -49,7 +78,17 @@ results. If the game finds an older `player-results.json` in its current working
 app-data results exist yet, it imports those results into the new location without removing the
 older file. Results are local to one computer and are not automatically synchronized.
 
+## Tests
+
+The house rules are covered by xUnit tests in the `Tests` folder (missing or invalid rules
+file, dealer on soft 17, number of decks, reshuffle threshold, and natural 21 versus a
+three-card 21). Run them from the project directory with:
+
+```text
+dotnet test Tests
+```
+
 ## Language
 
-Class, method, and variable names are in English. Console prompts and messages are currently in
-English; Swedish terminology and user stories may also appear in the project documentation.
+Class, method, and variable names and the documentation are in English. Console prompts and
+messages shown to the player are in Swedish.
