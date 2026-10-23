@@ -30,7 +30,6 @@ This game uses chips and betting, with insurance. It does not support doubling d
 - `Deck`, `Hand`, and `Card` handle cards, dealing, and hand contents.
 - `GameStorage` loads, saves, and deletes player statistics in the user's local
 application-data folder.
-On macOS, the save will typically be under ~/Library/Application Support/Mai26ma-Grupp1-BlackJack; on Windows, it’s under %LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack.
 
 ### Class diagram
 
@@ -47,29 +46,23 @@ Each group member describes their own part in a separate file and links to it he
 
 See [Interface.md](Interface.md).
 
-### 2. Computer strategy
-
-Note! Not implemented.
-See [ComputerPlayerStrategy.md](ComputerPlayerStrategy.md).
-
-### 3. House rules and configuration – Sofia
+### 2. House rules and configuration – Sofia
 
 **GitHub:** [@sofiauhrbom73](https://github.com/sofiauhrbom73)
 
 See [HouseRules.md](HouseRules.md).
 
-### 4. Player, Dealer and Betting – Niclas
+### 3. Player, Dealer and Betting – Niclas
 
 **GitHub:** [@n1cl4s](https://github.com/n1cl4s)
 
 See [Participant.md](Participant.md).
 
-### 5. Shoe and card counting – Christoffer
+### 4. Shoe and card counting – Christoffer
 
 **GitHub:** [@Mr-Christoffer](https://github.com/Mr-Christoffer)
 
 See [Cardcounting.md](Cardcounting.md).
-
 
 ## Run
 
@@ -81,6 +74,7 @@ dotnet run
 
 Player statistics are saved as `player-results.json` and summarized in `player-results.txt` under
 the user's local application-data folder (`%LOCALAPPDATA%\Mai26ma-Grupp1-BlackJack` on Windows).
+On macOS, the save will typically be under (`~/Library/Application Support/Mai26ma-Grupp1-BlackJack`).
 The text report contains cumulative totals from previous sessions as well as the latest saved
 results. If the game finds an older `player-results.json` in its current working directory and no
 app-data results exist yet, it imports those results into the new location without removing the
