@@ -74,9 +74,7 @@ class Deck
             ShuffleDeck();
         }
     }
-    // Guarantees DealCard never fails: first reuse the discard pile, and if every
-    // remaining card is in play, add a fresh set of decks to the shoe.
-    // Never creates new cards: a real shoe is only refilled by reshuffling the discard pile.
+    // Reuses the discard pile when the shoe is empty; never creates new cards.
     private void EnsureCardAvailable()
     {
         if (DeckCards.Count > 0)
