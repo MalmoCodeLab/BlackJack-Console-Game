@@ -65,9 +65,9 @@ internal static class GameMessages
     internal const string WinOutcome = "Vinst";
     internal const string LossOutcome = "Förlust";
     internal const string PushOutcome = "Oavgjort";
-    internal const string PlayerOutOfChipsFormat = "{0} har slut på marker och lämnar bordet.";
+    internal const string PlayerOutOfChipsFormat = "{0} har inte tillräckligt med marker och får lämna bordet.";
     internal const string AllPlayersOutOfChips = "Alla spelare har slut på marker. Spelet är slut.";
-    internal const string SavedPlayerOutOfChipsFormat = "{0} har inga marker kvar och får inte spela.";
+    internal const string SavedPlayerOutOfChipsFormat = "{0} har inte tillräckligt med marker för att spela.";
 
     internal const string SoloPlayerWin = "DU VANN!";
     internal const string SoloPlayerLoss = "DU FÖRLORADE!";
