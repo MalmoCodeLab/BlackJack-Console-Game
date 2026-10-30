@@ -6,6 +6,11 @@ internal static class GameMessages
     internal const string PlayerCountTitleMarkup = "[gold1]♠ VÄLJ ANTAL SPELARE ♠[/]";
     internal const string MenuNavigationMarkup = "[grey]↑ ↓ Navigera  •  Enter Välj[/]";
     internal const string PlayerCountFormat = "{0} spelare";
+    internal const string ComputerCountTitleMarkup = "[gold1]♠ VÄLJ ANTAL DATORSPELARE ♠[/]";
+    internal const string ComputerCountFormat = "{0} datorspelare";
+    internal const string ComputerPlayerNameFormat = "Bot ({0})";
+    internal const string DuplicateComputerPlayerNameFormat = "Bot ({0}) {1}";
+    internal const string ComputerLevelTitleFormat = "[gold1]♠ DATORSPELARE {0}: VÄLJ NIVÅ ♠[/]";
 
     internal const string NewGame = "♠ Nytt spel";
     internal const string LoadGame = "♦ Ladda spel";
@@ -67,6 +72,7 @@ internal static class GameMessages
     internal const string PushOutcome = "Oavgjort";
     internal const string PlayerOutOfChipsFormat = "{0} har inte tillräckligt med marker och får lämna bordet.";
     internal const string AllPlayersOutOfChips = "Alla spelare har slut på marker. Spelet är slut.";
+    internal const string AllHumanPlayersOutOfChips = "Alla mänskliga spelare har slut på marker. Spelet är slut.";
     internal const string SavedPlayerOutOfChipsFormat = "{0} har inte tillräckligt med marker för att spela.";
 
     internal const string SoloPlayerWin = "DU VANN!";

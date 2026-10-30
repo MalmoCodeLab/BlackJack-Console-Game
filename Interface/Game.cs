@@ -58,15 +58,41 @@ public class Game
             return;
 
         List<Player>? players = playerSessions.CreateNewPlayers(playerCount);
-        if (players is not null)
+        if (players is not null && AddComputerPlayers(players))
             PlayGame(players);
     }
 
     private void LoadGame()
     {
         List<Player>? players = playerSessions.LoadPlayers();
-        if (players is not null)
+        if (players is not null && AddComputerPlayers(players))
             PlayGame(players);
+    }
+
+    // Fills the free seats with computer players if the user wants.
+    // Returns false if the user pressed Esc.
+    private bool AddComputerPlayers(List<Player> players)
+    {
+        int freeSeats = ConsoleUi.MaxPlayers - players.Count;
+        if (freeSeats <= 0)
+            return true;
+
+        int computerCount = ui.AskComputerPlayerCountCentered(freeSeats);
+        if (computerCount < 0)
+            return false;
+
+        // Choose a level for each computer player.
+        List<ComputerLevel> levels = new();
+        for (int i = 1; i <= computerCount; i++)
+        {
+            ComputerLevel? level = ui.AskComputerLevelCentered(i);
+            if (level is null)
+                return false;
+            levels.Add(level.Value);
+        }
+
+        players.AddRange(playerSessions.CreateComputerPlayers(levels, players));
+        return true;
     }
 
     private void PlayGame(List<Player> players)
@@ -101,7 +127,8 @@ public class Game
                 string summary = RoundResultFormatter.Format(round);
                 summary = playerSessions.SaveResults(players)
                     ? GameMessages.AppendSaveResultsSuccess(
-                        summary, players.Select(player => player.Name))
+                        summary, players.Where(player => !player.IsComputer)
+                            .Select(player => player.Name))
                     : GameMessages.AppendSaveResultsError(summary);
 
                 action = gameTable.ShowRoundEndMenu(
@@ -122,6 +149,12 @@ public class Game
             if (players.Count == 0)
             {
                 ui.ShowCenteredMessage(GameMessages.AllPlayersOutOfChips);
+                return;
+            }
+            // Do not let the computer players play on by themselves.
+            if (players.All(player => player.IsComputer))
+            {
+                ui.ShowCenteredMessage(GameMessages.AllHumanPlayersOutOfChips);
                 return;
             }
         }

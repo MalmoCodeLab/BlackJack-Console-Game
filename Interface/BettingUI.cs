@@ -4,7 +4,7 @@ using Spectre.Console.Rendering;
 
 public static class BettingUI
 {
-    private static readonly int[] chipValues = { 5, 25, 100, 500 };
+    private static readonly int[] chipValues = { Wallet.MinimumBet, 25, 100, 500 };
     private static readonly string[] chipColors = { "red", "green3", "deepskyblue1", "gold1" };
     public static int Balance { get; private set; } = Wallet.StartingChips;
     public static int CurrentBet { get; private set; }

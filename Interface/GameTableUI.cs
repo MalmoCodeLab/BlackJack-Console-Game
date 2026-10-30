@@ -17,6 +17,7 @@ internal sealed class GameTableUI
     private const int CelebrationBlinkMs = 220;
     private const int CelebrationBlinkCount = 3;
     private const int CardDealDelayMs = 180; // Shorter pause, while keeping the dealing animation.
+    private const int ComputerDelayMs = 900;  // Lets people see what a computer player does.
 
     private readonly ConsoleUi ui;
     private bool tableScreenActive;
@@ -61,12 +62,15 @@ internal sealed class GameTableUI
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
 
-        static string BetTurnNotice(Player player) =>
-            $"{player.Name.ToUpperInvariant()} – DIN TUR ATT SATSA: ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
-        static string PlayTurnNotice(Player player) =>
-            $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
-        static string InsuranceNotice(Player player) =>
-            $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING FÖR {player.InsuranceCost}? J = JA, N = NEJ";
+        static string BetTurnNotice(Player player) => player.IsComputer
+            ? $"{player.Name.ToUpperInvariant()} SATSAR..."
+            : $"{player.Name.ToUpperInvariant()} – DIN TUR ATT SATSA: ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
+        static string PlayTurnNotice(Player player) => player.IsComputer
+            ? $"{player.Name.ToUpperInvariant()} TÄNKER..."
+            : $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
+        static string InsuranceNotice(Player player) => player.IsComputer
+            ? $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING?"
+            : $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING FÖR {player.InsuranceCost}? J = JA, N = NEJ";
 
         string? notice = BetTurnNotice(players[0]);
         DateTime noticeUntil = DateTime.MinValue;
@@ -232,6 +236,102 @@ internal sealed class GameTableUI
             playing = false;
         }
 
+        // A computer player acts on its own, but only when nothing else is
+        // waiting (the in-game menu or a Blackjack announcement).
+        bool IsComputerTurn() =>
+            playing && !sideMenuActive && !pendingBlackjackAdvance &&
+            currentPlayerIndex < players.Count &&
+            players[currentPlayerIndex].IsComputer;
+
+        // Confirms the current player's bet and moves on to the next player.
+        void ConfirmBet()
+        {
+            statuses[currentPlayerIndex] = "SATSAT";
+            currentPlayerIndex++;
+
+            if (currentPlayerIndex == players.Count)
+            {
+                FinishBetting();
+            }
+            else
+            {
+                statuses[currentPlayerIndex] = "SATSAR";
+                notice = BetTurnNotice(players[currentPlayerIndex]);
+            }
+        }
+
+        // Answers the insurance question for the current player.
+        void AnswerInsurance(bool takeInsurance)
+        {
+            Player insuredPlayer = players[currentPlayerIndex];
+            statuses[currentPlayerIndex] = takeInsurance
+                ? insuredPlayer.TryTakeInsurance() ? "FÖRSÄKRAD" : "FÖR LITE MARKER"
+                : "EJ FÖRSÄKRAD";
+
+            currentPlayerIndex++;
+            if (currentPlayerIndex < players.Count)
+            {
+                statuses[currentPlayerIndex] = "FÖRSÄKRING?";
+                notice = InsuranceNotice(players[currentPlayerIndex]);
+            }
+            else
+            {
+                // All players have answered; return to the regular turns.
+                insuranceMode = false;
+                StartPlaying();
+            }
+        }
+
+        // Hit or stand for the current player. Used by humans and computers.
+        void PlayMove(Player player, Move move)
+        {
+            if (move == Move.Hit)
+                player.ReceiveCard(round.Deck);
+
+            if (move == Move.Stand || !player.CanHit)
+            {
+                statuses[currentPlayerIndex] = GetTurnStatus(player, move);
+                if (move == Move.Hit &&
+                    player.Score == Hand.BlackjackValue &&
+                    !player.HasBlackjack)
+                    FlashTwentyOne(player, naturalBlackjack: false);
+                AdvancePlayer();
+            }
+        }
+
+        // One step for a computer player: bet, answer insurance or play.
+        void PlayComputerStep()
+        {
+            Player computer = players[currentPlayerIndex];
+            IPlayerStrategy strategy = computer.Strategy!;
+            // Only the cards seen so far are counted, like a real card counter.
+            double trueCount = round.Deck.Counter.TrueCount;
+
+            if (insuranceMode)
+            {
+                AnswerInsurance(strategy.TakeInsurance(trueCount));
+            }
+            else if (!betsComplete)
+            {
+                // First place the bet so it shows on the table, then confirm it.
+                if (computer.CurrentBet == 0)
+                {
+                    int bet = Math.Clamp(strategy.ChooseBet(computer.Chips, trueCount),
+                        Wallet.MinimumBet, computer.Chips);
+                    computer.TryPlaceBet(bet);
+                }
+                else
+                {
+                    ConfirmBet();
+                }
+            }
+            else
+            {
+                Card dealerUpcard = round.Dealer.Hand.CardsOnHand[0];
+                PlayMove(computer, strategy.Decide(computer.Hand, dealerUpcard, trueCount));
+            }
+        }
+
         OpenTableScreen();
         try
         {
@@ -256,9 +356,10 @@ internal sealed class GameTableUI
                 while (playing && !saveRequested)
                 {
                     // The Blackjack notice may expire, but Esc still opens the menu.
+                    // A computer player waits a moment before each step.
                     int timeout = pendingBlackjackAdvance && !sideMenuActive
                         ? Math.Max(1, (int)(noticeUntil - DateTime.UtcNow).TotalMilliseconds)
-                        : -1;
+                        : IsComputerTurn() ? ComputerDelayMs : -1;
                     ConsoleKey key = ReadTableKey(timeout);
 
                     // Only Esc opens or closes the in-game menu.
@@ -324,34 +425,30 @@ internal sealed class GameTableUI
                         continue;
                     }
 
+                    // Computer players act when the wait is over; other keys
+                    // (except Esc, handled above) are ignored during their turn.
+                    if (IsComputerTurn())
+                    {
+                        if (key == ConsoleKey.NoName)
+                        {
+                            PlayComputerStep();
+                            RedrawCurrentRound();
+                        }
+                        continue;
+                    }
+
                     if (key == ConsoleKey.NoName)
                         continue;
 
                     // Offer insurance to every player before normal turns begin.
                     if (insuranceMode)
                     {
-                        Player insuredPlayer = players[currentPlayerIndex];
                         if (key == ConsoleKey.J)
-                            statuses[currentPlayerIndex] = insuredPlayer.TryTakeInsurance()
-                                ? "FÖRSÄKRAD"
-                                : "FÖR LITE MARKER";
+                            AnswerInsurance(takeInsurance: true);
                         else if (key == ConsoleKey.N)
-                            statuses[currentPlayerIndex] = "EJ FÖRSÄKRAD";
+                            AnswerInsurance(takeInsurance: false);
                         else
                             continue; // Ignore other keys while choosing insurance.
-
-                        currentPlayerIndex++;
-                        if (currentPlayerIndex < players.Count)
-                        {
-                            statuses[currentPlayerIndex] = "FÖRSÄKRING?";
-                            notice = InsuranceNotice(players[currentPlayerIndex]);
-                        }
-                        else
-                        {
-                            // All players have answered; return to the regular turns.
-                            insuranceMode = false;
-                            StartPlaying();
-                        }
 
                         RedrawCurrentRound();
                         continue;
@@ -378,18 +475,7 @@ internal sealed class GameTableUI
                             if (!isRepeat && bettingPlayer.CurrentBet > 0)
                             {
                                 lastBetConfirmation = DateTime.UtcNow;
-                                statuses[currentPlayerIndex] = "SATSAT";
-                                currentPlayerIndex++;
-
-                                if (currentPlayerIndex == players.Count)
-                                {
-                                    FinishBetting();
-                                }
-                                else
-                                {
-                                    statuses[currentPlayerIndex] = "SATSAR";
-                                    notice = BetTurnNotice(players[currentPlayerIndex]);
-                                }
+                                ConfirmBet();
                             }
                             else if (!isRepeat)
                             {
@@ -430,19 +516,7 @@ internal sealed class GameTableUI
                                 break;
                             }
 
-                            if (selectedGameOption == 0)
-                                player.ReceiveCard(round.Deck);
-                            
-                            if (selectedGameOption == 1 || !player.CanHit)
-                            {
-                                statuses[currentPlayerIndex] =
-                                    GetTurnStatus(player, selectedGameOption);
-                                if (selectedGameOption == 0 &&
-                                    player.Score == Hand.BlackjackValue &&
-                                    !player.HasBlackjack)
-                                    FlashTwentyOne(player, naturalBlackjack: false);
-                                AdvancePlayer();
-                            }
+                            PlayMove(player, selectedGameOption == 0 ? Move.Hit : Move.Stand);
                             break;
                     }
 
@@ -1048,7 +1122,7 @@ internal sealed class GameTableUI
         }
     }
 
-    private static string GetTurnStatus(Player player, int selectedGameOption)
+    private static string GetTurnStatus(Player player, Move move)
     {
         if (player.IsBust)
             return "TJOCK";
@@ -1056,7 +1130,7 @@ internal sealed class GameTableUI
             return "BLACKJACK";
         if (player.Score == Hand.BlackjackValue)
             return "21 POÄNG";
-        return selectedGameOption == 1 ? "STANNAT" : "KLAR";
+        return move == Move.Stand ? "STANNAT" : "KLAR";
     }
 
     private static string OutcomeStatus(Outcome outcome) => outcome switch

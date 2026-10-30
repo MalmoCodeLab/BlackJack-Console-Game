@@ -7,7 +7,7 @@ using Spectre.Console.Rendering;
 
 public partial class ConsoleUi
 {
-    private const int MaxPlayers = 5;
+    internal const int MaxPlayers = 5;
     private const int ChipsNameWidth = 12;
     private readonly string[] menuOptions = GameMessages.MainMenuOptions;
 
@@ -62,6 +62,94 @@ public partial class ConsoleUi
         if (playerCount > 0)
             Console.Write("\u001b[?25l");
         return playerCount;
+    }
+
+    // Choose 0 to maxComputers computer players. Esc returns -1.
+    public int AskComputerPlayerCountCentered(int maxComputers)
+    {
+        int optionCount = maxComputers + 1; // 0, 1, ..., maxComputers
+        int selectedOption = 0;
+        int computerCount = -1;
+        RunScreen(
+            () => CreateCountMenu(selectedOption, GameMessages.ComputerCountTitleMarkup,
+                GameMessages.ComputerCountFormat, firstValue: 0, optionCount),
+            key =>
+            {
+                if (key == ConsoleKey.UpArrow)
+                    selectedOption = (selectedOption - 1 + optionCount) % optionCount;
+                else if (key == ConsoleKey.DownArrow)
+                    selectedOption = (selectedOption + 1) % optionCount;
+                else if (key == ConsoleKey.Enter)
+                {
+                    computerCount = selectedOption;
+                    return true;
+                }
+                else if (key == ConsoleKey.Escape)
+                {
+                    return true;
+                }
+                return false;
+            });
+        if (computerCount >= 0)
+            Console.Write("\u001b[?25l");
+        return computerCount;
+    }
+
+    // Choose the level for computer player number n. Esc returns null.
+    public ComputerLevel? AskComputerLevelCentered(int computerNumber)
+    {
+        ComputerLevel[] levels = ComputerLevels.All;
+        int selectedOption = 1; // Medel
+        ComputerLevel? chosen = null;
+        RunScreen(
+            () => CreateComputerLevelMenu(selectedOption, computerNumber),
+            key =>
+            {
+                if (key == ConsoleKey.UpArrow)
+                    selectedOption = (selectedOption - 1 + levels.Length) % levels.Length;
+                else if (key == ConsoleKey.DownArrow)
+                    selectedOption = (selectedOption + 1) % levels.Length;
+                else if (key == ConsoleKey.Enter)
+                {
+                    chosen = levels[selectedOption];
+                    return true;
+                }
+                else if (key == ConsoleKey.Escape)
+                {
+                    return true;
+                }
+                return false;
+            });
+        if (chosen is not null)
+            Console.Write("\u001b[?25l");
+        return chosen;
+    }
+
+    private IRenderable CreateComputerLevelMenu(int selectedOption, int computerNumber)
+    {
+        List<IRenderable> rows = new()
+        {
+            new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
+            new Text(""),
+            new Text(""),
+            new Rule(string.Format(GameMessages.ComputerLevelTitleFormat, computerNumber))
+                .RuleStyle(Color.Gold1),
+            new Text("")
+        };
+        ComputerLevel[] levels = ComputerLevels.All;
+        for (int i = 0; i < levels.Length; i++)
+        {
+            string label = ComputerLevels.Label(levels[i]).PadRight(8);
+            string description = Markup.Escape(ComputerLevels.Description(levels[i])).PadRight(38);
+            string line = i == selectedOption
+                ? $"[bold white on #961923] ❯ {label}[/][white on #961923]{description} [/]"
+                : $"[white]   {label}[/][grey]{description} [/]";
+            rows.Add(new Align(new Markup(line), HorizontalAlignment.Center));
+            rows.Add(new Text(""));
+        }
+        rows.Add(new Rule().RuleStyle(Color.Gold1));
+        rows.Add(new Align(new Markup("[grey]↑ ↓ Navigera  •  Enter Välj  •  Esc Tillbaka[/]"), HorizontalAlignment.Center));
+        return CenterMenuPanel(rows);
     }
 
     // Keep the full-screen menus away from the shell's scrollback buffer.
@@ -164,19 +252,25 @@ public partial class ConsoleUi
         }
     }
 
-    private IRenderable CreatePlayerCountMenu(int selectedOption)
+    private IRenderable CreatePlayerCountMenu(int selectedOption) =>
+        CreateCountMenu(selectedOption, GameMessages.PlayerCountTitleMarkup,
+            GameMessages.PlayerCountFormat, firstValue: 1, optionCount: MaxPlayers);
+
+    // Shared layout for "how many players" screens. Option i shows firstValue + i.
+    private IRenderable CreateCountMenu(
+        int selectedOption, string titleMarkup, string format, int firstValue, int optionCount)
     {
         List<IRenderable> rows = new()
         {
             new Align(new Markup(GameMessages.GameTitleMarkup), HorizontalAlignment.Center),
             new Text(""),
             new Text(""),
-            new Rule(GameMessages.PlayerCountTitleMarkup).RuleStyle(Color.Gold1),
+            new Rule(titleMarkup).RuleStyle(Color.Gold1),
             new Text("")
         };
-        for (int i = 0; i < MaxPlayers; i++)
+        for (int i = 0; i < optionCount; i++)
         {
-            string text = string.Format(GameMessages.PlayerCountFormat, i + 1);
+            string text = string.Format(format, firstValue + i);
             string label = text.PadRight(17);
             string line = i == selectedOption
                 ? $"[bold white on #961923] ❯ {label} [/]"

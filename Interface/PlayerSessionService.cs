@@ -61,6 +61,27 @@ internal sealed class PlayerSessionService
         return players;
     }
 
+    // Creates one computer player per chosen level. Several levels (strategies)
+    // can sit at the table at the same time.
+    public List<Player> CreateComputerPlayers(
+        IEnumerable<ComputerLevel> levels, IEnumerable<Player> humanPlayers)
+    {
+        HashSet<string> usedNames = new(
+            humanPlayers.Select(player => player.Name), StringComparer.OrdinalIgnoreCase);
+        List<Player> computers = new();
+        foreach (ComputerLevel level in levels)
+        {
+            // "Bot (Medel)", and "Bot (Medel) 2" if there is already one.
+            string label = ComputerLevels.Label(level);
+            string name = string.Format(GameMessages.ComputerPlayerNameFormat, label);
+            for (int number = 2; !usedNames.Add(name); number++)
+                name = string.Format(GameMessages.DuplicateComputerPlayerNameFormat, label, number);
+
+            computers.Add(new Player(name, strategy: ComputerLevels.CreateStrategy(level)));
+        }
+        return computers;
+    }
+
     public List<Player>? LoadPlayers()
     {
         Dictionary<string, PlayerStatistics> results;
@@ -120,7 +141,8 @@ internal sealed class PlayerSessionService
         try
         {
             Dictionary<string, PlayerStatistics> results = gameStorage.LoadResults();
-            foreach (Player player in players)
+            // Computer players are not saved.
+            foreach (Player player in players.Where(player => !player.IsComputer))
             {
                 results[player.Name] = new PlayerStatistics
                 {

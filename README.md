@@ -11,6 +11,7 @@ statistics between program runs.
 - Configure the house rules from the settings menu or the JSON configuration file.
 - Save cumulative player statistics as JSON for the game and as a readable `player-results.txt`
   report for players.
+- Fill free seats with computer players at four levels, from beginner to a card-counting expert.
 
 ## Scrum board
 
@@ -49,8 +50,8 @@ See [Interface.md](Interface.md).
 
 ### 2. Computer strategy
 
-Note! Not implemented.
-See [ComputerPlayerStrategy.md](ComputerPlayerStrategy.md).
+Implemented after the school project.
+See [Extras.md](Extras.md).
 
 ### 3. House rules and configuration – Sofia
 

@@ -16,7 +16,12 @@ class Player : Participant
 
     public bool CanHit => !IsBust && Score < Hand.BlackjackValue;
 
-    public Player(string name, int wins = 0, int losses = 0, int pushes = 0, int chips = Wallet.StartingChips) : base(name)
+    // A computer player has a strategy; a human player does not.
+    public IPlayerStrategy? Strategy { get; }
+    public bool IsComputer => Strategy is not null;
+
+    public Player(string name, int wins = 0, int losses = 0, int pushes = 0, int chips = Wallet.StartingChips,
+        IPlayerStrategy? strategy = null) : base(name)
     {
         if (wins < 0 || losses < 0 || pushes < 0)
             throw new ArgumentException("Statistiken kan inte vara negativ.");
@@ -25,6 +30,7 @@ class Player : Participant
         Losses = losses;
         Pushes = pushes;
         Wallet = new Wallet(chips);
+        Strategy = strategy;
     }
 
     private void RecordResult(Outcome outcome)
