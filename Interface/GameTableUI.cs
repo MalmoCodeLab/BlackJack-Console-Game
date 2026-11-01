@@ -49,29 +49,16 @@ internal sealed class GameTableUI
         Func<List<Player>, bool> saveGame)
     {
         List<Player> players = round.Players;
-        string[] statuses = Enumerable.Repeat("VÄNTAR", players.Count).ToArray();
-        int currentPlayerIndex = 0;
+        RoundFlow flow = new(round);
+        string[] statuses = flow.Statuses;
         int selectedGameOption = 0;
         int selectedMenuOption = 0;
         bool sideMenuActive = false;
-        bool bettingMode = true;
-        bool betsComplete = false;
-        bool pendingBlackjackAdvance = false;
-        bool insuranceMode = false;
         bool playing = true;
         GameTableAction action = GameTableAction.ReturnToMainMenu;
 
-        static string BetTurnNotice(Player player) =>
-            $"{player.Name.ToUpperInvariant()} – DIN TUR ATT SATSA: ENTER LÄGGER MARKER, MELLANSLAG BEKRÄFTAR";
-        static string PlayTurnNotice(Player player) =>
-            $"{player.Name.ToUpperInvariant()} – DIN TUR: TA KORT ELLER STANNA";
-        static string InsuranceNotice(Player player) =>
-            $"{player.Name.ToUpperInvariant()} – GIVAREN VISAR ESS. FÖRSÄKRING FÖR {player.InsuranceCost}? J = JA, N = NEJ";
-
-        string? notice = BetTurnNotice(players[0]);
         DateTime noticeUntil = DateTime.MinValue;
         DateTime lastBetConfirmation = DateTime.MinValue;
-        statuses[0] = "SATSAR";
 
         // Always redraw with the current round, selection and terminal size.
         void RedrawCurrentRound()
@@ -80,41 +67,37 @@ internal sealed class GameTableUI
                 return;
 
             DrawTable(BuildTable(
-                round, statuses, notice, selectedGameOption,
+                round, statuses, flow.Notice, selectedGameOption,
                 selectedMenuOption, sideMenuActive,
-                roundFinished: false, bettingMode: bettingMode,
-                cardsFaceDown: !betsComplete,
-                activePlayerIndex: currentPlayerIndex));
+                roundFinished: false, bettingMode: flow.Phase == RoundPhase.Betting,
+                cardsFaceDown: flow.Phase <= RoundPhase.Dealing,
+                activePlayerIndex: flow.CurrentPlayerIndex));
         }
 
         // Celebrate a natural Blackjack or a hit that reaches exactly 21.
         // Flash the announcement only; never clear the table or modify the cards.
-        void FlashTwentyOne(Player player, bool naturalBlackjack)
+        void FlashTwentyOne(Celebration celebration)
         {
             if (TerminalTooSmall)
                 return;
 
-            string message = naturalBlackjack
-                ? NaturalBlackjackNotice(player)
-                : $"{player.Name.ToUpperInvariant()} – 21 POÄNG!";
-
             for (int blink = 0; blink < CelebrationBlinkCount; blink++)
             {
                 DrawTable(BuildTable(
-                    round, statuses, message, selectedGameOption,
+                    round, celebration.Statuses, celebration.Message, selectedGameOption,
                     selectedMenuOption, sideMenuActive: false,
                     roundFinished: false, bettingMode: false,
                     cardsFaceDown: false,
-                    activePlayerIndex: currentPlayerIndex,
+                    activePlayerIndex: celebration.PlayerIndex,
                     celebrationFlash: true));
                 Thread.Sleep(CelebrationBlinkMs);
 
                 DrawTable(BuildTable(
-                    round, statuses, message, selectedGameOption,
+                    round, celebration.Statuses, celebration.Message, selectedGameOption,
                     selectedMenuOption, sideMenuActive: false,
                     roundFinished: false, bettingMode: false,
                     cardsFaceDown: false,
-                    activePlayerIndex: currentPlayerIndex,
+                    activePlayerIndex: celebration.PlayerIndex,
                     celebrationFlash: false));
                 Thread.Sleep(CelebrationBlinkMs);
             }
@@ -122,6 +105,40 @@ internal sealed class GameTableUI
             // Keys pressed during the animation must not act for the next player.
             while (Console.KeyAvailable)
                 Console.ReadKey(true);
+        }
+
+        // Plays the animations the flow asked for after an action.
+        void PlayCelebrations()
+        {
+            foreach (Celebration celebration in flow.TakeCelebrations())
+                FlashTwentyOne(celebration);
+
+            if (flow.AwaitingNaturalPause)
+                noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
+        }
+
+        // Runs a flow action, then does what the UI owns: animations, a reset
+        // of the selected button on a new turn, and noticing the end of the round.
+        void AfterFlowAction(Action flowAction)
+        {
+            int indexBefore = flow.CurrentPlayerIndex;
+            RoundPhase phaseBefore = flow.Phase;
+            flowAction();
+
+            if (flow.Phase == RoundPhase.Dealing)
+            {
+                AnimateInitialDeal();
+                flow.BeginPlay();
+            }
+
+            PlayCelebrations();
+            if (flow.CurrentPlayerIndex != indexBefore || flow.Phase != phaseBefore)
+                selectedGameOption = 0;
+            if (flow.Phase == RoundPhase.Completed)
+            {
+                action = GameTableAction.RoundCompleted;
+                playing = false;
+            }
         }
 
         // Renders the already-dealt hands gradually. Round.StartRound has
@@ -169,83 +186,6 @@ internal sealed class GameTableUI
             }
         }
 
-        void FinishBetting()
-        {
-            bettingMode = false;
-            currentPlayerIndex = 0;
-
-            // No actual card-hand changes: reveal their existing hands in order.
-            for (int i = 0; i < players.Count; i++)
-                statuses[i] = "VÄNTAR";
-            AnimateInitialDeal();
-            round.RevealInitialCards();   // no-op if the animation already counted them
-            betsComplete = true;
-
-            // The dealer shows an ace: ask every player about insurance first.
-            if (round.Dealer.ShowsAce)
-            {
-                insuranceMode = true;
-                statuses[0] = "FÖRSÄKRING?";
-                notice = InsuranceNotice(players[0]);
-                return;
-            }
-
-            StartPlaying();
-        }
-
-        void StartPlaying()
-        {
-            if (round.Dealer.PeeksAndHasBlackjack)
-            {
-                // The dealer's natural ends the round; every player skips their turn.
-                for (int i = 0; i < players.Count; i++)
-                    statuses[i] = "KLAR";
-                action = GameTableAction.RoundCompleted;
-                playing = false;
-                return;
-            }
-
-            currentPlayerIndex = 0;
-            selectedGameOption = 0;
-            notice = PlayTurnNotice(players[0]);
-
-            pendingBlackjackAdvance = players[0].HasBlackjack;
-            statuses[0] = pendingBlackjackAdvance ? "BLACKJACK" : "DIN TUR";
-            if (pendingBlackjackAdvance)
-            {
-                notice = NaturalBlackjackNotice(players[0]);
-                FlashTwentyOne(players[0], naturalBlackjack: true);
-                noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
-            }
-        }
-
-        void AdvancePlayer()
-        {
-            currentPlayerIndex++;
-            selectedGameOption = 0;
-
-            while (currentPlayerIndex < players.Count)
-            {
-                Player nextPlayer = players[currentPlayerIndex];
-                if (nextPlayer.HasBlackjack)
-                {
-                    statuses[currentPlayerIndex] = "BLACKJACK";
-                    notice = NaturalBlackjackNotice(nextPlayer);
-                    pendingBlackjackAdvance = true;
-                    FlashTwentyOne(nextPlayer, naturalBlackjack: true);
-                    noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
-                    return;
-                }
-
-                statuses[currentPlayerIndex] = "DIN TUR";
-                notice = PlayTurnNotice(nextPlayer);
-                return;
-            }
-
-            action = GameTableAction.RoundCompleted;
-            playing = false;
-        }
-
         OpenTableScreen();
         try
         {
@@ -256,9 +196,9 @@ internal sealed class GameTableUI
                 DrawTable(BuildTable(
                     round, statuses, "KORTLEKEN HAR BLANDATS OM INFÖR DEN NYA RUNDAN!",
                     selectedGameOption, selectedMenuOption, sideMenuActive,
-                    roundFinished: false, bettingMode: bettingMode,
-                    cardsFaceDown: !betsComplete,
-                    activePlayerIndex: currentPlayerIndex));
+                    roundFinished: false, bettingMode: true,
+                    cardsFaceDown: true,
+                    activePlayerIndex: flow.CurrentPlayerIndex));
                 Thread.Sleep(1600);
             }
 
@@ -270,7 +210,7 @@ internal sealed class GameTableUI
                 while (playing && !saveRequested)
                 {
                     // The Blackjack notice may expire, but Esc still opens the menu.
-                    int timeout = pendingBlackjackAdvance && !sideMenuActive
+                    int timeout = flow.AwaitingNaturalPause && !sideMenuActive
                         ? Math.Max(1, (int)(noticeUntil - DateTime.UtcNow).TotalMilliseconds)
                         : -1;
                     ConsoleKey key = ReadTableKey(timeout);
@@ -326,14 +266,12 @@ internal sealed class GameTableUI
                     }
 
                     // Give the natural-Blackjack message time to be displayed.
-                    if (pendingBlackjackAdvance)
+                    if (flow.AwaitingNaturalPause)
                     {
                         if (DateTime.UtcNow < noticeUntil)
                             continue;
 
-                        notice = null;
-                        pendingBlackjackAdvance = false;
-                        AdvancePlayer();
+                        AfterFlowAction(flow.FinishNaturalPause);
                         RedrawCurrentRound();
                         continue;
                     }
@@ -342,38 +280,19 @@ internal sealed class GameTableUI
                         continue;
 
                     // Offer insurance to every player before normal turns begin.
-                    if (insuranceMode)
+                    if (flow.Phase == RoundPhase.Insurance)
                     {
-                        Player insuredPlayer = players[currentPlayerIndex];
-                        if (key == ConsoleKey.J)
-                            statuses[currentPlayerIndex] = insuredPlayer.TryTakeInsurance()
-                                ? "FÖRSÄKRAD"
-                                : "FÖR LITE MARKER";
-                        else if (key == ConsoleKey.N)
-                            statuses[currentPlayerIndex] = "EJ FÖRSÄKRAD";
-                        else
+                        if (key != ConsoleKey.J && key != ConsoleKey.N)
                             continue; // Ignore other keys while choosing insurance.
 
-                        currentPlayerIndex++;
-                        if (currentPlayerIndex < players.Count)
-                        {
-                            statuses[currentPlayerIndex] = "FÖRSÄKRING?";
-                            notice = InsuranceNotice(players[currentPlayerIndex]);
-                        }
-                        else
-                        {
-                            // All players have answered; return to the regular turns.
-                            insuranceMode = false;
-                            StartPlaying();
-                        }
-
+                        AfterFlowAction(() => flow.AnswerInsurance(key == ConsoleKey.J));
                         RedrawCurrentRound();
                         continue;
                     }
 
-                    if (!betsComplete)
+                    if (flow.Phase == RoundPhase.Betting)
                     {
-                        Player bettingPlayer = players[currentPlayerIndex];
+                        Player bettingPlayer = flow.CurrentPlayer;
                         if (key == ConsoleKey.LeftArrow ||
                             key == ConsoleKey.RightArrow ||
                             key == ConsoleKey.Enter ||
@@ -382,32 +301,19 @@ internal sealed class GameTableUI
                             int betBefore = bettingPlayer.CurrentBet;
                             BettingUI.HandleKey(key, bettingPlayer);
                             if (key == ConsoleKey.Enter && bettingPlayer.CurrentBet == betBefore)
-                                notice = "INTE TILLRÄCKLIGT MED MARKER. VÄLJ EN LÄGRE MARKER.";
+                                flow.Notice = "INTE TILLRÄCKLIGT MED MARKER. VÄLJ EN LÄGRE MARKER.";
                         }
                         else if (key == ConsoleKey.Spacebar)
                         {
                             // Prevent key-repeat from confirming the next player's bet.
                             bool isRepeat = (DateTime.UtcNow - lastBetConfirmation)
                                 .TotalMilliseconds < 400;
-                            if (!isRepeat && bettingPlayer.CurrentBet > 0)
+                            if (!isRepeat)
                             {
-                                lastBetConfirmation = DateTime.UtcNow;
-                                statuses[currentPlayerIndex] = "SATSAT";
-                                currentPlayerIndex++;
-
-                                if (currentPlayerIndex == players.Count)
-                                {
-                                    FinishBetting();
-                                }
-                                else
-                                {
-                                    statuses[currentPlayerIndex] = "SATSAR";
-                                    notice = BetTurnNotice(players[currentPlayerIndex]);
-                                }
-                            }
-                            else if (!isRepeat)
-                            {
-                                notice = "DU MÅSTE SATSA MINST EN MARKER FÖRST!";
+                                bool confirmed = false;
+                                AfterFlowAction(() => confirmed = flow.ConfirmBet());
+                                if (confirmed)
+                                    lastBetConfirmation = DateTime.UtcNow;
                             }
                         }
 
@@ -415,8 +321,8 @@ internal sealed class GameTableUI
                         continue;
                     }
 
-                    // Human player's turn. Card and betting logic stay in their
-                    // existing classes; the UI only routes the chosen action.
+                    // Human player's turn. Card and betting logic live in RoundFlow;
+                    // the UI only routes the chosen action.
                     switch (key)
                     {
                         case ConsoleKey.Spacebar:
@@ -433,30 +339,14 @@ internal sealed class GameTableUI
                         case ConsoleKey.Enter:
                             if (selectedGameOption == 2)
                             {
-                                notice = "INSATSEN ÄR REDAN BEKRÄFTAD FÖR DENNA RUNDA.";
-                                break;
-                            }
-
-                            Player player = players[currentPlayerIndex];
-                            if (player.CurrentBet <= 0)
-                            {
-                                notice = "DU MÅSTE SATSA INNAN DU KAN SPELA!";
+                                flow.Notice = "INSATSEN ÄR REDAN BEKRÄFTAD FÖR DENNA RUNDA.";
                                 break;
                             }
 
                             if (selectedGameOption == 0)
-                                player.ReceiveCard(round.Deck);
-                            
-                            if (selectedGameOption == 1 || !player.CanHit)
-                            {
-                                statuses[currentPlayerIndex] =
-                                    GetTurnStatus(player, selectedGameOption);
-                                if (selectedGameOption == 0 &&
-                                    player.Score == Hand.BlackjackValue &&
-                                    !player.HasBlackjack)
-                                    FlashTwentyOne(player, naturalBlackjack: false);
-                                AdvancePlayer();
-                            }
+                                AfterFlowAction(() => flow.Hit());
+                            else
+                                AfterFlowAction(() => flow.Stand());
                             break;
                     }
 
@@ -1086,17 +976,6 @@ internal sealed class GameTableUI
         }
     }
 
-    private static string GetTurnStatus(Player player, int selectedGameOption)
-    {
-        if (player.IsBust)
-            return "TJOCK";
-        if (player.HasBlackjack)
-            return "BLACKJACK";
-        if (player.Score == Hand.BlackjackValue)
-            return "21 POÄNG";
-        return selectedGameOption == 1 ? "STANNAT" : "KLAR";
-    }
-
     private static string OutcomeStatus(Outcome outcome) => outcome switch
     {
         Outcome.Blackjack or Outcome.Win => "VANN",
@@ -1104,7 +983,4 @@ internal sealed class GameTableUI
         Outcome.Push => "OAVGJORT",
         _ => "KLAR"
     };
-
-    private static string NaturalBlackjackNotice(Player player) =>
-        $"{player.Name.ToUpperInvariant()} – NATURAL BLACKJACK!";
 }
