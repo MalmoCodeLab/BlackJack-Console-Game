@@ -90,6 +90,9 @@ three-card 21). Run them from the project directory with:
 dotnet test Tests
 ```
 
+The same tests run automatically in GitHub Actions on every push to `main` and `dev` and on every
+pull request, on both Ubuntu and Windows (see `.github/workflows/ci.yml`).
+
 ## Language
 
 Class, method, and variable names and the documentation are in English. Console prompts and

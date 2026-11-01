@@ -86,6 +86,7 @@ classDiagram
         +int MinDeckCount$
         +int MaxDeckCount$
         +int DefaultReshuffleThreshold$
+        +int MinReshuffleThreshold$
         +bool DealerHitsSoft17
         +int DeckCount
         +int ReshuffleThreshold
@@ -95,6 +96,7 @@ classDiagram
         +LoadFromFile(filePath, notify)$
         +Load(filePath)$
         +Validate()
+        +MaxReshuffleThreshold(deckCount)$ int
     }
     class Round {
         +int RoundNumber
@@ -163,6 +165,7 @@ classDiagram
         +RuleSet Rules
         +bool HoleCardVisible
         +bool ShowsAce
+        +bool PeeksAndHasBlackjack
         +ShowHoleCard()
         +ShouldHit() bool
         +NewRound(deck)
@@ -321,13 +324,13 @@ classDiagram
 | `PlayerSessionService` | Creates and loads players, maps saved statistics, and coordinates save/delete operations and related messages. | JSON file details or rendering menus. |
 | `GameStorage` | Reads and writes player statistics in JSON, maintains the readable text report, and deletes saved players. | Player creation or game logic. |
 | `PlayerStatistics` | Represents persisted wins, losses, pushes, and chips. | Game behavior or file operations. |
-| `RuleSet` | Loads and validates house rules from `blackjack-rules.json` and provides defaults. | Running a game or displaying the settings menu. |
+| `RuleSet` | Loads and validates house rules from `blackjack-rules.json` (deck count, cut-card range, soft 17, natural vs. three-card 21) and provides defaults. | Running a game or displaying the settings menu. |
 | `Round` | Deals starting cards, reveals cards to the card counter, plays the dealer turn, determines outcomes, and settles bets and insurance. | Terminal interaction or persistence. |
 | `RoundResultFormatter` | Formats a completed round's outcomes for display. | Determining outcomes or saving them. |
 | `Participant` | Shares a name and hand, card receiving, scoring state, and round reset behavior. | Player statistics or dealer strategy. |
 | `Player` | Tracks a player's results and forwards chips, bets, and insurance to its private `Wallet`. | Console interaction or saved-file management. |
 | `Wallet` | Tracks chips, bets, and insurance and settles them based on an outcome. | Statistics, console interaction, or deciding the outcome. |
-| `Dealer` | Represents the dealer, reveals the hole card, and decides whether to hit based on the rules. | Choosing player actions or rendering cards. |
+| `Dealer` | Represents the dealer, reveals the hole card, detects an ace up card (insurance) and a peeked natural, and decides whether to hit based on the rules. | Choosing player actions or rendering cards. |
 | `Deck` | Creates, shuffles, and deals cards, manages discards and cut-card behavior, and owns the card counter. If the shoe runs empty, it reshuffles the discard pile; it never creates new cards mid-game. | Hand scoring or deciding winners. |
 | `CardCounter` | Tracks running and true counts of cards that have become visible. | Changing game outcomes or displaying the count. |
 | `Hand` | Holds cards, calculates hand score and softness, and owns `BlackjackValue` and `AceReduction`. | Deciding who wins. |
