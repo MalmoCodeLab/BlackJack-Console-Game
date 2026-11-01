@@ -793,7 +793,7 @@ internal sealed class GameTableUI
             layout.Update(ui.BuildGameMenu(
                 GameMessages.InGameMenuOptions, selectedMenuOption,
                 round.Players, sideMenuActive, roundFinished, statuses,
-                activePlayerIndex));
+                activePlayerIndex, roundSummary: roundFinished ? notice : null));
             return layout;
         }
 
