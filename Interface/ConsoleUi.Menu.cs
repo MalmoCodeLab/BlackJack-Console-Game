@@ -289,7 +289,8 @@ public partial class ConsoleUi
         bool roundFinished,
         string[] playerStatuses,
         int activePlayerIndex = 0,
-        bool forceSidebar = false)
+        bool forceSidebar = false,
+        string? roundSummary = null)
     {
         bool menuOpen = sideMenuActive || roundFinished;
         // At a normal terminal width the menu is always on the right. Esc
@@ -349,18 +350,33 @@ public partial class ConsoleUi
             columns.AddColumn(new GridColumn().NoWrap());
             columns.AddRow(actionPanel, new Text("   "), infoPanel);
 
-            var main = new Rows(
+            var main = new List<IRenderable>
+            {
                 new Align(new Markup("[bold gold1]♠ SPELMENY ♠[/]"),
                     HorizontalAlignment.Center),
                 new Align(new Markup("[grey]BLACKJACK 21[/]"),
                     HorizontalAlignment.Center),
-                new Text(""),
-                new Align(columns, HorizontalAlignment.Center));
+                new Text("")
+            };
+
+            // Narrow screens hide the table, so show the round result here.
+            if (roundFinished && !string.IsNullOrWhiteSpace(roundSummary))
+            {
+                foreach (string line in roundSummary.Split(
+                    "  •  ", StringSplitOptions.RemoveEmptyEntries))
+                {
+                    main.Add(new Align(
+                        new Markup($"[bold white on #961923]  ★ {Markup.Escape(line)} ★  [/]"),
+                        HorizontalAlignment.Center));
+                }
+                main.Add(new Text(""));
+            }
+            main.Add(new Align(columns, HorizontalAlignment.Center));
 
             // Center the menu vertically instead of leaving a large empty area
             // below the content. The outer gold border still fills the screen.
             int innerHeight = Math.Max(1, Console.WindowHeight - 2);
-            return new Panel(new Align(main,
+            return new Panel(new Align(new Rows(main),
                     HorizontalAlignment.Center, VerticalAlignment.Middle)
                     .Height(innerHeight))
                 .Border(BoxBorder.Rounded)

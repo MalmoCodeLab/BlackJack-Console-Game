@@ -7,6 +7,7 @@ public sealed record RuleSet
     public const int MaxDeckCount = 8;
     private const int DefaultDeckCount = 6;
     public const int DefaultReshuffleThreshold = 25;
+    public const int MinReshuffleThreshold = 25;
 
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -93,13 +94,18 @@ public sealed record RuleSet
 
     public void Validate()
     {
-        if (DeckCount is < MinDeckCount or > MaxDeckCount)
+        if (DeckCount < MinDeckCount || DeckCount > MaxDeckCount)
             throw new ArgumentOutOfRangeException(
                 nameof(DeckCount),
                 $"Antalet kortlekar måste vara mellan {MinDeckCount} och {MaxDeckCount}.");
-        if (ReshuffleThreshold < DefaultReshuffleThreshold || ReshuffleThreshold > DeckCount * Deck.CardsPerDeck)
+        int maxThreshold = MaxReshuffleThreshold(DeckCount);
+        if (ReshuffleThreshold < MinReshuffleThreshold || ReshuffleThreshold > maxThreshold)
             throw new ArgumentOutOfRangeException(
                 nameof(ReshuffleThreshold),
-                $"Blandningsgränsen måste vara minst {DefaultReshuffleThreshold} och får inte överstiga det totala antalet kort ({DeckCount * Deck.CardsPerDeck}).");
+                $"Blandningsgränsen måste vara mellan {MinReshuffleThreshold} och {maxThreshold} kort (högst hälften av {DeckCount * Deck.CardsPerDeck} kort).");
     }
+
+    // Casino-style: the cut card never sits deeper than half the shoe.
+    public static int MaxReshuffleThreshold(int deckCount) =>
+        deckCount * Deck.CardsPerDeck / 2;
 }

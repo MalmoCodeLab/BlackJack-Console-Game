@@ -118,6 +118,10 @@ internal sealed class GameTableUI
                     celebrationFlash: false));
                 Thread.Sleep(CelebrationBlinkMs);
             }
+
+            // Keys pressed during the animation must not act for the next player.
+            while (Console.KeyAvailable)
+                Console.ReadKey(true);
         }
 
         // Renders the already-dealt hands gradually. Round.StartRound has
@@ -191,6 +195,16 @@ internal sealed class GameTableUI
 
         void StartPlaying()
         {
+            if (round.Dealer.PeeksAndHasBlackjack)
+            {
+                // The dealer's natural ends the round; every player skips their turn.
+                for (int i = 0; i < players.Count; i++)
+                    statuses[i] = "KLAR";
+                action = GameTableAction.RoundCompleted;
+                playing = false;
+                return;
+            }
+
             currentPlayerIndex = 0;
             selectedGameOption = 0;
             notice = PlayTurnNotice(players[0]);
@@ -200,8 +214,8 @@ internal sealed class GameTableUI
             if (pendingBlackjackAdvance)
             {
                 notice = NaturalBlackjackNotice(players[0]);
-                noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                 FlashTwentyOne(players[0], naturalBlackjack: true);
+                noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
             }
         }
 
@@ -217,9 +231,9 @@ internal sealed class GameTableUI
                 {
                     statuses[currentPlayerIndex] = "BLACKJACK";
                     notice = NaturalBlackjackNotice(nextPlayer);
-                    noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                     pendingBlackjackAdvance = true;
                     FlashTwentyOne(nextPlayer, naturalBlackjack: true);
+                    noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                     return;
                 }
 
@@ -489,6 +503,24 @@ internal sealed class GameTableUI
         OpenTableScreen();
         try
         {
+            // Narrow terminals show only the menu, so show the finished board
+            // (dealer's cards and result banner) first.
+            bool narrow = Console.WindowWidth < MinimumTableWidth + SidebarMinimumWidth;
+            if (narrow && !TerminalTooSmall)
+            {
+                DrawTable(BuildTable(
+                    round, statuses, notice, selectedGameOption: 0,
+                    selectedMenuOption: 0, sideMenuActive: false,
+                    roundFinished: true, bettingMode: false,
+                    resultBoard: true));
+                ConsoleKey boardKey;
+                do
+                {
+                    boardKey = ReadTableKey();
+                } while (boardKey != ConsoleKey.Enter &&
+                         boardKey != ConsoleKey.Spacebar);
+            }
+
             bool finished = false;
             while (!finished)
             {
@@ -746,7 +778,8 @@ internal sealed class GameTableUI
         int activePlayerIndex = 0,
         int dealerCardsShown = -1,
         int[]? playerCardsShown = null,
-        bool celebrationFlash = false)
+        bool celebrationFlash = false,
+        bool resultBoard = false)
     {
         // The same game state is rendered again when the VS Code terminal
         // changes size. This does not reset bets, cards, or menu selection.
@@ -754,7 +787,7 @@ internal sealed class GameTableUI
             round, statuses, notice, selectedGameOption, selectedMenuOption,
             sideMenuActive, roundFinished, bettingMode, cardsFaceDown,
             activePlayerIndex, dealerCardsShown, playerCardsShown,
-            celebrationFlash);
+            celebrationFlash, resultBoard);
 
         int width = Math.Max(1, Console.WindowWidth);
         int height = Math.Max(1, Console.WindowHeight);
@@ -774,12 +807,12 @@ internal sealed class GameTableUI
         // With less space, let the table use the width it needs, and open a
         // centered menu using Esc. No hand/deck/bet state is changed.
         bool showSidebar = width >= MinimumTableWidth + SidebarMinimumWidth;
-        if (!showSidebar && (sideMenuActive || roundFinished))
+        if (!showSidebar && !resultBoard && (sideMenuActive || roundFinished))
         {
             layout.Update(ui.BuildGameMenu(
                 GameMessages.InGameMenuOptions, selectedMenuOption,
                 round.Players, sideMenuActive, roundFinished, statuses,
-                activePlayerIndex));
+                activePlayerIndex, roundSummary: roundFinished ? notice : null));
             return layout;
         }
 
@@ -829,9 +862,14 @@ internal sealed class GameTableUI
         // Row 1 holds the buttons immediately below the table frame;
         // row 2 is a gold bottom rule. No blank row separates them.
         tableArea["PlayerActions"].Update(
-            BuildInlinePlayerActions(
-                GameMessages.GameOptions, selectedGameOption,
-                sideMenuActive, roundFinished, bettingMode));
+            resultBoard
+                ? new CompactActionFooter(new IRenderable[]
+                {
+                    new Markup("[bold white on #961923] ❯ Tryck Enter för menyn [/]")
+                })
+                : BuildInlinePlayerActions(
+                    GameMessages.GameOptions, selectedGameOption,
+                    sideMenuActive, roundFinished, bettingMode));
 
         return layout;
     }

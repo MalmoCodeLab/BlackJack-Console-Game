@@ -131,8 +131,8 @@ public sealed class RuleSetConfigurationTests : IDisposable
     [InlineData("{ \"ReshuffleThreshold\": 0 }")]
     [InlineData("{ \"ReshuffleThreshold\": -5 }")]
     [InlineData("{ \"DeckCount\": 1 }")]
-    [InlineData("{ \"DeckCount\": 2, \"ReshuffleThreshold\": 105 }")]
-    [InlineData("{ \"ReshuffleThreshold\": 313 }")]
+    [InlineData("{ \"DeckCount\": 2, \"ReshuffleThreshold\": 53 }")]
+    [InlineData("{ \"ReshuffleThreshold\": 157 }")]
     public void InvalidFile_UsesDefaultsAndNotifiesWithoutThrowing(string content)
     {
         string path = WriteRulesFile(content);
@@ -161,8 +161,8 @@ public sealed class RuleSetConfigurationTests : IDisposable
 
     [Theory]
     [InlineData(2, 25)]
-    [InlineData(2, 104)]
-    [InlineData(8, 416)]
+    [InlineData(2, 52)]
+    [InlineData(8, 208)]
     [InlineData(6, 25)]
     public void Validate_AcceptsBoundaryValues(int deckCount, int threshold)
     {
@@ -176,7 +176,8 @@ public sealed class RuleSetConfigurationTests : IDisposable
     [InlineData(1, 25)]
     [InlineData(9, 25)]
     [InlineData(2, 24)]
-    [InlineData(2, 105)]
+    [InlineData(2, 53)]
+    [InlineData(8, 209)]
     public void Validate_RejectsOutOfRangeValues(int deckCount, int threshold)
     {
         RuleSet rules = new() { DeckCount = deckCount, ReshuffleThreshold = threshold };

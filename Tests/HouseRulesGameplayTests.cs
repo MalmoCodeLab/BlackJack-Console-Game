@@ -344,6 +344,25 @@ public class HouseRulesGameplayTests
         }
     }
 
+    // ---- Givarens kontroll av dolt kort ----
+
+    [Theory]
+    [InlineData(Rank.Ace, Rank.King, true)]
+    [InlineData(Rank.Queen, Rank.Ace, true)]
+    [InlineData(Rank.Ace, Rank.Five, false)]
+    [InlineData(Rank.Five, Rank.Six, false)]
+    public void Dealer_PeeksOnlyWithAceOrTenUpCard(Rank upCard, Rank holeCard, bool expected)
+    {
+        RuleSet rules = new();
+        Deck deck = StackedDeck(rules, Rank.Two, upCard, Rank.Three, holeCard);
+        Dealer dealer = new(rules);
+        Round round = new(1, [new Player("Test")], dealer, deck, rules);
+
+        round.StartRound();
+
+        Assert.Equal(expected, dealer.PeeksAndHasBlackjack);
+    }
+
     // ---- Naturlig tjugoett ----
 
     // Player natural (A + K) against a dealer 21 built from three cards (5 + 9 + 7).

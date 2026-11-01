@@ -24,11 +24,11 @@ public partial class ConsoleUi
                 {
 
                     case ConsoleKey.UpArrow:
-                    selected = (selected - 1 + 4) % 4;
-                    break;
+                        selected = (selected - 1 + 4) % 4;
+                        break;
                     case ConsoleKey.DownArrow:
-                    selected = (selected + 1) % 4;
-                    break;
+                        selected = (selected + 1) % 4;
+                        break;
                     case ConsoleKey.LeftArrow:
                         rules = ChangeRule(rules, selected, -1);
                         break;
@@ -56,15 +56,17 @@ public partial class ConsoleUi
                 return rules with
                 {
                     DeckCount = decks,
-                    ReshuffleThreshold = Math.Min(rules.ReshuffleThreshold, decks * Deck.CardsPerDeck)
-                    
+                    ReshuffleThreshold = Math.Clamp(
+                        rules.ReshuffleThreshold,
+                        RuleSet.MinReshuffleThreshold,
+                        RuleSet.MaxReshuffleThreshold(decks))
                 };
             case 2:
-                int maxThreshold = rules.DeckCount * Deck.CardsPerDeck / 4;
+                int maxThreshold = RuleSet.MaxReshuffleThreshold(rules.DeckCount);
                 int threshold = rules.ReshuffleThreshold + direction * ReshuffleStep;
                 return rules with
                 {
-                    ReshuffleThreshold = Math.Clamp(threshold, RuleSet.DefaultReshuffleThreshold, maxThreshold)
+                    ReshuffleThreshold = Math.Clamp(threshold, RuleSet.MinReshuffleThreshold, maxThreshold)
                 };
             default:
                 return rules with
