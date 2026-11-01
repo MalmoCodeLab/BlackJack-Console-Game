@@ -118,6 +118,10 @@ internal sealed class GameTableUI
                     celebrationFlash: false));
                 Thread.Sleep(CelebrationBlinkMs);
             }
+
+            // Keys pressed during the animation must not act for the next player.
+            while (Console.KeyAvailable)
+                Console.ReadKey(true);
         }
 
         // Renders the already-dealt hands gradually. Round.StartRound has
@@ -191,6 +195,16 @@ internal sealed class GameTableUI
 
         void StartPlaying()
         {
+            if (round.Dealer.PeeksAndHasBlackjack)
+            {
+                // The dealer's natural ends the round; every player skips their turn.
+                for (int i = 0; i < players.Count; i++)
+                    statuses[i] = "KLAR";
+                action = GameTableAction.RoundCompleted;
+                playing = false;
+                return;
+            }
+
             currentPlayerIndex = 0;
             selectedGameOption = 0;
             notice = PlayTurnNotice(players[0]);
@@ -200,8 +214,8 @@ internal sealed class GameTableUI
             if (pendingBlackjackAdvance)
             {
                 notice = NaturalBlackjackNotice(players[0]);
-                noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                 FlashTwentyOne(players[0], naturalBlackjack: true);
+                noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
             }
         }
 
@@ -217,9 +231,9 @@ internal sealed class GameTableUI
                 {
                     statuses[currentPlayerIndex] = "BLACKJACK";
                     notice = NaturalBlackjackNotice(nextPlayer);
-                    noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                     pendingBlackjackAdvance = true;
                     FlashTwentyOne(nextPlayer, naturalBlackjack: true);
+                    noticeUntil = DateTime.UtcNow.AddMilliseconds(BlackjackNoticeDurationMs);
                     return;
                 }
 
