@@ -6,6 +6,26 @@ The project implements the core mechanics of Blackjack, including card managemen
 
 Originally developed as a collaborative project, the application provides a foundation for continued development and technical improvements.
 
+## Screenshots
+### Place your bets!
+![Place your bets](Screenshots/Bets_Please.png)
+### Gameplay
+![Gameplay](Screenshots/Gameplay.png)
+### Post Roud
+![Post Round](Screenshots/After_Round.png)
+### Menu
+![Menu](Screenshots/Menu.png)
+### Load Game
+![Load_Game](Screenshots/Load_Game.png)
+### Settings
+![Settings](Screenshots/Settings.png)
+### Credits
+![Credits](Screenshots/Created_by.png)
+### Set number of players
+![Set number of players](Screenshots/Nr_Of_Players.png)
+### Set player name
+![Set player name](Screenshots/PlayerName.png)
+
 ## Features
 
 - **Blackjack gameplay** — Play against the dealer using the implemented game rules.
